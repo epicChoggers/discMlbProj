@@ -49,17 +49,30 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   const [success, setSuccess] = useState(false)
   const [hasAlreadyPredicted, setHasAlreadyPredicted] = useState(false)
   const [isCheckingPrediction, setIsCheckingPrediction] = useState(true)
+  const [isWaitingForResolution, setIsWaitingForResolution] = useState(false)
 
-  // Check if user has already made a prediction for this at-bat
+  // Check if user has already made a prediction for this at-bat and if it's resolved
   useEffect(() => {
     const checkExistingPrediction = async () => {
       try {
         setIsCheckingPrediction(true)
         const hasPredicted = await predictionService.hasUserPredictedForAtBat(gamePk, currentAtBat.about.atBatIndex)
         setHasAlreadyPredicted(hasPredicted)
+        
+        // If user has predicted, check if the at-bat is resolved
+        if (hasPredicted) {
+          const predictions = await predictionService.getAtBatPredictions(gamePk, currentAtBat.about.atBatIndex)
+          const userId = await predictionService.getCurrentUserId()
+          const userPrediction = predictions.find(p => p.userId === userId)
+          const isResolved = userPrediction?.actualOutcome !== undefined
+          setIsWaitingForResolution(!isResolved)
+        } else {
+          setIsWaitingForResolution(false)
+        }
       } catch (error) {
         console.error('Error checking existing prediction:', error)
         setHasAlreadyPredicted(false)
+        setIsWaitingForResolution(false)
       } finally {
         setIsCheckingPrediction(false)
       }
@@ -67,6 +80,32 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
 
     checkExistingPrediction()
   }, [gamePk, currentAtBat.about.atBatIndex])
+
+  // Subscribe to real-time updates for this at-bat to detect when it gets resolved
+  useEffect(() => {
+    if (!hasAlreadyPredicted || !isWaitingForResolution) {
+      return
+    }
+
+    const subscription = predictionService.subscribeToPredictions(
+      gamePk,
+      async (predictions) => {
+        // Check if our prediction has been resolved
+        const userId = await predictionService.getCurrentUserId()
+        const userPrediction = predictions.find(p => p.userId === userId)
+        if (userPrediction && userPrediction.actualOutcome !== undefined) {
+          setIsWaitingForResolution(false)
+        }
+      },
+      currentAtBat.about.atBatIndex
+    )
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
+  }, [gamePk, currentAtBat.about.atBatIndex, hasAlreadyPredicted, isWaitingForResolution])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,6 +144,8 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
       if (result) {
         console.log('Prediction submitted successfully:', result)
         setSuccess(true)
+        setHasAlreadyPredicted(true)
+        setIsWaitingForResolution(true)
         onPredictionSubmitted()
         
         // Reset form after a delay
@@ -169,15 +210,27 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   }
 
   if (hasAlreadyPredicted) {
-    return (
-      <div className="bg-yellow-900/50 border border-yellow-700 rounded-lg p-4 mb-4">
-        <div className="text-center">
-          <div className="text-yellow-300 text-lg mb-2">⏳</div>
-          <h3 className="text-yellow-300 font-semibold mb-1">Already Predicted!</h3>
-          <p className="text-yellow-400 text-sm">You've already made a prediction for this at-bat. Please wait for the next at-bat.</p>
+    if (isWaitingForResolution) {
+      return (
+        <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-4 mb-4">
+          <div className="text-center">
+            <div className="text-blue-300 text-lg mb-2">⏳</div>
+            <h3 className="text-blue-300 font-semibold mb-1">Waiting for Resolution</h3>
+            <p className="text-blue-400 text-sm">Your prediction has been submitted! Waiting for this at-bat to complete...</p>
+          </div>
         </div>
-      </div>
-    )
+      )
+    } else {
+      return (
+        <div className="bg-yellow-900/50 border border-yellow-700 rounded-lg p-4 mb-4">
+          <div className="text-center">
+            <div className="text-yellow-300 text-lg mb-2">✅</div>
+            <h3 className="text-yellow-300 font-semibold mb-1">At-Bat Resolved!</h3>
+            <p className="text-yellow-400 text-sm">This at-bat has been completed. Check the results below!</p>
+          </div>
+        </div>
+      )
+    }
   }
 
   return (
