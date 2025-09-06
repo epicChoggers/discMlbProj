@@ -40,16 +40,11 @@ class MLBService {
       const currentGames = await this.getCurrentGames()
       console.log('Total games found:', currentGames.length)
       
-      // For testing: get any live game instead of filtering by team
+      // Find Mariners games with proper null checks
       const marinersGames = currentGames.filter((game: any) => 
-        game.status?.abstractGameState === 'Live'
+        (game.teams?.away?.team?.id === MARINERS_TEAM_ID) || 
+        (game.teams?.home?.team?.id === MARINERS_TEAM_ID)
       )
-      
-      // Original filtering (commented out for testing):
-      // const marinersGames = currentGames.filter((game: any) => 
-      //   (game.teams?.away?.team?.id === MARINERS_TEAM_ID) || 
-      //   (game.teams?.home?.team?.id === MARINERS_TEAM_ID)
-      // )
 
       console.log('Mariners games found:', marinersGames.length)
       marinersGames.forEach((game: any, index: number) => {
@@ -58,20 +53,9 @@ class MLBService {
           date: game.gameDate,
           status: game.status?.abstractGameState,
           home: game.teams?.home?.team?.name || 'Unknown',
-          away: game.teams?.away?.team?.name || 'Unknown',
-          homeTeamId: game.teams?.home?.team?.id,
-          awayTeamId: game.teams?.away?.team?.id
+          away: game.teams?.away?.team?.name || 'Unknown'
         })
       })
-      
-      // Debug: Log all games to see what teams are available
-      console.log('All games for debugging:', currentGames.map((game: any) => ({
-        gamePk: game.gamePk,
-        home: game.teams?.home?.team?.name,
-        away: game.teams?.away?.team?.name,
-        homeId: game.teams?.home?.team?.id,
-        awayId: game.teams?.away?.team?.id
-      })))
 
       if (marinersGames.length === 0) {
         console.log('No Mariners games found')

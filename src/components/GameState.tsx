@@ -45,14 +45,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
   const homeTeam = game.teams?.home || game.gameData?.teams?.home
   const awayTeam = game.teams?.away || game.gameData?.teams?.away
   
-  // Debug logging to see the actual game data structure
-  console.log('GameState: Full game data:', game)
-  console.log('GameState: Teams structure:', { teams: game.teams, gameData: game.gameData })
-  console.log('GameState: Home team:', homeTeam)
-  console.log('GameState: Away team:', awayTeam)
-  
   if (!homeTeam?.team?.id || !awayTeam?.team?.id) {
-    console.error('GameState: Missing team data:', { homeTeam, awayTeam })
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="text-center">
@@ -61,17 +54,14 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
           <p className="text-gray-400 text-sm">
             Unable to load team information for this game.
           </p>
-          <p className="text-gray-500 text-xs mt-2">
-            Debug: Check console for game data structure
-          </p>
         </div>
       </div>
     )
   }
   
-  // For testing: treat any team as "our team" (originally Mariners)
-  const marinersTeam = homeTeam
-  const opponentTeam = awayTeam
+  const isMarinersHome = homeTeam.team.id === 147
+  const marinersTeam = isMarinersHome ? homeTeam : awayTeam
+  const opponentTeam = isMarinersHome ? awayTeam : homeTeam
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 mb-4">
