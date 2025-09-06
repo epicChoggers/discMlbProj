@@ -304,6 +304,8 @@ export class PredictionService {
         
         console.log(`Updating prediction ${prediction.id} with:`, updateData)
         
+        console.log(`Attempting to update prediction ${prediction.id} with data:`, updateData)
+        
         const { error, data } = await supabase
           .from('at_bat_predictions')
           .update(updateData)
@@ -311,11 +313,12 @@ export class PredictionService {
           .select()
         
         if (error) {
-          console.error('Error resolving prediction:', error)
+          console.error('❌ ERROR resolving prediction:', error)
           console.error('Update data:', updateData)
           console.error('Prediction ID:', prediction.id)
+          console.error('Full error details:', JSON.stringify(error, null, 2))
         } else {
-          console.log(`Successfully resolved prediction ${prediction.id}`)
+          console.log(`✅ Successfully resolved prediction ${prediction.id}`)
           console.log('Updated prediction data:', data)
         }
       }

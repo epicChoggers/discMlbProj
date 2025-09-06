@@ -202,6 +202,12 @@ interface PredictionCardProps {
 const PredictionCard = ({ prediction }: PredictionCardProps) => {
   const [isResolving, setIsResolving] = useState(false)
   const [hasShownResolving, setHasShownResolving] = useState(false)
+  
+  // Reset state when prediction changes
+  useEffect(() => {
+    setIsResolving(false)
+    setHasShownResolving(false)
+  }, [prediction.id])
 
   const getOutcomeEmoji = (outcome: string) => {
     const emojiMap: Record<string, string> = {
