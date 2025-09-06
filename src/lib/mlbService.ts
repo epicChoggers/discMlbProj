@@ -1,6 +1,6 @@
 import { MLBGame, MLBPlay, GameState } from './types'
 
-const MARINERS_TEAM_ID = 136 // Seattle Mariners team ID in MLB API
+const MARINERS_TEAM_ID = 147 // Seattle Mariners team ID in MLB API
 
 class MLBService {
   private baseUrl = 'https://statsapi.mlb.com/api/v1'
@@ -92,7 +92,7 @@ class MLBService {
         teams: {
           away: {
             team: {
-              id: 136,
+              id: 147,
               name: 'Seattle Mariners',
               abbreviation: 'SEA'
             },
@@ -243,7 +243,7 @@ class MLBService {
       teams: {
         away: {
           team: {
-            id: 136,
+            id: 147,
             name: 'Seattle Mariners',
             abbreviation: 'SEA'
           },
@@ -317,7 +317,7 @@ class MLBService {
                   lastName: 'Muñoz',
                   primaryNumber: '75',
                   currentTeam: {
-                    id: 136,
+                    id: 147,
                     name: 'Seattle Mariners'
                   },
                   primaryPosition: {
@@ -351,7 +351,7 @@ class MLBService {
           teams: {
             away: {
               team: {
-                id: 136,
+                id: 147,
                 name: 'Seattle Mariners'
               },
               teamStats: {
@@ -406,7 +406,7 @@ class MLBService {
       teams: {
         away: {
           team: {
-            id: 136,
+            id: 147,
             name: 'Seattle Mariners',
             abbreviation: 'SEA'
           },

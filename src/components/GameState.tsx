@@ -40,7 +40,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
   }
 
   const isLive = isLiveMode || game.status.abstractGameState === 'Live'
-  const isMarinersHome = game.teams.home.team.id === 136
+  const isMarinersHome = game.teams.home.team.id === 147
   const marinersTeam = isMarinersHome ? game.teams.home : game.teams.away
   const opponentTeam = isMarinersHome ? game.teams.away : game.teams.home
 
