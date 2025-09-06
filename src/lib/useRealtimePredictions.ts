@@ -53,6 +53,7 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredic
         // Set up real-time subscription
         const channelName = `predictions-${gamePk}-${atBatIndex !== undefined ? atBatIndex : 'all'}`
         console.log('Creating channel:', channelName)
+        console.log('Subscription filter:', `game_pk=eq.${gamePk}`)
         
         channel = supabase
           .channel(channelName)
@@ -66,12 +67,17 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredic
             },
             async (payload) => {
               console.log('Received prediction real-time update:', payload)
+              console.log('Event type:', payload.eventType)
+              console.log('New data:', payload.new)
+              console.log('Old data:', payload.old)
               
               // If we're filtering by atBatIndex, check if this event is relevant
               if (atBatIndex !== undefined && payload.new && (payload.new as any).at_bat_index !== atBatIndex) {
                 console.log('Event not relevant for current at-bat:', (payload.new as any).at_bat_index, 'vs', atBatIndex)
                 return
               }
+              
+              console.log('Processing real-time event for current at-bat')
               
               // Show updating indicator
               setIsUpdating(true)
