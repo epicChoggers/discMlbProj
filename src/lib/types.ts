@@ -209,6 +209,15 @@ export interface AtBatPrediction {
   actualCategory?: string // The category of the actual outcome
   isCorrect?: boolean
   pointsEarned?: number // Points earned for this prediction (1 or 3)
+  user?: {
+    id: string
+    email: string
+    raw_user_meta_data?: {
+      full_name?: string
+      preferred_username?: string
+      [key: string]: any
+    }
+  }
 }
 
 export type AtBatOutcome = 

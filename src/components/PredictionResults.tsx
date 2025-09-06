@@ -52,14 +52,7 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
       setIsUpdating(true)
       
       try {
-        let filteredPredictions = newPredictions
-        
-        // For real games, filter by currentAtBatIndex
-        if (currentAtBatIndex !== undefined) {
-          filteredPredictions = newPredictions.filter(p => p.atBatIndex === currentAtBatIndex)
-        }
-        
-        setPredictions(filteredPredictions)
+        setPredictions(newPredictions)
         
         // Update stats in real-time
         const updatedStats = await predictionService.getUserPredictionStats()
@@ -70,7 +63,7 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
         // Hide updating indicator after a brief delay
         setTimeout(() => setIsUpdating(false), 500)
       }
-    })
+    }, currentAtBatIndex)
 
     return () => {
       subscription.unsubscribe()
@@ -198,6 +191,19 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
     ).join(' ')
   }
 
+  const getUserDisplayName = (prediction: AtBatPrediction) => {
+    if (prediction.user?.raw_user_meta_data?.preferred_username) {
+      return prediction.user.raw_user_meta_data.preferred_username
+    }
+    if (prediction.user?.raw_user_meta_data?.full_name) {
+      return prediction.user.raw_user_meta_data.full_name
+    }
+    if (prediction.user?.email) {
+      return prediction.user.email.split('@')[0]
+    }
+    return 'Anonymous'
+  }
+
   const isResolved = prediction.actualOutcome !== undefined
   const isCorrect = prediction.isCorrect
 
@@ -226,6 +232,9 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
           <div>
             <div className="text-white font-medium">
               {getOutcomeLabel(prediction.prediction)}
+            </div>
+            <div className="text-gray-400 text-sm">
+              by {getUserDisplayName(prediction)}
             </div>
           </div>
         </div>

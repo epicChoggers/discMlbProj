@@ -195,7 +195,14 @@ export class PredictionService {
     try {
       const { data, error } = await supabase
         .from('at_bat_predictions')
-        .select('*')
+        .select(`
+          *,
+          user:user_id (
+            id,
+            email,
+            raw_user_meta_data
+          )
+        `)
         .eq('game_pk', gamePk)
         .eq('at_bat_index', atBatIndex)
         .order('created_at', { ascending: false })
@@ -204,7 +211,24 @@ export class PredictionService {
         throw error
       }
 
-      return data || []
+      // Transform the data to include user information
+      const transformedData = (data || []).map(prediction => ({
+        ...prediction,
+        userId: prediction.user_id,
+        user: prediction.user,
+        gamePk: prediction.game_pk,
+        atBatIndex: prediction.at_bat_index,
+        prediction: prediction.prediction as AtBatOutcome,
+        predictionCategory: prediction.prediction_category,
+        actualOutcome: prediction.actual_outcome as AtBatOutcome,
+        actualCategory: prediction.actual_category,
+        isCorrect: prediction.is_correct,
+        pointsEarned: prediction.points_earned,
+        createdAt: prediction.created_at,
+        resolvedAt: prediction.resolved_at
+      }))
+
+      return transformedData
     } catch (error) {
       console.error('Error fetching at-bat predictions:', error)
       return []
@@ -352,7 +376,8 @@ export class PredictionService {
   // Subscribe to prediction updates
   subscribeToPredictions(
     gamePk: number,
-    callback: (predictions: AtBatPrediction[]) => void
+    callback: (predictions: AtBatPrediction[]) => void,
+    atBatIndex?: number
   ) {
     const subscription = supabase
       .channel('at_bat_predictions')
@@ -365,8 +390,13 @@ export class PredictionService {
           filter: `game_pk=eq.${gamePk}`
         },
         async () => {
-          // Get all predictions for the game, not just a specific at-bat
-          const predictions = await this.getUserGamePredictions(gamePk)
+          // Get predictions based on whether we want specific at-bat or all predictions
+          let predictions: AtBatPrediction[]
+          if (atBatIndex !== undefined) {
+            predictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+          } else {
+            predictions = await this.getUserGamePredictions(gamePk)
+          }
           callback(predictions)
         }
       )
