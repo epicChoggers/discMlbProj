@@ -119,6 +119,25 @@ export const PredictionResults = ({ gamePk }: PredictionResultsProps) => {
             >
               Resolve All
             </button>
+            <button
+              onClick={() => {
+                console.log('Current predictions data:', predictions)
+                predictions.forEach((pred, index) => {
+                  console.log(`Prediction ${index}:`, {
+                    id: pred.id,
+                    atBatIndex: pred.atBatIndex,
+                    prediction: pred.prediction,
+                    actualOutcome: pred.actualOutcome,
+                    isCorrect: pred.isCorrect,
+                    pointsEarned: pred.pointsEarned,
+                    resolvedAt: pred.resolvedAt
+                  })
+                })
+              }}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+            >
+              Debug Data
+            </button>
           </div>
         </div>
         
@@ -182,6 +201,7 @@ interface PredictionCardProps {
 
 const PredictionCard = ({ prediction }: PredictionCardProps) => {
   const [isResolving, setIsResolving] = useState(false)
+  const [hasShownResolving, setHasShownResolving] = useState(false)
 
   const getOutcomeEmoji = (outcome: string) => {
     const emojiMap: Record<string, string> = {
@@ -226,17 +246,18 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
     return 'Anonymous'
   }
 
-  const isResolved = prediction.actualOutcome !== undefined
+  const isResolved = prediction.actualOutcome !== undefined && prediction.actualOutcome !== null
   const isCorrect = prediction.isCorrect
 
-  // Show resolving state briefly when prediction gets resolved
+  // Show resolving state briefly when prediction gets resolved for the first time
   useEffect(() => {
-    if (isResolved && !isResolving) {
+    if (isResolved && !hasShownResolving) {
       setIsResolving(true)
+      setHasShownResolving(true)
       const timer = setTimeout(() => setIsResolving(false), 2000)
       return () => clearTimeout(timer)
     }
-  }, [isResolved, isResolving])
+  }, [isResolved, hasShownResolving])
 
   // Reset resolving state when prediction becomes unresolved (shouldn't happen but safety check)
   useEffect(() => {

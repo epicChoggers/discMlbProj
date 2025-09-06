@@ -265,13 +265,20 @@ export class PredictionService {
     actualOutcome: AtBatOutcome
   ): Promise<void> {
     try {
+      console.log(`Starting resolution for at-bat ${atBatIndex} with outcome: ${actualOutcome}`)
+      
       // Get all predictions for this at-bat
       const predictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+      console.log(`Found ${predictions.length} predictions to resolve for at-bat ${atBatIndex}`)
       
       // Update each prediction with the actual outcome and points
       for (const prediction of predictions) {
+        console.log(`Resolving prediction ${prediction.id} for user ${prediction.userId}`)
+        console.log(`Prediction: ${prediction.prediction}, Category: ${prediction.predictionCategory}`)
+        
         // Get current streak before this prediction
         const currentStreak = await this.getUserCurrentStreak(prediction.userId)
+        console.log(`Current streak for user ${prediction.userId}: ${currentStreak}`)
         
         const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
           prediction.prediction,
@@ -280,26 +287,36 @@ export class PredictionService {
           currentStreak
         )
         
+        console.log(`Points calculation: ${points} base, ${streakBonus} streak bonus, exact: ${isExact}, category: ${isCategoryCorrect}`)
+        
         // Calculate new streak count
         const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
         
+        const updateData = {
+          actual_outcome: actualOutcome,
+          actual_category: getOutcomeCategory(actualOutcome),
+          is_correct: isExact || isCategoryCorrect,
+          points_earned: points + streakBonus,
+          streak_count: newStreakCount,
+          streak_bonus: streakBonus,
+          resolved_at: new Date().toISOString()
+        }
+        
+        console.log(`Updating prediction ${prediction.id} with:`, updateData)
+        
         const { error } = await supabase
           .from('at_bat_predictions')
-          .update({
-            actual_outcome: actualOutcome,
-            actual_category: getOutcomeCategory(actualOutcome),
-            is_correct: isExact || isCategoryCorrect,
-            points_earned: points + streakBonus,
-            streak_count: newStreakCount,
-            streak_bonus: streakBonus,
-            resolved_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', prediction.id)
         
         if (error) {
           console.error('Error resolving prediction:', error)
+        } else {
+          console.log(`Successfully resolved prediction ${prediction.id}`)
         }
       }
+      
+      console.log(`Completed resolution for at-bat ${atBatIndex}`)
     } catch (error) {
       console.error('Error resolving at-bat predictions:', error)
     }
