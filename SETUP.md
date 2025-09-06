@@ -143,7 +143,7 @@ npm run dev
 
 The app uses the MLB Stats API:
 - Base URL: `https://statsapi.mlb.com/api/v1`
-- Mariners Team ID: `147`
+- Mariners Team ID: `112`
 - Updates every 10 seconds during live games
 
 ## Real-time Features
