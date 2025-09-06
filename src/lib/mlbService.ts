@@ -147,16 +147,11 @@ class MLBService {
         throw new Error(data.error || 'Failed to fetch game details')
       }
 
-      // Combine game data and live data
-      // Ensure we have the proper structure by merging schedule data with detailed data
+      // The game details API returns gameData, so we need to structure it properly
+      // data.game is actually data.gameData from the MLB API
       const gameData = {
         ...data.game,
-        liveData: data.liveData,
-        // Ensure teams structure is available at the top level for compatibility
-        teams: data.game.teams || {
-          home: data.game.gameData?.teams?.home,
-          away: data.game.gameData?.teams?.away
-        }
+        liveData: data.liveData
       }
 
       console.log('Successfully fetched detailed game data')

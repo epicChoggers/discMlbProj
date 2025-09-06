@@ -45,6 +45,23 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
   const homeTeam = game.teams?.home || game.gameData?.teams?.home
   const awayTeam = game.teams?.away || game.gameData?.teams?.away
   
+  // Debug: Log team data structure
+  console.log('GameState team validation:', {
+    gameKeys: Object.keys(game),
+    hasTeams: !!game.teams,
+    hasGameData: !!game.gameData,
+    homeTeam: homeTeam ? {
+      hasTeam: !!homeTeam.team,
+      teamId: homeTeam.team?.id,
+      teamName: homeTeam.team?.name
+    } : null,
+    awayTeam: awayTeam ? {
+      hasTeam: !!awayTeam.team,
+      teamId: awayTeam.team?.id,
+      teamName: awayTeam.team?.name
+    } : null
+  })
+  
   if (!homeTeam?.team?.id || !awayTeam?.team?.id) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
@@ -53,6 +70,9 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
           <h3 className="text-white text-lg font-semibold mb-2">Game Data Error</h3>
           <p className="text-gray-400 text-sm">
             Unable to load team information for this game.
+          </p>
+          <p className="text-gray-500 text-xs mt-2">
+            Debug: homeTeam={homeTeam?.team?.id || 'null'}, awayTeam={awayTeam?.team?.id || 'null'}
           </p>
         </div>
       </div>
