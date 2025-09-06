@@ -39,10 +39,29 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
     )
   }
 
-  const isLive = isLiveMode || game.status.abstractGameState === 'Live'
-  const isMarinersHome = game.teams.home.team.id === 147
-  const marinersTeam = isMarinersHome ? game.teams.home : game.teams.away
-  const opponentTeam = isMarinersHome ? game.teams.away : game.teams.home
+  const isLive = isLiveMode || game.status?.abstractGameState === 'Live'
+  
+  // Handle different data structures from schedule vs detailed game API
+  const homeTeam = game.teams?.home || game.gameData?.teams?.home
+  const awayTeam = game.teams?.away || game.gameData?.teams?.away
+  
+  if (!homeTeam?.team?.id || !awayTeam?.team?.id) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 mb-4">
+        <div className="text-center">
+          <div className="text-gray-400 text-lg mb-2">⚾</div>
+          <h3 className="text-white text-lg font-semibold mb-2">Game Data Error</h3>
+          <p className="text-gray-400 text-sm">
+            Unable to load team information for this game.
+          </p>
+        </div>
+      </div>
+    )
+  }
+  
+  const isMarinersHome = homeTeam.team.id === 147
+  const marinersTeam = isMarinersHome ? homeTeam : awayTeam
+  const opponentTeam = isMarinersHome ? awayTeam : homeTeam
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 mb-4">
@@ -63,11 +82,11 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${
             isLive 
               ? 'bg-green-900 text-green-300' 
-              : game.status.abstractGameState === 'Final'
+              : game.status?.abstractGameState === 'Final'
               ? 'bg-gray-700 text-gray-300'
               : 'bg-yellow-900 text-yellow-300'
           }`}>
-            {game.status.detailedState}
+            {game.status?.detailedState || 'Unknown'}
           </div>
         </div>
       </div>
@@ -106,16 +125,16 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
       )}
 
       {/* Final Play for Completed Games */}
-      {!isLive && game.status.abstractGameState === 'Final' && game.liveData?.plays && (
+      {!isLive && game.status?.abstractGameState === 'Final' && game.liveData?.plays && (
         <FinalPlay game={game} />
       )}
 
       {/* Game Status Message */}
       {!isLive && (
         <div className="text-center text-gray-400">
-          {game.status.abstractGameState === 'Final' 
+          {game.status?.abstractGameState === 'Final' 
             ? 'Game has ended - View predictions from this game' 
-            : game.status.abstractGameState === 'Scheduled'
+            : game.status?.abstractGameState === 'Scheduled'
             ? 'Game has not started yet'
             : 'Most recent game'}
         </div>

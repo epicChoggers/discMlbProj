@@ -40,10 +40,10 @@ class MLBService {
       const currentGames = await this.getCurrentGames()
       console.log('Total games found:', currentGames.length)
       
-      // Find Mariners games
+      // Find Mariners games with proper null checks
       const marinersGames = currentGames.filter((game: any) => 
-        game.teams.away.team.id === MARINERS_TEAM_ID || 
-        game.teams.home.team.id === MARINERS_TEAM_ID
+        (game.teams?.away?.team?.id === MARINERS_TEAM_ID) || 
+        (game.teams?.home?.team?.id === MARINERS_TEAM_ID)
       )
 
       console.log('Mariners games found:', marinersGames.length)
@@ -51,9 +51,9 @@ class MLBService {
         console.log(`Game ${index + 1}:`, {
           gamePk: game.gamePk,
           date: game.gameDate,
-          status: game.status.abstractGameState,
-          home: game.teams.home.team.name,
-          away: game.teams.away.team.name
+          status: game.status?.abstractGameState,
+          home: game.teams?.home?.team?.name || 'Unknown',
+          away: game.teams?.away?.team?.name || 'Unknown'
         })
       })
 
@@ -118,8 +118,8 @@ class MLBService {
       // Find Mariners games and sort by date (most recent first)
       const marinersGames = allGames
         .filter((game: any) => 
-          game.teams.away.team.id === MARINERS_TEAM_ID || 
-          game.teams.home.team.id === MARINERS_TEAM_ID
+          (game.teams?.away?.team?.id === MARINERS_TEAM_ID) || 
+          (game.teams?.home?.team?.id === MARINERS_TEAM_ID)
         )
         .sort((a: any, b: any) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime())
 
@@ -148,9 +148,15 @@ class MLBService {
       }
 
       // Combine game data and live data
+      // Ensure we have the proper structure by merging schedule data with detailed data
       const gameData = {
         ...data.game,
-        liveData: data.liveData
+        liveData: data.liveData,
+        // Ensure teams structure is available at the top level for compatibility
+        teams: data.game.teams || {
+          home: data.game.gameData?.teams?.home,
+          away: data.game.gameData?.teams?.away
+        }
       }
 
       console.log('Successfully fetched detailed game data')
@@ -184,7 +190,7 @@ class MLBService {
 
   // Check if game is currently live
   isGameLive(game: MLBGame): boolean {
-    return game.status.abstractGameState === 'Live'
+    return game.status?.abstractGameState === 'Live'
   }
 
   // Get game state for the current Mariners game

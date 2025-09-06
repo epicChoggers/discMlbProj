@@ -190,19 +190,19 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                         <div className="space-y-4">
                           <div className="bg-gray-800 rounded-lg p-6">
                             <h3 className="text-white text-lg font-semibold mb-4">
-                              {gameState.game.status.abstractGameState === 'Final' 
+                              {gameState.game.status?.abstractGameState === 'Final' 
                                 ? 'Game Results' 
                                 : 'Game Information'}
                             </h3>
                             <div className="text-gray-400">
-                              {gameState.game.status.abstractGameState === 'Final' 
+                              {gameState.game.status?.abstractGameState === 'Final' 
                                 ? 'This game has ended. You can view predictions that were made during the game.'
                                 : 'This game has not started yet or is not currently live.'}
                             </div>
                           </div>
                           
                           {/* Show predictions from this game if it's completed */}
-                          {gameState.game.status.abstractGameState === 'Final' && (
+                          {gameState.game.status?.abstractGameState === 'Final' && (
                             <PredictionResults
                               gamePk={gameState.game.gamePk}
                               currentAtBatIndex={0} // Show all predictions for the game
