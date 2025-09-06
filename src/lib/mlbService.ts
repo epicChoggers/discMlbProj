@@ -4,54 +4,114 @@ const MARINERS_TEAM_ID = 136 // Seattle Mariners team ID in MLB API
 
 class MLBService {
   private baseUrl = 'https://statsapi.mlb.com/api/v1'
+  private apiBaseUrl = import.meta.env.VITE_MLB_API_BASE_URL || '/api/mlb'
+  private corsProxyUrl = import.meta.env.VITE_MLB_CORS_PROXY_URL || 'https://api.allorigins.win/raw?url='
   private updateInterval: NodeJS.Timeout | null = null
   private listeners: ((gameState: GameState) => void)[] = []
+  private useMockData = import.meta.env.VITE_MLB_USE_MOCK_DATA === 'true'
+  private debugMode = import.meta.env.VITE_DEBUG_MLB_SERVICE === 'true'
 
-  // Get current games (similar to your currentGames function)
+  // Helper method to make API requests with fallback
+  private async makeApiRequest(endpoint: string, params: Record<string, string> = {}): Promise<any> {
+    if (this.useMockData) {
+      if (this.debugMode) console.log('Using mock data mode')
+      return null
+    }
+
+    const queryString = new URLSearchParams(params).toString()
+    const url = `${this.apiBaseUrl}/${endpoint}${queryString ? `?${queryString}` : ''}`
+    
+    try {
+      if (this.debugMode) console.log('Making API request to:', url)
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      if (this.debugMode) console.log('API request successful:', data)
+      return data
+    } catch (error) {
+      if (this.debugMode) console.warn('Primary API failed, trying CORS proxy:', error)
+      
+      // Fallback to CORS proxy
+      const mlbUrl = `${this.baseUrl}/${endpoint}${queryString ? `?${queryString}` : ''}`
+      const proxyUrl = this.corsProxyUrl + encodeURIComponent(mlbUrl)
+      
+      try {
+        const proxyResponse = await fetch(proxyUrl)
+        if (!proxyResponse.ok) {
+          throw new Error(`CORS proxy also failed: ${proxyResponse.status}`)
+        }
+        
+        const data = await proxyResponse.json()
+        if (this.debugMode) console.log('CORS proxy request successful:', data)
+        return data
+      } catch (proxyError) {
+        if (this.debugMode) console.error('Both API and CORS proxy failed:', proxyError)
+        throw proxyError
+      }
+    }
+  }
+
+  // Get current games
   async getCurrentGames(): Promise<any[]> {
     try {
-      // For now, return mock data to demonstrate the app functionality
-      // In production, you'd want to implement a backend API to handle CORS
-      console.log('Using mock data for demonstration...')
+      const today = new Date().toISOString().split('T')[0]
+      const data = await this.makeApiRequest('schedule', {
+        startDate: today,
+        endDate: today,
+        hydrate: 'game(content(editorial(recap))),decisions,person,stats,team,linescore(matchup)'
+      })
       
-      const mockGames = [
-        {
-          gamePk: 776460,
-          gameDate: '2025-01-05T23:15:00Z',
-          status: {
-            abstractGameState: 'Final',
-            detailedState: 'Final',
-            codedGameState: 'F'
-          },
-          teams: {
-            away: {
-              team: {
-                id: 136,
-                name: 'Seattle Mariners',
-                abbreviation: 'SEA'
-              },
-              score: 4
-            },
-            home: {
-              team: {
-                id: 144,
-                name: 'Atlanta Braves',
-                abbreviation: 'ATL'
-              },
-              score: 6
-            }
-          },
-          venue: {
-            name: 'Truist Park'
-          }
-        }
-      ]
+      if (!data || !data.dates || data.dates.length === 0) {
+        console.log('No games found for today, returning mock data')
+        return this.getMockGames()
+      }
       
-      return mockGames
+      return data.dates.flatMap((date: any) => date.games || [])
     } catch (error) {
       console.error('Error fetching current games:', error)
-      return []
+      console.log('Falling back to mock data')
+      return this.getMockGames()
     }
+  }
+
+  // Mock data fallback
+  private getMockGames(): any[] {
+    return [
+      {
+        gamePk: 776460,
+        gameDate: '2025-01-05T23:15:00Z',
+        status: {
+          abstractGameState: 'Final',
+          detailedState: 'Final',
+          codedGameState: 'F'
+        },
+        teams: {
+          away: {
+            team: {
+              id: 136,
+              name: 'Seattle Mariners',
+              abbreviation: 'SEA'
+            },
+            score: 4
+          },
+          home: {
+            team: {
+              id: 144,
+              name: 'Atlanta Braves',
+              abbreviation: 'ATL'
+            },
+            score: 6
+          }
+        },
+        venue: {
+          name: 'Truist Park'
+        }
+      }
+    ]
   }
 
   // Get today's Mariners game or most recent game
@@ -119,18 +179,19 @@ class MLBService {
       const startDate = new Date()
       startDate.setDate(startDate.getDate() - 7)
 
-      // Use a CORS proxy to bypass CORS restrictions
-      const proxyUrl = 'https://api.allorigins.win/raw?url='
-      const targetUrl = `${this.baseUrl}/schedule?sportId=1&teamId=${MARINERS_TEAM_ID}&startDate=${startDate.toISOString().split('T')[0]}&endDate=${endDate.toISOString().split('T')[0]}&hydrate=game(content(editorial(recap))),decisions,person,stats,team,linescore(matchup)`
+      const data = await this.makeApiRequest('schedule', {
+        teamId: MARINERS_TEAM_ID.toString(),
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        hydrate: 'game(content(editorial(recap))),decisions,person,stats,team,linescore(matchup)'
+      })
       
-      const response = await fetch(proxyUrl + encodeURIComponent(targetUrl))
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      if (!data || !data.dates) {
+        console.log('No recent games found, returning mock data')
+        return this.getMockMarinersGame()
       }
 
-      const data = await response.json()
-      const allGames = data.dates?.flatMap((date: any) => date.games || []) || []
+      const allGames = data.dates.flatMap((date: any) => date.games || [])
       
       // Find Mariners games and sort by date (most recent first)
       const marinersGames = allGames
@@ -140,183 +201,229 @@ class MLBService {
         )
         .sort((a: any, b: any) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime())
 
-      return marinersGames.length > 0 ? marinersGames[0] : null
+      return marinersGames.length > 0 ? marinersGames[0] : this.getMockMarinersGame()
     } catch (error) {
       console.error('Error fetching most recent Mariners game:', error)
-      return null
+      console.log('Falling back to mock data')
+      return this.getMockMarinersGame()
     }
   }
 
   // Get detailed game data including live data
   async getGameDetails(gamePk: number): Promise<MLBGame | null> {
     try {
-      // For now, return mock data to demonstrate the app functionality
-      console.log('Using mock detailed game data for demonstration...')
+      const data = await this.makeApiRequest('game', {
+        gamePk: gamePk.toString(),
+        hydrate: 'live,decisions,person,stats,team,linescore(matchup),boxscore'
+      })
       
-      const mockGameData = {
-        gamePk: gamePk,
-        gameDate: '2025-01-05T23:15:00Z',
-        status: {
-          abstractGameState: 'Final',
-          detailedState: 'Final',
-          codedGameState: 'F'
-        },
-        teams: {
-          away: {
-            team: {
-              id: 136,
-              name: 'Seattle Mariners',
-              abbreviation: 'SEA'
-            },
-            score: 4
+      if (!data || !data.gameData) {
+        console.log('No detailed game data found, returning mock data')
+        return this.getMockDetailedGame(gamePk)
+      }
+      
+      return data
+    } catch (error) {
+      console.error('Error fetching game details:', error)
+      console.log('Falling back to mock data')
+      return this.getMockDetailedGame(gamePk)
+    }
+  }
+
+  // Mock detailed game data fallback
+  private getMockDetailedGame(gamePk: number): MLBGame {
+    return {
+      gamePk: gamePk,
+      gameDate: '2025-01-05T23:15:00Z',
+      status: {
+        abstractGameState: 'Final',
+        detailedState: 'Final',
+        codedGameState: 'F'
+      },
+      teams: {
+        away: {
+          team: {
+            id: 136,
+            name: 'Seattle Mariners',
+            abbreviation: 'SEA'
           },
-          home: {
-            team: {
-              id: 144,
-              name: 'Atlanta Braves',
-              abbreviation: 'ATL'
+          score: 4
+        },
+        home: {
+          team: {
+            id: 144,
+            name: 'Atlanta Braves',
+            abbreviation: 'ATL'
+          },
+          score: 6
+        }
+      },
+      venue: {
+        name: 'Truist Park'
+      },
+      liveData: {
+        linescore: {
+          currentInning: 9,
+          currentInningOrdinal: '9th',
+          inningState: 'Final',
+          teams: {
+            away: {
+              runs: 4,
+              hits: 8,
+              errors: 1
             },
-            score: 6
+            home: {
+              runs: 6,
+              hits: 10,
+              errors: 0
+            }
           }
         },
-        venue: {
-          name: 'Truist Park'
-        },
-        liveData: {
-          linescore: {
-            currentInning: 9,
-            currentInningOrdinal: '9th',
-            inningState: 'Final',
-            teams: {
-              away: {
-                runs: 4,
-                hits: 8,
-                errors: 1
+        plays: {
+          allPlays: [
+            {
+              about: {
+                atBatIndex: 45,
+                halfInning: 'bottom',
+                inning: 9,
+                isTopInning: false
               },
-              home: {
-                runs: 6,
-                hits: 10,
-                errors: 0
-              }
-            }
-          },
-          plays: {
-            allPlays: [
-              {
-                about: {
-                  atBatIndex: 45,
-                  halfInning: 'bottom',
-                  inning: 9,
-                  isTopInning: false
-                },
-                count: {
-                  balls: 2,
-                  strikes: 2,
-                  outs: 2
-                },
-                matchup: {
-                  batter: {
-                    id: 12345,
-                    fullName: 'Ronald Acuña Jr.',
-                    firstName: 'Ronald',
-                    lastName: 'Acuña Jr.',
-                    primaryNumber: '13',
-                    currentTeam: {
-                      id: 144,
-                      name: 'Atlanta Braves'
-                    },
-                    primaryPosition: {
-                      code: 'OF',
-                      name: 'Outfielder',
-                      type: 'Outfielder'
-                    }
+              count: {
+                balls: 2,
+                strikes: 2,
+                outs: 2
+              },
+              matchup: {
+                batter: {
+                  id: 12345,
+                  fullName: 'Ronald Acuña Jr.',
+                  firstName: 'Ronald',
+                  lastName: 'Acuña Jr.',
+                  primaryNumber: '13',
+                  currentTeam: {
+                    id: 144,
+                    name: 'Atlanta Braves'
                   },
-                  pitcher: {
-                    id: 67890,
-                    fullName: 'Andrés Muñoz',
-                    firstName: 'Andrés',
-                    lastName: 'Muñoz',
-                    primaryNumber: '75',
-                    currentTeam: {
-                      id: 136,
-                      name: 'Seattle Mariners'
-                    },
-                    primaryPosition: {
-                      code: 'P',
-                      name: 'Pitcher',
-                      type: 'Pitcher'
-                    }
-                  },
-                  batSide: {
-                    code: 'R',
-                    description: 'Right'
-                  },
-                  pitchHand: {
-                    code: 'R',
-                    description: 'Right'
+                  primaryPosition: {
+                    code: 'OF',
+                    name: 'Outfielder',
+                    type: 'Outfielder'
                   }
                 },
-                result: {
-                  type: 'at_bat',
-                  event: 'single',
-                  description: 'Ronald Acuña Jr. singles on a line drive to center field. Ozzie Albies scores.',
-                  rbi: 1,
-                  awayScore: 4,
-                  homeScore: 6
-                },
-                playEvents: []
-              }
-            ]
-          },
-          boxscore: {
-            teams: {
-              away: {
-                team: {
-                  id: 136,
-                  name: 'Seattle Mariners'
-                },
-                teamStats: {
-                  batting: {
-                    atBats: 35,
-                    runs: 4,
-                    hits: 8,
-                    doubles: 2,
-                    triples: 0,
-                    homeRuns: 1,
-                    rbi: 4,
-                    walks: 3,
-                    strikeOuts: 8
+                pitcher: {
+                  id: 67890,
+                  fullName: 'Andrés Muñoz',
+                  firstName: 'Andrés',
+                  lastName: 'Muñoz',
+                  primaryNumber: '75',
+                  currentTeam: {
+                    id: 136,
+                    name: 'Seattle Mariners'
+                  },
+                  primaryPosition: {
+                    code: 'P',
+                    name: 'Pitcher',
+                    type: 'Pitcher'
                   }
+                },
+                batSide: {
+                  code: 'R',
+                  description: 'Right'
+                },
+                pitchHand: {
+                  code: 'R',
+                  description: 'Right'
                 }
               },
-              home: {
-                team: {
-                  id: 144,
-                  name: 'Atlanta Braves'
-                },
-                teamStats: {
-                  batting: {
-                    atBats: 38,
-                    runs: 6,
-                    hits: 10,
-                    doubles: 3,
-                    triples: 1,
-                    homeRuns: 2,
-                    rbi: 6,
-                    walks: 4,
-                    strikeOuts: 6
-                  }
+              result: {
+                type: 'at_bat',
+                event: 'single',
+                description: 'Ronald Acuña Jr. singles on a line drive to center field. Ozzie Albies scores.',
+                rbi: 1,
+                awayScore: 4,
+                homeScore: 6
+              },
+              playEvents: []
+            }
+          ]
+        },
+        boxscore: {
+          teams: {
+            away: {
+              team: {
+                id: 136,
+                name: 'Seattle Mariners'
+              },
+              teamStats: {
+                batting: {
+                  atBats: 35,
+                  runs: 4,
+                  hits: 8,
+                  doubles: 2,
+                  triples: 0,
+                  homeRuns: 1,
+                  rbi: 4,
+                  walks: 3,
+                  strikeOuts: 8
+                }
+              }
+            },
+            home: {
+              team: {
+                id: 144,
+                name: 'Atlanta Braves'
+              },
+              teamStats: {
+                batting: {
+                  atBats: 38,
+                  runs: 6,
+                  hits: 10,
+                  doubles: 3,
+                  triples: 1,
+                  homeRuns: 2,
+                  rbi: 6,
+                  walks: 4,
+                  strikeOuts: 6
                 }
               }
             }
           }
         }
       }
-      
-      return mockGameData
-    } catch (error) {
-      console.error('Error fetching game details:', error)
-      return null
+    }
+  }
+
+  // Mock Mariners game fallback
+  private getMockMarinersGame(): MLBGame {
+    return {
+      gamePk: 776460,
+      gameDate: '2025-01-05T23:15:00Z',
+      status: {
+        abstractGameState: 'Final',
+        detailedState: 'Final',
+        codedGameState: 'F'
+      },
+      teams: {
+        away: {
+          team: {
+            id: 136,
+            name: 'Seattle Mariners',
+            abbreviation: 'SEA'
+          },
+          score: 4
+        },
+        home: {
+          team: {
+            id: 144,
+            name: 'Atlanta Braves',
+            abbreviation: 'ATL'
+          },
+          score: 6
+        }
+      },
+      venue: {
+        name: 'Truist Park'
+      }
     }
   }
 
@@ -420,6 +527,28 @@ class MLBService {
   // Remove a specific listener
   removeListener(callback: (gameState: GameState) => void) {
     this.listeners = this.listeners.filter(listener => listener !== callback)
+  }
+
+  // Enable/disable mock data mode (useful for development/testing)
+  setMockDataMode(enabled: boolean) {
+    this.useMockData = enabled
+    console.log(`Mock data mode ${enabled ? 'enabled' : 'disabled'}`)
+  }
+
+  // Check if currently using mock data
+  isUsingMockData(): boolean {
+    return this.useMockData
+  }
+
+  // Get service status for debugging
+  getServiceStatus() {
+    return {
+      useMockData: this.useMockData,
+      hasActiveListeners: this.listeners.length > 0,
+      isUpdating: this.updateInterval !== null,
+      apiBaseUrl: this.apiBaseUrl,
+      corsProxyUrl: this.corsProxyUrl
+    }
   }
 }
 
