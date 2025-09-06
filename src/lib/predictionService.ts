@@ -2,6 +2,17 @@ import { supabase } from '../supabaseClient'
 import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory } from './types'
 
 export class PredictionService {
+  // Get current user ID
+  async getCurrentUserId(): Promise<string | null> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      return user?.id || null
+    } catch (error) {
+      console.error('Error getting current user ID:', error)
+      return null
+    }
+  }
+
   // Check if user has already made a prediction for this at-bat
   async hasUserPredictedForAtBat(gamePk: number, atBatIndex: number): Promise<boolean> {
     try {
