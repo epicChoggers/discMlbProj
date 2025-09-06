@@ -618,62 +618,127 @@ export class PredictionService {
     }
   }
 
-  // Map MLB API result types to our AtBatOutcome types
-  private mapMLBOutcomeToAtBatOutcome(mlbType: string): AtBatOutcome {
-    console.log(`Mapping MLB outcome: "${mlbType}"`)
+  // Extract outcome from completed play data
+  private extractOutcomeFromPlay(play: any): AtBatOutcome | null {
+    try {
+      console.log('Extracting outcome from play:', {
+        result: play.result,
+        description: play.result?.description,
+        event: play.result?.event
+      })
+
+      if (!play.result) {
+        console.warn('No result data in play')
+        return null
+      }
+
+      const { type, event, description } = play.result
+      
+      // Use the event field first, as it's more reliable
+      if (event) {
+        console.log(`Using event field: "${event}"`)
+        return this.mapEventToOutcome(event)
+      }
+      
+      // Fall back to type field
+      if (type) {
+        console.log(`Using type field: "${type}"`)
+        return this.mapTypeToOutcome(type)
+      }
+      
+      // Try to parse from description
+      if (description) {
+        console.log(`Parsing from description: "${description}"`)
+        return this.parseDescriptionToOutcome(description)
+      }
+      
+      console.warn('Could not extract outcome from play data')
+      return null
+    } catch (error) {
+      console.error('Error extracting outcome from play:', error)
+      return null
+    }
+  }
+
+  // Map event field to our outcome types
+  private mapEventToOutcome(event: string): AtBatOutcome {
+    const eventMap: Record<string, AtBatOutcome> = {
+      'Single': 'single',
+      'Double': 'double',
+      'Triple': 'triple',
+      'Home Run': 'home_run',
+      'Walk': 'walk',
+      'Strikeout': 'strikeout',
+      'Groundout': 'groundout',
+      'Flyout': 'flyout',
+      'Pop Out': 'popout',
+      'Lineout': 'lineout',
+      "Fielder's Choice": 'fielders_choice',
+      'Hit By Pitch': 'hit_by_pitch',
+      'Error': 'error',
+      'Sacrifice': 'sacrifice',
+      'Sacrifice Fly': 'sacrifice',
+      'Sacrifice Bunt': 'sacrifice',
+      'Intentional Walk': 'walk',
+      'Catcher Interference': 'hit_by_pitch'
+    }
     
-    const outcomeMap: Record<string, AtBatOutcome> = {
-      // Hits
+    const outcome = eventMap[event] || 'other'
+    console.log(`Mapped event "${event}" to "${outcome}"`)
+    return outcome
+  }
+
+  // Map type field to our outcome types
+  private mapTypeToOutcome(type: string): AtBatOutcome {
+    const typeMap: Record<string, AtBatOutcome> = {
       'single': 'single',
-      'double': 'double', 
+      'double': 'double',
       'triple': 'triple',
       'home_run': 'home_run',
-      
-      // Walks and strikeouts
       'walk': 'walk',
       'strikeout': 'strikeout',
-      'strikeout_double_play': 'strikeout',
-      'strikeout_triple_play': 'strikeout',
-      
-      // Outs
       'groundout': 'groundout',
       'flyout': 'flyout',
       'popout': 'popout',
       'lineout': 'lineout',
       'fielders_choice': 'fielders_choice',
-      'fielders_choice_out': 'fielders_choice',
-      'groundout_double_play': 'groundout',
-      'flyout_double_play': 'flyout',
-      'popout_double_play': 'popout',
-      'lineout_double_play': 'lineout',
-      
-      // Other outcomes
       'hit_by_pitch': 'hit_by_pitch',
       'error': 'error',
-      'sacrifice': 'sacrifice',
-      'sacrifice_fly': 'sacrifice',
-      'sacrifice_bunt': 'sacrifice',
-      'catcher_interference': 'hit_by_pitch',
-      'intentional_walk': 'walk',
-      
-      // Default fallback - but log unknown types
-      'other': 'other'
+      'sacrifice': 'sacrifice'
     }
     
-    const mappedOutcome = outcomeMap[mlbType] || 'other'
+    const outcome = typeMap[type] || 'other'
+    console.log(`Mapped type "${type}" to "${outcome}"`)
+    return outcome
+  }
+
+  // Parse description to extract outcome
+  private parseDescriptionToOutcome(description: string): AtBatOutcome {
+    const desc = description.toLowerCase()
     
-    if (mappedOutcome === 'other' && mlbType !== 'other') {
-      console.warn(`Unknown MLB outcome type: "${mlbType}" - mapping to 'other'`)
-    }
+    if (desc.includes('home run') || desc.includes('homer')) return 'home_run'
+    if (desc.includes('triple')) return 'triple'
+    if (desc.includes('double')) return 'double'
+    if (desc.includes('single')) return 'single'
+    if (desc.includes('walk') || desc.includes('ball')) return 'walk'
+    if (desc.includes('strikeout') || desc.includes('strikes out')) return 'strikeout'
+    if (desc.includes('groundout') || desc.includes('ground out')) return 'groundout'
+    if (desc.includes('flyout') || desc.includes('fly out')) return 'flyout'
+    if (desc.includes('pop out') || desc.includes('popout')) return 'popout'
+    if (desc.includes('lineout') || desc.includes('line out')) return 'lineout'
+    if (desc.includes('fielder\'s choice')) return 'fielders_choice'
+    if (desc.includes('hit by pitch') || desc.includes('hbp')) return 'hit_by_pitch'
+    if (desc.includes('error')) return 'error'
+    if (desc.includes('sacrifice')) return 'sacrifice'
     
-    console.log(`Mapped "${mlbType}" to "${mappedOutcome}"`)
-    return mappedOutcome
+    console.log(`Could not parse description "${description}", defaulting to 'other'`)
+    return 'other'
   }
 
   // Auto-resolve predictions when an at-bat is completed
   async autoResolveCompletedAtBats(gamePk: number, completedAtBat: any): Promise<void> {
     try {
-      if (!completedAtBat || !completedAtBat.result || !completedAtBat.result.type) {
+      if (!completedAtBat || !completedAtBat.about) {
         console.log('No completed at-bat data to resolve:', completedAtBat)
         return
       }
@@ -690,10 +755,10 @@ export class PredictionService {
       }
 
       console.log(`Attempting to resolve predictions for at-bat ${atBatIndex}`)
-      console.log(`MLB API result:`, {
-        type: completedAtBat.result.type,
-        event: completedAtBat.result.event,
-        description: completedAtBat.result.description
+      console.log(`Completed at-bat data:`, {
+        atBatIndex: completedAtBat.about.atBatIndex,
+        result: completedAtBat.result,
+        description: completedAtBat.result?.description
       })
 
       // Check if this at-bat's predictions are already resolved
@@ -708,12 +773,17 @@ export class PredictionService {
 
       console.log(`Found ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
 
-      // Map MLB outcome to our AtBatOutcome type
-      const mappedOutcome = this.mapMLBOutcomeToAtBatOutcome(completedAtBat.result.type)
-      console.log(`Mapped MLB outcome "${completedAtBat.result.type}" to "${mappedOutcome}"`)
+      // Extract outcome from the completed play
+      const actualOutcome = this.extractOutcomeFromPlay(completedAtBat)
+      console.log(`Extracted outcome "${actualOutcome}" from at-bat ${atBatIndex}`)
+
+      if (!actualOutcome) {
+        console.warn(`Could not extract outcome from at-bat ${atBatIndex}, skipping resolution`)
+        return
+      }
 
       // Resolve the predictions
-      await this.resolveAtBatPredictions(gamePk, atBatIndex, mappedOutcome)
+      await this.resolveAtBatPredictions(gamePk, atBatIndex, actualOutcome)
       
       // Mark as resolved in cache
       this.markAtBatResolved(gamePk, atBatIndex)
@@ -770,12 +840,17 @@ export class PredictionService {
 
         console.log(`Resolving ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
 
-        // Map MLB outcome to our AtBatOutcome type
-        const mappedOutcome = this.mapMLBOutcomeToAtBatOutcome(play.result.type)
-        console.log(`Mapped MLB outcome "${play.result.type}" to "${mappedOutcome}" for at-bat ${atBatIndex}`)
+        // Extract outcome from the completed play
+        const actualOutcome = this.extractOutcomeFromPlay(play)
+        console.log(`Extracted outcome "${actualOutcome}" from at-bat ${atBatIndex}`)
+
+        if (!actualOutcome) {
+          console.warn(`Could not extract outcome from at-bat ${atBatIndex}, skipping`)
+          continue
+        }
 
         // Resolve the predictions
-        await this.resolveAtBatPredictions(gamePk, atBatIndex, mappedOutcome)
+        await this.resolveAtBatPredictions(gamePk, atBatIndex, actualOutcome)
         
         // Mark as resolved in cache
         this.markAtBatResolved(gamePk, atBatIndex)
