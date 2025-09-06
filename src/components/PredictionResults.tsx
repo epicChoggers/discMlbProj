@@ -168,7 +168,10 @@ export const PredictionResults = ({ gamePk }: PredictionResultsProps) => {
                       At-Bat #{atBatIndex} ({atBatPredictions.length} predictions)
                     </h4>
                     <div className="text-gray-500 text-xs">
-                      {atBatPredictions[0].actualOutcome ? 'Resolved' : 'Pending'}
+                      {atBatPredictions[0].actualOutcome ? 
+                        (atBatPredictions[0].isCorrect ? 'Correct' : 'Incorrect') : 
+                        'Pending'
+                      }
                     </div>
                   </div>
                   <div className="space-y-2">
