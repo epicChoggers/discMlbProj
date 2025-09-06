@@ -22,13 +22,12 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
       try {
         let predictionsData: AtBatPrediction[] = []
         
-        // For simulation mode (gamePk 999999), always get all predictions for the game
         // For real games, filter by currentAtBatIndex if specified
-        if (currentAtBatIndex !== undefined && gamePk !== 999999) {
+        if (currentAtBatIndex !== undefined) {
           // Get predictions for specific at-bat in real games
           predictionsData = await predictionService.getAtBatPredictions(gamePk, currentAtBatIndex)
         } else {
-          // Get all predictions for the game (for simulation mode or when no specific at-bat)
+          // Get all predictions for the game when no specific at-bat
           predictionsData = await predictionService.getUserGamePredictions(gamePk)
         }
         
@@ -55,9 +54,8 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
       try {
         let filteredPredictions = newPredictions
         
-        // For simulation mode (gamePk 999999), show all predictions for the game
         // For real games, filter by currentAtBatIndex
-        if (currentAtBatIndex !== undefined && gamePk !== 999999) {
+        if (currentAtBatIndex !== undefined) {
           filteredPredictions = newPredictions.filter(p => p.atBatIndex === currentAtBatIndex)
         }
         
@@ -125,11 +123,9 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-white text-lg font-semibold">
-            {gamePk === 999999 
-              ? `All Predictions for This Game (${predictions.length})`
-              : currentAtBatIndex !== undefined 
-                ? `Predictions for This At-Bat (${predictions.length})`
-                : `All Predictions for This Game (${predictions.length})`
+            {currentAtBatIndex !== undefined 
+              ? `Predictions for This At-Bat (${predictions.length})`
+              : `All Predictions for This Game (${predictions.length})`
             }
           </h3>
           {isUpdating && (
@@ -143,7 +139,7 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
         {predictions.length === 0 ? (
           <div className="text-center text-gray-400 py-8">
             <div className="text-4xl mb-2">🤔</div>
-            <p>No predictions yet {gamePk === 999999 ? 'for this game' : currentAtBatIndex !== undefined ? 'for this at-bat' : 'for this game'}</p>
+            <p>No predictions yet {currentAtBatIndex !== undefined ? 'for this at-bat' : 'for this game'}</p>
             <p className="text-sm">Be the first to make a prediction!</p>
           </div>
         ) : (

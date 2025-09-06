@@ -15,7 +15,7 @@ interface TextWallProps {
 }
 
 export const TextWall = ({ onSignOut }: TextWallProps) => {
-  const { gameState, isGameLive, isSimulationMode, startSimulation, stopSimulation } = useGameState()
+  const { gameState, isGameLive } = useGameState()
   const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard' | 'scoring'>('predictions')
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [toasts, setToasts] = useState<Array<{
@@ -50,11 +50,6 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
 
   const handleToggleLiveMode = (isLive: boolean) => {
     setIsLiveMode(isLive)
-    if (isLive) {
-      startSimulation()
-    } else {
-      stopSimulation()
-    }
   }
 
   // Create a simulated at-bat for test mode
@@ -92,7 +87,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
   }
 
   // Determine if we should show live features
-  const shouldShowLiveFeatures = isGameLive || isLiveMode || isSimulationMode
+  const shouldShowLiveFeatures = isGameLive || isLiveMode
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -104,7 +99,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           <div>
             <h1 className="text-2xl font-bold text-white">⚾ Mariners Predictions</h1>
             <p className="text-sm text-gray-400">
-              {shouldShowLiveFeatures ? (isSimulationMode ? 'Live Game (Simulation Mode)' : 'Live Game') : 'Most Recent Game'}
+              {shouldShowLiveFeatures ? 'Live Game' : 'Most Recent Game'}
             </p>
           </div>
           <UserProfile onSignOut={handleSignOut} />
@@ -120,7 +115,6 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
               gameState={gameState} 
               onToggleLiveMode={handleToggleLiveMode}
               isLiveMode={isLiveMode}
-              isSimulationMode={isSimulationMode}
             />
             <Leaderboard gamePk={gameState.game?.gamePk} />
           </div>

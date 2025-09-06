@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { GameState } from './types'
 import { mlbService } from './mlbService'
-import { simulationService } from './simulationService'
 
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -10,22 +9,11 @@ export const useGameState = () => {
     isLoading: true,
     lastUpdated: new Date().toISOString()
   })
-  const [isSimulationMode, setIsSimulationMode] = useState(false)
 
   const refreshGameState = useCallback(async () => {
     setGameState(prev => ({ ...prev, isLoading: true }))
     const newGameState = await mlbService.getGameState()
     setGameState(newGameState)
-  }, [])
-
-  const startSimulation = useCallback(() => {
-    setIsSimulationMode(true)
-    simulationService.startSimulation()
-  }, [])
-
-  const stopSimulation = useCallback(() => {
-    setIsSimulationMode(false)
-    simulationService.stopSimulation()
   }, [])
 
   useEffect(() => {
@@ -37,17 +25,11 @@ export const useGameState = () => {
       setGameState(newGameState)
     }
 
-    const handleSimulationUpdate = (simulationState: any) => {
-      setGameState(simulationState)
-    }
-
     mlbService.startLiveUpdates(handleGameUpdate)
-    simulationService.addListener(handleSimulationUpdate)
 
     // Cleanup
     return () => {
       mlbService.removeListener(handleGameUpdate)
-      simulationService.removeListener(handleSimulationUpdate)
     }
   }, [refreshGameState])
 
@@ -55,17 +37,13 @@ export const useGameState = () => {
   useEffect(() => {
     return () => {
       mlbService.stopLiveUpdates()
-      simulationService.cleanup()
     }
   }, [])
 
   return {
     gameState,
     refreshGameState,
-    isGameLive: gameState.game ? mlbService.isGameLive(gameState.game) : false,
-    isSimulationMode,
-    startSimulation,
-    stopSimulation
+    isGameLive: gameState.game ? mlbService.isGameLive(gameState.game) : false
   }
 }
 

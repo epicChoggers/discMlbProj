@@ -16,10 +16,7 @@ export class PredictionService {
         throw new Error('User not authenticated')
       }
 
-      // For simulation mode (gamePk 999999), use timestamp-based at-bat index to avoid conflicts
-      const finalAtBatIndex = gamePk === 999999 
-        ? Math.floor(Date.now() / 1000) // Use timestamp as unique at-bat index for simulation
-        : atBatIndex
+      const finalAtBatIndex = atBatIndex
 
       const predictionData = {
         user_id: user.id,
@@ -99,6 +96,7 @@ export class PredictionService {
       'fielders_choice': 1, // Most common
       'hit_by_pitch': 2,  // Uncommon
       'error': 1,         // Most common
+      'sacrifice': 1,     // Most common
       'other': 1          // Most common
     }
     
@@ -121,6 +119,7 @@ export class PredictionService {
       'fielders_choice': 1.0, // No bonus for common outcomes
       'hit_by_pitch': 1.0, // No bonus for common outcomes
       'error': 1.0,       // No bonus for common outcomes
+      'sacrifice': 1.0,   // No bonus for common outcomes
       'other': 1.0        // No bonus for common outcomes
     }
     
@@ -154,7 +153,7 @@ export class PredictionService {
       
       // Update each prediction with the actual outcome and points
       for (const prediction of predictions) {
-        const { points, isExact, isCategoryCorrect, bonusInfo } = this.calculatePoints(
+        const { points, isExact, isCategoryCorrect } = this.calculatePoints(
           prediction.prediction,
           prediction.predictionCategory,
           actualOutcome

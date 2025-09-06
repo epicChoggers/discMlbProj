@@ -1,9 +1,8 @@
-import React from 'react'
 import { AtBatOutcome, getOutcomePoints } from '../lib/types'
 
 export const ScoringSystem = () => {
   const outcomes: AtBatOutcome[] = [
-    'home_run', 'triple', 'double', 'single', 'walk', 'strikeout', 'groundout', 'flyout', 'popout', 'lineout', 'fielders_choice', 'hit_by_pitch', 'error', 'other'
+    'home_run', 'triple', 'double', 'single', 'walk', 'strikeout', 'groundout', 'flyout', 'popout', 'lineout', 'fielders_choice', 'hit_by_pitch', 'error', 'sacrifice', 'other'
   ]
 
   const getOutcomeLabel = (outcome: AtBatOutcome): string => {
@@ -21,6 +20,7 @@ export const ScoringSystem = () => {
       'fielders_choice': "Fielder's Choice",
       'hit_by_pitch': 'Hit by Pitch',
       'error': 'Error',
+      'sacrifice': 'Sacrifice',
       'other': 'Other'
     }
     return labels[outcome] || outcome
@@ -41,6 +41,7 @@ export const ScoringSystem = () => {
       'fielders_choice': '🤔',
       'hit_by_pitch': '💢',
       'error': '😅',
+      'sacrifice': '🙏',
       'other': '❓'
     }
     return emojis[outcome] || '❓'

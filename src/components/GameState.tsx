@@ -1,7 +1,4 @@
 import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
-import { simulationService } from '../lib/simulationService'
-import { supabase } from '../supabaseClient'
-import { useState, useEffect } from 'react'
 
 interface GameStateProps {
   gameState: GameStateType
@@ -10,41 +7,11 @@ interface GameStateProps {
 interface GameStateWithToggleProps extends GameStateProps {
   onToggleLiveMode?: (isLive: boolean) => void
   isLiveMode?: boolean
-  isSimulationMode?: boolean
 }
 
-export const GameState = ({ gameState, onToggleLiveMode, isLiveMode, isSimulationMode }: GameStateWithToggleProps) => {
+export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) => {
   const { game, currentAtBat, isLoading, error } = gameState
-  const [currentUsername, setCurrentUsername] = useState<string | null>(null)
 
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          // Get user profile from our custom table
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('username')
-            .eq('id', user.id)
-            .single()
-          
-          if (profile) {
-            setCurrentUsername(profile.username)
-          } else if (user.user_metadata?.provider === 'discord') {
-            // Fallback to Discord metadata if profile doesn't exist
-            const discordData = user.user_metadata
-            const username = discordData.full_name || discordData.preferred_username || discordData.name || 'Unknown User'
-            setCurrentUsername(username)
-          }
-        }
-      } catch (error) {
-        console.error('Error getting current user:', error)
-      }
-    }
-
-    getCurrentUser()
-  }, [])
 
   if (isLoading) {
     return (
@@ -72,7 +39,7 @@ export const GameState = ({ gameState, onToggleLiveMode, isLiveMode, isSimulatio
     )
   }
 
-  const isLive = isLiveMode || isSimulationMode || game.status.abstractGameState === 'Live'
+  const isLive = isLiveMode || game.status.abstractGameState === 'Live'
   const isMarinersHome = game.teams.home.team.id === 136
   const marinersTeam = isMarinersHome ? game.teams.home : game.teams.away
   const opponentTeam = isMarinersHome ? game.teams.away : game.teams.home
@@ -93,24 +60,6 @@ export const GameState = ({ gameState, onToggleLiveMode, isLiveMode, isSimulatio
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          {game.status.abstractGameState === 'Final' && onToggleLiveMode && currentUsername === 'barton_' && (
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-gray-400">Simulation Mode:</span>
-              <button
-                onClick={() => onToggleLiveMode(!isSimulationMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 ${
-                  isSimulationMode ? 'bg-blue-600' : 'bg-gray-600'
-                }`}
-                title={isSimulationMode ? 'Turn off simulation mode' : 'Turn on simulation mode to test predictions'}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isSimulationMode ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-          )}
           <div className={`px-3 py-1 rounded-full text-sm font-medium ${
             isLive 
               ? 'bg-green-900 text-green-300' 
@@ -118,7 +67,7 @@ export const GameState = ({ gameState, onToggleLiveMode, isLiveMode, isSimulatio
               ? 'bg-gray-700 text-gray-300'
               : 'bg-yellow-900 text-yellow-300'
           }`}>
-            {isSimulationMode ? 'Live (Simulation Mode)' : game.status.detailedState}
+            {game.status.detailedState}
           </div>
         </div>
       </div>
@@ -154,11 +103,6 @@ export const GameState = ({ gameState, onToggleLiveMode, isLiveMode, isSimulatio
       {/* Current At-Bat */}
       {currentAtBat && isLive && (
         <CurrentAtBat atBat={currentAtBat} />
-      )}
-
-      {/* Simulated Current At-Bat for Simulation Mode */}
-      {isSimulationMode && !currentAtBat && game.liveData?.plays && (
-        <SimulatedCurrentAtBat game={game} />
       )}
 
       {/* Final Play for Completed Games */}
@@ -232,118 +176,6 @@ const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
   )
 }
 
-interface SimulatedCurrentAtBatProps {
-  game: MLBGame
-}
-
-const SimulatedCurrentAtBat = ({ game }: SimulatedCurrentAtBatProps) => {
-  const { liveData } = game
-  
-  if (!liveData?.plays?.allPlays || liveData.plays.allPlays.length === 0) {
-    return null
-  }
-
-  // Get the last play and simulate it as current
-  const lastPlay = liveData.plays.allPlays[liveData.plays.allPlays.length - 1]
-  
-  if (!lastPlay) {
-    return null
-  }
-
-  // Create a simulated "current" at-bat by modifying the last play
-  const simulatedAtBat = {
-    ...lastPlay,
-    about: {
-      ...lastPlay.about,
-      atBatIndex: lastPlay.about.atBatIndex + 1 // Make it the "next" at-bat
-    },
-    count: {
-      balls: 0,
-      strikes: 0,
-      outs: lastPlay.count.outs
-    },
-    result: {
-      type: 'at_bat',
-      event: '',
-      description: '',
-      rbi: 0,
-      awayScore: lastPlay.result.awayScore,
-      homeScore: lastPlay.result.homeScore
-    }
-  }
-
-  return (
-    <div className="bg-gray-700 rounded-lg p-4">
-      <h4 className="text-white font-semibold mb-3">Current At-Bat (Simulated)</h4>
-      
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        {/* Batter */}
-        <div className="text-center">
-          <div className="text-gray-400 text-sm mb-1">Batter</div>
-          <div className="text-white font-medium">{simulatedAtBat.matchup.batter.fullName}</div>
-          <div className="text-gray-400 text-xs">#{simulatedAtBat.matchup.batter.primaryNumber}</div>
-          <div className="text-gray-500 text-xs">{simulatedAtBat.matchup.batter.primaryPosition?.name || 'Unknown'}</div>
-        </div>
-
-        {/* Pitcher */}
-        <div className="text-center">
-          <div className="text-gray-400 text-sm mb-1">Pitcher</div>
-          <div className="text-white font-medium">{simulatedAtBat.matchup.pitcher.fullName}</div>
-          <div className="text-gray-400 text-xs">#{simulatedAtBat.matchup.pitcher.primaryNumber}</div>
-          <div className="text-gray-500 text-xs">{simulatedAtBat.matchup.pitcher.primaryPosition?.name || 'Unknown'}</div>
-        </div>
-      </div>
-
-      {/* Count */}
-      <div className="flex justify-center items-center space-x-4 mb-3">
-        <div className="text-center">
-          <div className="text-gray-400 text-xs">Balls</div>
-          <div className="text-white text-lg font-bold">{simulatedAtBat.count.balls}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-gray-400 text-xs">Strikes</div>
-          <div className="text-white text-lg font-bold">{simulatedAtBat.count.strikes}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-gray-400 text-xs">Outs</div>
-          <div className="text-white text-lg font-bold">{simulatedAtBat.count.outs}</div>
-        </div>
-      </div>
-
-      {/* Situation */}
-      <div className="text-center text-gray-400 text-sm mb-3">
-        {simulatedAtBat.about.halfInning === 'top' ? 'Top' : 'Bottom'} of the {simulatedAtBat.about.inning}{getOrdinal(simulatedAtBat.about.inning)}
-      </div>
-
-      {/* Matchup Details */}
-      <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-        <div className="text-center">
-          <div className="text-gray-500">Batting</div>
-          <div className="text-white">{simulatedAtBat.matchup.batSide?.description || 'Unknown'}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-gray-500">Pitching</div>
-          <div className="text-white">{simulatedAtBat.matchup.pitchHand?.description || 'Unknown'}</div>
-        </div>
-      </div>
-      
-      <div className="mt-3 p-3 bg-blue-900/20 border border-blue-700 rounded text-center">
-        <div className="text-blue-300 text-xs mb-1">
-          🧪 <strong>Simulation Mode Active</strong>
-        </div>
-        <div className="text-blue-400 text-xs mb-2">
-          Simulating the next at-bat after: {lastPlay.matchup.batter.fullName} ({lastPlay.result.event})
-        </div>
-        <button
-          onClick={() => simulationService.triggerResolution()}
-          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
-        >
-          🧪 Test Resolution
-        </button>
-      </div>
-    </div>
-  )
-}
 
 interface FinalPlayProps {
   game: MLBGame

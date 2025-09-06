@@ -284,6 +284,7 @@ export const getOutcomePoints = (outcome: AtBatOutcome): { base: number; withBon
     'fielders_choice': 1,
     'hit_by_pitch': 2,
     'error': 1,
+    'sacrifice': 1,
     'other': 1
   }
 
@@ -301,6 +302,7 @@ export const getOutcomePoints = (outcome: AtBatOutcome): { base: number; withBon
     'fielders_choice': 1.0,
     'hit_by_pitch': 1.0,
     'error': 1.0,
+    'sacrifice': 1.0,
     'other': 1.0
   }
 
