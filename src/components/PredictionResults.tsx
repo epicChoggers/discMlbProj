@@ -200,15 +200,6 @@ interface PredictionCardProps {
 }
 
 const PredictionCard = ({ prediction }: PredictionCardProps) => {
-  const [isResolving, setIsResolving] = useState(false)
-  const [hasShownResolving, setHasShownResolving] = useState(false)
-  
-  // Reset state when prediction changes
-  useEffect(() => {
-    setIsResolving(false)
-    setHasShownResolving(false)
-  }, [prediction.id])
-
   const getOutcomeEmoji = (outcome: string) => {
     const emojiMap: Record<string, string> = {
       'single': '🏃',
@@ -255,32 +246,13 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
   const isResolved = prediction.actualOutcome !== undefined && prediction.actualOutcome !== null
   const isCorrect = prediction.isCorrect
 
-  // Show resolving state briefly when prediction gets resolved for the first time
-  useEffect(() => {
-    if (isResolved && !hasShownResolving) {
-      setIsResolving(true)
-      setHasShownResolving(true)
-      const timer = setTimeout(() => setIsResolving(false), 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [isResolved, hasShownResolving])
-
-  // Reset resolving state when prediction becomes unresolved (shouldn't happen but safety check)
-  useEffect(() => {
-    if (!isResolved && isResolving) {
-      setIsResolving(false)
-    }
-  }, [isResolved, isResolving])
-
   return (
     <div className={`p-4 rounded-lg border transition-all duration-500 ${
-      isResolving
-        ? 'bg-yellow-900/20 border-yellow-700 animate-pulse'
-        : isResolved 
-          ? isCorrect 
-            ? 'bg-green-900/20 border-green-700' 
-            : 'bg-red-900/20 border-red-700'
-          : 'bg-gray-700 border-gray-600'
+      isResolved 
+        ? isCorrect 
+          ? 'bg-green-900/20 border-green-700' 
+          : 'bg-red-900/20 border-red-700'
+        : 'bg-gray-700 border-gray-600'
     }`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -296,12 +268,7 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
         </div>
         
         <div className="text-right">
-          {isResolving ? (
-            <div className="flex items-center space-x-2">
-              <span className="text-yellow-400 text-lg animate-spin">⚡</span>
-              <span className="text-yellow-400 text-sm font-medium">Resolving...</span>
-            </div>
-          ) : isResolved ? (
+          {isResolved ? (
             <div className="flex items-center space-x-2">
               {isCorrect ? (
                 <>
