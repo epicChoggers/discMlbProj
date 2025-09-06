@@ -203,6 +203,19 @@ class MLBService {
         }
       }
 
+      // Debug: Log the game structure before returning
+      console.log('getGameState returning game:', {
+        gamePk: game.gamePk,
+        hasTeams: !!game.teams,
+        teamsStructure: game.teams ? {
+          hasHome: !!game.teams.home,
+          hasAway: !!game.teams.away,
+          homeTeamId: game.teams.home?.team?.id,
+          awayTeamId: game.teams.away?.team?.id
+        } : null,
+        gameKeys: Object.keys(game)
+      })
+
       const currentAtBat = this.getCurrentAtBat(game)
       const isLive = this.isGameLive(game)
 

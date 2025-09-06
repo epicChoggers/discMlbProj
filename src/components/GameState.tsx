@@ -12,6 +12,19 @@ interface GameStateWithToggleProps extends GameStateProps {
 export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) => {
   const { game, currentAtBat, isLoading, error } = gameState
 
+  // Debug: Log the game data structure
+  console.log('GameState component received:', {
+    hasGame: !!game,
+    gameKeys: game ? Object.keys(game) : [],
+    gamePk: game?.gamePk,
+    hasTeams: !!game?.teams,
+    teamsKeys: game?.teams ? Object.keys(game.teams) : [],
+    homeTeam: game?.teams?.home,
+    awayTeam: game?.teams?.away,
+    hasGameData: !!game?.gameData,
+    gameDataTeams: game?.gameData?.teams
+  })
+
 
   if (isLoading) {
     return (
