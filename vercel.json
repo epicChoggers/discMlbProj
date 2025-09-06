@@ -8,7 +8,10 @@
     "api/mlb/schedule.ts": {
       "runtime": "@vercel/node"
     },
-    "api/mlb/game.ts": {
+    "api/mlb/game/[gamePk].ts": {
+      "runtime": "@vercel/node"
+    },
+    "api/mlb/live/[gamePk].ts": {
       "runtime": "@vercel/node"
     }
   },
