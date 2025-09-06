@@ -24,7 +24,8 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredic
       if (atBatIndex !== undefined) {
         predictionsData = await predictionService.getAtBatPredictions(gamePk, atBatIndex)
       } else {
-        predictionsData = await predictionService.getUserGamePredictions(gamePk)
+        // Get all predictions for the game, not just user's predictions
+        predictionsData = await predictionService.getAllGamePredictions(gamePk)
       }
       
       console.log('Loaded predictions:', predictionsData.length)

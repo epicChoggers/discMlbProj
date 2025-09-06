@@ -380,6 +380,50 @@ export class PredictionService {
     }
   }
 
+  // Get all predictions for a game (all users)
+  async getAllGamePredictions(gamePk: number): Promise<AtBatPrediction[]> {
+    try {
+      const { data, error } = await supabase
+        .from('predictions_with_users')
+        .select('*')
+        .eq('game_pk', gamePk)
+        .order('at_bat_index', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        throw error
+      }
+
+      // Transform the data to include user information
+      const transformedData = (data || []).map(prediction => ({
+        id: prediction.id,
+        userId: prediction.user_id,
+        gamePk: prediction.game_pk,
+        atBatIndex: prediction.at_bat_index,
+        prediction: prediction.prediction as AtBatOutcome,
+        predictionCategory: prediction.prediction_category,
+        actualOutcome: prediction.actual_outcome as AtBatOutcome,
+        actualCategory: prediction.actual_category,
+        isCorrect: prediction.is_correct,
+        pointsEarned: prediction.points_earned,
+        streakCount: prediction.streak_count || 0,
+        streakBonus: prediction.streak_bonus || 0,
+        createdAt: prediction.created_at,
+        resolvedAt: prediction.resolved_at,
+        user: {
+          id: prediction.user_id,
+          email: prediction.email || '',
+          raw_user_meta_data: prediction.raw_user_meta_data || {}
+        }
+      }))
+
+      return transformedData
+    } catch (error) {
+      console.error('Error fetching all game predictions:', error)
+      return []
+    }
+  }
+
   // Get user's prediction stats
   async getUserPredictionStats(): Promise<PredictionStats> {
     try {
@@ -491,28 +535,72 @@ export class PredictionService {
     }
   }
 
+  // Map MLB API result types to our AtBatOutcome types
+  private mapMLBOutcomeToAtBatOutcome(mlbType: string): AtBatOutcome {
+    const outcomeMap: Record<string, AtBatOutcome> = {
+      // Hits
+      'single': 'single',
+      'double': 'double', 
+      'triple': 'triple',
+      'home_run': 'home_run',
+      
+      // Walks and strikeouts
+      'walk': 'walk',
+      'strikeout': 'strikeout',
+      
+      // Outs
+      'groundout': 'groundout',
+      'flyout': 'flyout',
+      'popout': 'popout',
+      'lineout': 'lineout',
+      'fielders_choice': 'fielders_choice',
+      
+      // Other outcomes
+      'hit_by_pitch': 'hit_by_pitch',
+      'error': 'error',
+      'sacrifice': 'sacrifice',
+      
+      // Default fallback
+      'other': 'other'
+    }
+    
+    return outcomeMap[mlbType] || 'other'
+  }
+
   // Auto-resolve predictions when an at-bat is completed
   async autoResolveCompletedAtBats(gamePk: number, completedAtBat: any): Promise<void> {
     try {
       if (!completedAtBat || !completedAtBat.result || !completedAtBat.result.type) {
+        console.log('No completed at-bat data to resolve:', completedAtBat)
         return
       }
 
       const atBatIndex = completedAtBat.about?.atBatIndex
       if (atBatIndex === undefined) {
+        console.log('No at-bat index found:', completedAtBat.about)
         return
       }
+
+      console.log(`Attempting to resolve predictions for at-bat ${atBatIndex} with outcome: ${completedAtBat.result.type}`)
 
       // Check if this at-bat's predictions are already resolved
       const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
       const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
       
       if (unresolvedPredictions.length === 0) {
+        console.log(`At-bat ${atBatIndex} predictions already resolved`)
         return // Already resolved
       }
 
+      console.log(`Found ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
+
+      // Map MLB outcome to our AtBatOutcome type
+      const mappedOutcome = this.mapMLBOutcomeToAtBatOutcome(completedAtBat.result.type)
+      console.log(`Mapped MLB outcome "${completedAtBat.result.type}" to "${mappedOutcome}"`)
+
       // Resolve the predictions
-      await this.resolveAtBatPredictions(gamePk, atBatIndex, completedAtBat.result.type)
+      await this.resolveAtBatPredictions(gamePk, atBatIndex, mappedOutcome)
+      console.log(`Successfully resolved predictions for at-bat ${atBatIndex}`)
     } catch (error) {
       console.error('Error auto-resolving at-bat predictions:', error)
     }

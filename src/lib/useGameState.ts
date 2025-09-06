@@ -31,7 +31,15 @@ export const useGameState = () => {
     refreshGameState()
 
     // Set up real-time updates
-    const handleGameUpdate = (newGameState: GameState) => {
+    const handleGameUpdate = async (newGameState: GameState) => {
+      // Auto-resolve any completed at-bats on real-time updates too
+      if (newGameState.game && newGameState.game.gamePk) {
+        const completedAtBat = mlbService.getMostRecentCompletedAtBat(newGameState.game)
+        if (completedAtBat) {
+          await predictionService.autoResolveCompletedAtBats(newGameState.game.gamePk, completedAtBat)
+        }
+      }
+      
       setGameState(newGameState)
     }
 

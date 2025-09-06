@@ -5,30 +5,21 @@ import { useRealtimePredictions } from '../lib/useRealtimePredictions'
 
 interface PredictionResultsProps {
   gamePk: number
-  currentAtBatIndex?: number // Make optional to show all predictions for a game
+  currentAtBatIndex?: number // Keep for backward compatibility but not used
 }
 
-export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResultsProps) => {
-  const [previousPredictions, setPreviousPredictions] = useState<AtBatPrediction[]>([])
+export const PredictionResults = ({ gamePk }: PredictionResultsProps) => {
   const [stats, setStats] = useState<PredictionStats | null>(null)
   
-  // Use the new real-time predictions hook
+  // Use the new real-time predictions hook to get ALL predictions for the game
   const { predictions, isLoading, isUpdating, error } = useRealtimePredictions({
     gamePk,
-    atBatIndex: currentAtBatIndex
+    atBatIndex: undefined // Get all predictions for the game
   })
 
   useEffect(() => {
     const loadAdditionalData = async () => {
       try {
-        // Load previous at-bat predictions if we have a current at-bat index
-        if (currentAtBatIndex !== undefined) {
-          const previousData = await predictionService.getPreviousAtBatPredictions(gamePk, currentAtBatIndex)
-          setPreviousPredictions(previousData)
-        } else {
-          setPreviousPredictions([])
-        }
-        
         // Load user stats
         const statsData = await predictionService.getUserPredictionStats()
         setStats(statsData)
@@ -38,7 +29,7 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
     }
 
     loadAdditionalData()
-  }, [gamePk, currentAtBatIndex])
+  }, [gamePk])
 
   if (isLoading) {
     return (
@@ -94,14 +85,11 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
         </div>
       )}
 
-      {/* Current At-Bat Predictions */}
+      {/* All Game Predictions */}
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-white text-lg font-semibold">
-            {currentAtBatIndex !== undefined 
-              ? `Predictions for This At-Bat (${predictions.length})`
-              : `All Predictions for This Game (${predictions.length})`
-            }
+            All Predictions for This Game ({predictions.length})
           </h3>
           {isUpdating && (
             <div className="flex items-center space-x-2 text-blue-400 text-sm">
@@ -114,60 +102,53 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
         {predictions.length === 0 ? (
           <div className="text-center text-gray-400 py-8">
             <div className="text-4xl mb-2">🤔</div>
-            <p>No predictions yet {currentAtBatIndex !== undefined ? 'for this at-bat' : 'for this game'}</p>
+            <p>No predictions yet for this game</p>
             <p className="text-sm">Be the first to make a prediction!</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {predictions.map((prediction, index) => (
-              <div 
-                key={prediction.id} 
-                className={`transition-all duration-300 ${
-                  isUpdating ? 'opacity-90' : 'opacity-100'
-                }`}
-                style={{
-                  animationDelay: `${index * 50}ms`
-                }}
-              >
-                <PredictionCard prediction={prediction} />
-              </div>
-            ))}
+          <div className="space-y-4">
+            {/* Group predictions by at-bat index */}
+            {Object.entries(
+              predictions.reduce((groups, prediction) => {
+                const atBatIndex = prediction.atBatIndex
+                if (!groups[atBatIndex]) {
+                  groups[atBatIndex] = []
+                }
+                groups[atBatIndex].push(prediction)
+                return groups
+              }, {} as Record<number, AtBatPrediction[]>)
+            )
+              .sort(([a], [b]) => parseInt(b) - parseInt(a)) // Sort by at-bat index descending (most recent first)
+              .map(([atBatIndex, atBatPredictions]) => (
+                <div key={atBatIndex} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-gray-300 font-medium text-sm">
+                      At-Bat #{atBatIndex} ({atBatPredictions.length} predictions)
+                    </h4>
+                    <div className="text-gray-500 text-xs">
+                      {atBatPredictions[0].actualOutcome ? 'Resolved' : 'Pending'}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {atBatPredictions.map((prediction, index) => (
+                      <div 
+                        key={prediction.id} 
+                        className={`transition-all duration-300 ${
+                          isUpdating ? 'opacity-90' : 'opacity-100'
+                        }`}
+                        style={{
+                          animationDelay: `${index * 50}ms`
+                        }}
+                      >
+                        <PredictionCard prediction={prediction} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
           </div>
         )}
       </div>
-
-      {/* Previous At-Bat Predictions */}
-      {previousPredictions.length > 0 && (
-        <div className="bg-gray-800 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white text-lg font-semibold">
-              Predictions for Last At-Bat ({previousPredictions.length})
-            </h3>
-            {isUpdating && (
-              <div className="flex items-center space-x-2 text-blue-400 text-sm">
-                <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                <span>Updating...</span>
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-3">
-            {previousPredictions.map((prediction, index) => (
-              <div 
-                key={prediction.id} 
-                className={`transition-all duration-300 ${
-                  isUpdating ? 'opacity-90' : 'opacity-100'
-                }`}
-                style={{
-                  animationDelay: `${index * 50}ms`
-                }}
-              >
-                <PredictionCard prediction={prediction} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
