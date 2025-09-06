@@ -68,6 +68,26 @@ export const DebugPredictions = ({ gamePk }: DebugPredictionsProps) => {
         'hit'
       )
       console.log('DEBUG: Test prediction result:', result)
+      
+      // Also test direct database insert
+      console.log('DEBUG: Testing direct database insert...')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data, error } = await supabase
+          .from('at_bat_predictions')
+          .insert([{
+            user_id: user.id,
+            game_pk: gamePk,
+            at_bat_index: 998,
+            prediction: 'double',
+            prediction_category: 'hit',
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single()
+        
+        console.log('DEBUG: Direct insert result:', data, error)
+      }
     } catch (error) {
       console.error('DEBUG: Test prediction error:', error)
     } finally {
