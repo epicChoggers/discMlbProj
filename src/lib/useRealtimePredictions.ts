@@ -68,8 +68,8 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredic
               console.log('Received prediction real-time update:', payload)
               
               // If we're filtering by atBatIndex, check if this event is relevant
-              if (atBatIndex !== undefined && payload.new && payload.new.at_bat_index !== atBatIndex) {
-                console.log('Event not relevant for current at-bat:', payload.new.at_bat_index, 'vs', atBatIndex)
+              if (atBatIndex !== undefined && payload.new && (payload.new as any).at_bat_index !== atBatIndex) {
+                console.log('Event not relevant for current at-bat:', (payload.new as any).at_bat_index, 'vs', atBatIndex)
                 return
               }
               
