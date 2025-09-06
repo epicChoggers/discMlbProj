@@ -1,5 +1,7 @@
 import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
 import { simulationService } from '../lib/simulationService'
+import { supabase } from '../supabaseClient'
+import { useState, useEffect } from 'react'
 
 interface GameStateProps {
   gameState: GameStateType
@@ -13,6 +15,36 @@ interface GameStateWithToggleProps extends GameStateProps {
 
 export const GameState = ({ gameState, onToggleLiveMode, isLiveMode, isSimulationMode }: GameStateWithToggleProps) => {
   const { game, currentAtBat, isLoading, error } = gameState
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null)
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          // Get user profile from our custom table
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('username')
+            .eq('id', user.id)
+            .single()
+          
+          if (profile) {
+            setCurrentUsername(profile.username)
+          } else if (user.user_metadata?.provider === 'discord') {
+            // Fallback to Discord metadata if profile doesn't exist
+            const discordData = user.user_metadata
+            const username = discordData.full_name || discordData.preferred_username || discordData.name || 'Unknown User'
+            setCurrentUsername(username)
+          }
+        }
+      } catch (error) {
+        console.error('Error getting current user:', error)
+      }
+    }
+
+    getCurrentUser()
+  }, [])
 
   if (isLoading) {
     return (
@@ -61,7 +93,7 @@ export const GameState = ({ gameState, onToggleLiveMode, isLiveMode, isSimulatio
           </div>
         </div>
         <div className="flex items-center space-x-3">
-          {game.status.abstractGameState === 'Final' && onToggleLiveMode && (
+          {game.status.abstractGameState === 'Final' && onToggleLiveMode && currentUsername === 'barton_' && (
             <div className="flex items-center space-x-2">
               <span className="text-xs text-gray-400">Simulation Mode:</span>
               <button

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AtBatOutcome, MLBPlay, getOutcomeCategory } from '../lib/types'
+import { AtBatOutcome, MLBPlay, getOutcomeCategory, getOutcomePoints } from '../lib/types'
 import { predictionService } from '../lib/predictionService'
 
 interface PredictionFormProps {
@@ -8,36 +8,36 @@ interface PredictionFormProps {
   onPredictionSubmitted: () => void
 }
 
-// Initial prediction categories
+// Initial prediction categories with point values
 const INITIAL_OPTIONS = [
-  { value: 'strikeout', label: 'Strikeout', emoji: '❌', description: 'Three strikes' },
-  { value: 'walk', label: 'Walk', emoji: '🚶', description: 'Four balls' },
-  { value: 'home_run', label: 'Home Run', emoji: '💥', description: 'Over the fence' },
-  { value: 'hit', label: 'Hit', emoji: '🏃', description: 'Ball in play for a hit' },
-  { value: 'out', label: 'Out', emoji: '⚾', description: 'Ball in play for an out' },
-  { value: 'other', label: 'Other', emoji: '❓', description: 'Hit by pitch, error, etc.' }
+  { value: 'strikeout', label: 'Strikeout', emoji: '❌', description: 'Three strikes', points: 2, bonusPercent: 0 },
+  { value: 'walk', label: 'Walk', emoji: '🚶', description: 'Four balls', points: 3, bonusPercent: 0 },
+  { value: 'home_run', label: 'Home Run', emoji: '💥', description: 'Over the fence', points: 23, bonusPercent: 50 },
+  { value: 'hit', label: 'Hit', emoji: '🏃', description: 'Ball in play for a hit', points: 2, bonusPercent: 0 },
+  { value: 'out', label: 'Out', emoji: '⚾', description: 'Ball in play for an out', points: 1, bonusPercent: 0 },
+  { value: 'other', label: 'Other', emoji: '❓', description: 'Hit by pitch, error, etc.', points: 1, bonusPercent: 0 }
 ]
 
-// Specific outcomes for each category
-const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string }[]> = {
+// Specific outcomes for each category with point values
+const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string; points: number; bonusPercent: number }[]> = {
   hit: [
-    { value: 'single', label: 'Single', emoji: '🏃' },
-    { value: 'double', label: 'Double', emoji: '🏃🏃' },
-    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃' },
-    { value: 'home_run', label: 'Home Run', emoji: '💥' }
+    { value: 'single', label: 'Single', emoji: '🏃', points: 4, bonusPercent: 0 },
+    { value: 'double', label: 'Double', emoji: '🏃🏃', points: 10, bonusPercent: 25 },
+    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', points: 18, bonusPercent: 50 },
+    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 23, bonusPercent: 50 }
   ],
   out: [
-    { value: 'groundout', label: 'Groundout', emoji: '⚾' },
-    { value: 'flyout', label: 'Flyout', emoji: '✈️' },
-    { value: 'popout', label: 'Popout', emoji: '⬆️' },
-    { value: 'lineout', label: 'Lineout', emoji: '📏' },
-    { value: 'fielders_choice', label: "Fielder's Choice", emoji: '🤔' }
+    { value: 'groundout', label: 'Groundout', emoji: '⚾', points: 1, bonusPercent: 0 },
+    { value: 'flyout', label: 'Flyout', emoji: '✈️', points: 1, bonusPercent: 0 },
+    { value: 'popout', label: 'Popout', emoji: '⬆️', points: 1, bonusPercent: 0 },
+    { value: 'lineout', label: 'Lineout', emoji: '📏', points: 1, bonusPercent: 0 },
+    { value: 'fielders_choice', label: "Fielder's Choice", emoji: '🤔', points: 1, bonusPercent: 0 }
   ],
   other: [
-    { value: 'hit_by_pitch', label: 'Hit by Pitch', emoji: '💢' },
-    { value: 'error', label: 'Error', emoji: '😅' },
-    { value: 'sacrifice', label: 'Sacrifice', emoji: '🙏' },
-    { value: 'other', label: 'Other', emoji: '❓' }
+    { value: 'hit_by_pitch', label: 'Hit by Pitch', emoji: '💢', points: 2, bonusPercent: 0 },
+    { value: 'error', label: 'Error', emoji: '😅', points: 1, bonusPercent: 0 },
+    { value: 'sacrifice', label: 'Sacrifice', emoji: '🙏', points: 1, bonusPercent: 0 },
+    { value: 'other', label: 'Other', emoji: '❓', points: 1, bonusPercent: 0 }
   ]
 }
 
@@ -140,7 +140,13 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
                 >
                   <div className="text-2xl mb-2">{option.emoji}</div>
                   <div className="text-sm font-medium mb-1">{option.label}</div>
-                  <div className="text-xs text-gray-400">{option.description}</div>
+                  <div className="text-xs text-gray-400 mb-1">{option.description}</div>
+                  <div className="text-xs text-yellow-400 font-bold">
+                    {option.points} pts
+                    {option.bonusPercent > 0 && (
+                      <span className="text-green-400 ml-1">+{option.bonusPercent}%</span>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>
@@ -176,6 +182,12 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
                 >
                   <div className="text-lg mb-1">{option.emoji}</div>
                   <div className="text-xs font-medium">{option.label}</div>
+                  <div className="text-xs text-yellow-400 font-bold">
+                    {option.points} pts
+                    {option.bonusPercent > 0 && (
+                      <span className="text-green-400 ml-1">+{option.bonusPercent}%</span>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>
@@ -186,11 +198,38 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
         {selectedOutcome && (
           <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
             <div className="text-blue-300 text-sm font-medium mb-1">Your Prediction:</div>
-            <div className="text-white">
-              {INITIAL_OPTIONS.find(opt => opt.value === selectedOutcome)?.emoji || 
-               Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.emoji} {' '}
-              {INITIAL_OPTIONS.find(opt => opt.value === selectedOutcome)?.label || 
-               Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.label}
+            <div className="text-white flex items-center justify-between">
+              <div>
+                {INITIAL_OPTIONS.find(opt => opt.value === selectedOutcome)?.emoji || 
+                 Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.emoji} {' '}
+                {INITIAL_OPTIONS.find(opt => opt.value === selectedOutcome)?.label || 
+                 Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.label}
+              </div>
+              <div className="text-yellow-400 font-bold">
+                {(() => {
+                  const outcome = Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)
+                  if (outcome) {
+                    return (
+                      <>
+                        {outcome.points} pts
+                        {outcome.bonusPercent > 0 && (
+                          <span className="text-green-400 ml-1">+{outcome.bonusPercent}%</span>
+                        )}
+                      </>
+                    )
+                  }
+                  // For direct outcomes like strikeout, walk, home_run
+                  const points = getOutcomePoints(selectedOutcome)
+                  return (
+                    <>
+                      {points.withBonus} pts
+                      {points.bonusPercent > 0 && (
+                        <span className="text-green-400 ml-1">+{points.bonusPercent}%</span>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
             </div>
           </div>
         )}

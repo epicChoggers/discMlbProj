@@ -396,13 +396,13 @@ class SimulationService {
 
       // Resolve each prediction
       for (const prediction of predictions) {
-        const { points, isExact, isCategoryCorrect } = predictionService.calculatePoints(
+        const { points, isExact, isCategoryCorrect, bonusInfo } = predictionService.calculatePoints(
           prediction.prediction,
           prediction.prediction_category,
           outcome
         )
 
-        console.log(`🎯 Resolving prediction ${prediction.id}: ${prediction.prediction} -> ${outcome} (${points} points)`)
+        console.log(`🎯 Resolving prediction ${prediction.id}: ${prediction.prediction} -> ${outcome} (${points} points${bonusInfo ? ` - ${bonusInfo}` : ''})`)
 
         const { error: updateError } = await supabase
           .from('at_bat_predictions')

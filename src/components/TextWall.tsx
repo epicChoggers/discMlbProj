@@ -5,6 +5,7 @@ import { PredictionForm } from './PredictionForm'
 import { PredictionResults } from './PredictionResults'
 import { Leaderboard } from './Leaderboard'
 import { UserProfile } from './UserProfile'
+import { ScoringSystem } from './ScoringSystem'
 import { ToastContainer } from './Toast'
 import { signOut } from '../supabaseClient'
 import { MLBGame, MLBPlay } from '../lib/types'
@@ -15,7 +16,7 @@ interface TextWallProps {
 
 export const TextWall = ({ onSignOut }: TextWallProps) => {
   const { gameState, isGameLive, isSimulationMode, startSimulation, stopSimulation } = useGameState()
-  const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard'>('predictions')
+  const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard' | 'scoring'>('predictions')
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [toasts, setToasts] = useState<Array<{
     id: string
@@ -149,6 +150,16 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                 >
                   🏆 Leaderboard
                 </button>
+                <button
+                  onClick={() => setActiveTab('scoring')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                    activeTab === 'scoring'
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-400 hover:text-gray-300'
+                  }`}
+                >
+                  🎯 Scoring
+                </button>
               </nav>
             </div>
 
@@ -219,6 +230,12 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
               {activeTab === 'leaderboard' && (
                 <div className="h-full overflow-y-auto p-4">
                   <Leaderboard gamePk={gameState.game?.gamePk} />
+                </div>
+              )}
+
+              {activeTab === 'scoring' && (
+                <div className="h-full overflow-y-auto p-4">
+                  <ScoringSystem />
                 </div>
               )}
             </div>

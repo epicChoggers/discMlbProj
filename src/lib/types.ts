@@ -268,6 +268,50 @@ export const getOutcomeCategory = (outcome: AtBatOutcome): string => {
   }
 }
 
+// Helper function to get point values for outcomes (for UI display)
+export const getOutcomePoints = (outcome: AtBatOutcome): { base: number; withBonus: number; bonusPercent: number } => {
+  const basePoints: Record<AtBatOutcome, number> = {
+    'home_run': 15,
+    'triple': 12,
+    'double': 8,
+    'single': 4,
+    'walk': 3,
+    'strikeout': 2,
+    'groundout': 1,
+    'flyout': 1,
+    'popout': 1,
+    'lineout': 1,
+    'fielders_choice': 1,
+    'hit_by_pitch': 2,
+    'error': 1,
+    'other': 1
+  }
+
+  const multipliers: Record<AtBatOutcome, number> = {
+    'home_run': 1.5,
+    'triple': 1.5,
+    'double': 1.25,
+    'single': 1.0,
+    'walk': 1.0,
+    'strikeout': 1.0,
+    'groundout': 1.0,
+    'flyout': 1.0,
+    'popout': 1.0,
+    'lineout': 1.0,
+    'fielders_choice': 1.0,
+    'hit_by_pitch': 1.0,
+    'error': 1.0,
+    'other': 1.0
+  }
+
+  const base = basePoints[outcome] || 1
+  const multiplier = multipliers[outcome] || 1.0
+  const withBonus = Math.round(base * multiplier)
+  const bonusPercent = Math.round((multiplier - 1) * 100)
+
+  return { base, withBonus, bonusPercent }
+}
+
 export interface GameState {
   game: MLBGame | null
   currentAtBat: MLBPlay | null

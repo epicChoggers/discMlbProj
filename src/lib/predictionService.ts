@@ -52,7 +52,7 @@ export class PredictionService {
     predictedOutcome: AtBatOutcome,
     predictedCategory: string | undefined,
     actualOutcome: AtBatOutcome
-  ): { points: number; isExact: boolean; isCategoryCorrect: boolean } {
+  ): { points: number; isExact: boolean; isCategoryCorrect: boolean; bonusInfo?: string } {
     const actualCategory = getOutcomeCategory(actualOutcome)
     
     // Check if exact prediction is correct
@@ -62,13 +62,84 @@ export class PredictionService {
     const isCategoryCorrect = predictedCategory === actualCategory
     
     let points = 0
+    let bonusInfo = ''
+    
     if (isExact) {
-      points = 3 // Exact prediction gets 3 points
+      // Base points for exact predictions
+      const basePoints = this.getBasePointsForOutcome(actualOutcome)
+      
+      // Apply risk/reward multipliers
+      const multiplier = this.getRiskMultiplier(actualOutcome)
+      points = Math.round(basePoints * multiplier)
+      
+      if (multiplier > 1) {
+        bonusInfo = `+${Math.round((multiplier - 1) * 100)}% risk bonus`
+      }
     } else if (isCategoryCorrect) {
-      points = 1 // Correct category gets 1 point
+      // Points for correct category predictions
+      points = this.getCategoryPoints(predictedCategory, actualCategory)
     }
     
-    return { points, isExact, isCategoryCorrect }
+    return { points, isExact, isCategoryCorrect, bonusInfo }
+  }
+
+  // Get base points for each outcome type
+  private getBasePointsForOutcome(outcome: AtBatOutcome): number {
+    const pointMap: Record<AtBatOutcome, number> = {
+      'home_run': 15,    // Rare, high impact
+      'triple': 12,       // Very rare
+      'double': 8,        // Uncommon
+      'single': 4,        // Common
+      'walk': 3,          // Common
+      'strikeout': 2,     // Very common
+      'groundout': 1,     // Most common
+      'flyout': 1,        // Most common
+      'popout': 1,        // Most common
+      'lineout': 1,       // Most common
+      'fielders_choice': 1, // Most common
+      'hit_by_pitch': 2,  // Uncommon
+      'error': 1,         // Most common
+      'other': 1          // Most common
+    }
+    
+    return pointMap[outcome] || 1
+  }
+
+  // Get risk multiplier for outcomes (higher risk = higher reward)
+  private getRiskMultiplier(outcome: AtBatOutcome): number {
+    const riskMap: Record<AtBatOutcome, number> = {
+      'home_run': 1.5,    // +50% bonus for rare outcomes
+      'triple': 1.5,      // +50% bonus for rare outcomes
+      'double': 1.25,     // +25% bonus for uncommon outcomes
+      'single': 1.0,      // No bonus for common outcomes
+      'walk': 1.0,        // No bonus for common outcomes
+      'strikeout': 1.0,   // No bonus for common outcomes
+      'groundout': 1.0,   // No bonus for common outcomes
+      'flyout': 1.0,      // No bonus for common outcomes
+      'popout': 1.0,      // No bonus for common outcomes
+      'lineout': 1.0,     // No bonus for common outcomes
+      'fielders_choice': 1.0, // No bonus for common outcomes
+      'hit_by_pitch': 1.0, // No bonus for common outcomes
+      'error': 1.0,       // No bonus for common outcomes
+      'other': 1.0        // No bonus for common outcomes
+    }
+    
+    return riskMap[outcome] || 1.0
+  }
+
+  // Get points for category predictions
+  private getCategoryPoints(predictedCategory: string, actualCategory: string): number {
+    if (predictedCategory === actualCategory) {
+      switch (actualCategory) {
+        case 'hit': return 2      // Hit category (single, double, triple, home run)
+        case 'out': return 1      // Out category (groundout, flyout, etc.)
+        case 'walk': return 3     // Walk category
+        case 'strikeout': return 2 // Strikeout category
+        case 'home_run': return 2  // Home run category
+        default: return 1
+      }
+    }
+    return 0
   }
 
   // Resolve predictions for a completed at-bat
@@ -83,7 +154,7 @@ export class PredictionService {
       
       // Update each prediction with the actual outcome and points
       for (const prediction of predictions) {
-        const { points, isExact, isCategoryCorrect } = this.calculatePoints(
+        const { points, isExact, isCategoryCorrect, bonusInfo } = this.calculatePoints(
           prediction.prediction,
           prediction.predictionCategory,
           actualOutcome
