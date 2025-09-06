@@ -228,7 +228,49 @@ class SimulationService {
         },
         plays: {
           allPlays: [],
-          currentPlay: null
+          currentPlay: undefined
+        },
+        boxscore: {
+          teams: {
+            away: {
+              team: {
+                id: 136,
+                name: 'Seattle Mariners'
+              },
+              teamStats: {
+                batting: {
+                  atBats: 0,
+                  runs: 0,
+                  hits: 0,
+                  doubles: 0,
+                  triples: 0,
+                  homeRuns: 0,
+                  rbi: 0,
+                  walks: 0,
+                  strikeOuts: 0
+                }
+              }
+            },
+            home: {
+              team: {
+                id: 136,
+                name: 'Seattle Mariners'
+              },
+              teamStats: {
+                batting: {
+                  atBats: 0,
+                  runs: 0,
+                  hits: 0,
+                  doubles: 0,
+                  triples: 0,
+                  homeRuns: 0,
+                  rbi: 0,
+                  walks: 0,
+                  strikeOuts: 0
+                }
+              }
+            }
+          }
         }
       }
     }

@@ -1,11 +1,10 @@
 import { useEffect } from 'react'
-import { supabase } from '../supabaseClient'
 
 interface AuthCallbackProps {
   onAuthenticated: () => void
 }
 
-export const AuthCallback = ({ onAuthenticated }: AuthCallbackProps) => {
+export const AuthCallback = ({ onAuthenticated: _ }: AuthCallbackProps) => {
   useEffect(() => {
     // The auth state listener in App.tsx will handle the authentication
     // Just redirect to home after a short delay

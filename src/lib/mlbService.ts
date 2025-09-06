@@ -218,12 +218,42 @@ class MLBService {
                   batter: {
                     id: 12345,
                     fullName: 'Ronald Acuña Jr.',
-                    primaryNumber: '13'
+                    firstName: 'Ronald',
+                    lastName: 'Acuña Jr.',
+                    primaryNumber: '13',
+                    currentTeam: {
+                      id: 144,
+                      name: 'Atlanta Braves'
+                    },
+                    primaryPosition: {
+                      code: 'OF',
+                      name: 'Outfielder',
+                      type: 'Outfielder'
+                    }
                   },
                   pitcher: {
                     id: 67890,
                     fullName: 'Andrés Muñoz',
-                    primaryNumber: '75'
+                    firstName: 'Andrés',
+                    lastName: 'Muñoz',
+                    primaryNumber: '75',
+                    currentTeam: {
+                      id: 136,
+                      name: 'Seattle Mariners'
+                    },
+                    primaryPosition: {
+                      code: 'P',
+                      name: 'Pitcher',
+                      type: 'Pitcher'
+                    }
+                  },
+                  batSide: {
+                    code: 'R',
+                    description: 'Right'
+                  },
+                  pitchHand: {
+                    code: 'R',
+                    description: 'Right'
                   }
                 },
                 result: {
@@ -233,9 +263,52 @@ class MLBService {
                   rbi: 1,
                   awayScore: 4,
                   homeScore: 6
-                }
+                },
+                playEvents: []
               }
             ]
+          },
+          boxscore: {
+            teams: {
+              away: {
+                team: {
+                  id: 136,
+                  name: 'Seattle Mariners'
+                },
+                teamStats: {
+                  batting: {
+                    atBats: 35,
+                    runs: 4,
+                    hits: 8,
+                    doubles: 2,
+                    triples: 0,
+                    homeRuns: 1,
+                    rbi: 4,
+                    walks: 3,
+                    strikeOuts: 8
+                  }
+                }
+              },
+              home: {
+                team: {
+                  id: 144,
+                  name: 'Atlanta Braves'
+                },
+                teamStats: {
+                  batting: {
+                    atBats: 38,
+                    runs: 6,
+                    hits: 10,
+                    doubles: 3,
+                    triples: 1,
+                    homeRuns: 2,
+                    rbi: 6,
+                    walks: 4,
+                    strikeOuts: 6
+                  }
+                }
+              }
+            }
           }
         }
       }

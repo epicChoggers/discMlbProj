@@ -168,7 +168,10 @@ export class PredictionService {
           correctPredictions: 0,
           accuracy: 0,
           streak: 0,
-          bestStreak: 0
+          bestStreak: 0,
+          totalPoints: 0,
+          exactPredictions: 0,
+          categoryPredictions: 0
         }
       }
 
@@ -246,7 +249,7 @@ export class PredictionService {
     actualOutcome: AtBatOutcome
   ): Promise<boolean> {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('at_bat_predictions')
         .update({
           actual_outcome: actualOutcome,

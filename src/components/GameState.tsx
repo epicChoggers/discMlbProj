@@ -1,4 +1,4 @@
-import { GameState as GameStateType, MLBPlay } from '../lib/types'
+import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
 import { simulationService } from '../lib/simulationService'
 
 interface GameStateProps {

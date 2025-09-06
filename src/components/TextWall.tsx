@@ -166,13 +166,16 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                               currentAtBat={gameState.currentAtBat}
                               onPredictionSubmitted={handlePredictionSubmitted}
                             />
-                          ) : isLiveMode ? (
-                            <PredictionForm
-                              gamePk={gameState.game.gamePk}
-                              currentAtBat={createSimulatedAtBat(gameState.game)}
-                              onPredictionSubmitted={handlePredictionSubmitted}
-                            />
-                          ) : null}
+                          ) : isLiveMode ? (() => {
+                            const simulatedAtBat = createSimulatedAtBat(gameState.game)
+                            return simulatedAtBat ? (
+                              <PredictionForm
+                                gamePk={gameState.game.gamePk}
+                                currentAtBat={simulatedAtBat}
+                                onPredictionSubmitted={handlePredictionSubmitted}
+                              />
+                            ) : null
+                          })() : null}
                           <PredictionResults
                             gamePk={gameState.game.gamePk}
                             currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
