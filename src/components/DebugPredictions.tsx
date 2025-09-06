@@ -30,10 +30,10 @@ export const DebugPredictions = ({ gamePk }: DebugPredictionsProps) => {
             timestamp: new Date().toLocaleTimeString(),
             event: payload.eventType,
             data: {
-              id: payload.new?.id || payload.old?.id,
-              at_bat_index: payload.new?.at_bat_index || payload.old?.at_bat_index,
-              prediction: payload.new?.prediction || payload.old?.prediction,
-              user_id: payload.new?.user_id || payload.old?.user_id
+              id: (payload.new as any)?.id || (payload.old as any)?.id,
+              at_bat_index: (payload.new as any)?.at_bat_index || (payload.old as any)?.at_bat_index,
+              prediction: (payload.new as any)?.prediction || (payload.old as any)?.prediction,
+              user_id: (payload.new as any)?.user_id || (payload.old as any)?.user_id
             }
           }])
         }
