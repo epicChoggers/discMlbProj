@@ -56,6 +56,20 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
       return
     }
 
+    if (!gamePk || gamePk === null || gamePk === undefined) {
+      console.error('PredictionForm: gamePk is invalid:', { gamePk, currentAtBat })
+      setError('Game information is not available')
+      return
+    }
+
+    if (!currentAtBat?.about?.atBatIndex) {
+      console.error('PredictionForm: atBatIndex is invalid:', { gamePk, currentAtBat })
+      setError('At-bat information is not available')
+      return
+    }
+
+    console.log('PredictionForm: Valid data for submission:', { gamePk, atBatIndex: currentAtBat.about.atBatIndex })
+
     setIsSubmitting(true)
     setError(null)
 

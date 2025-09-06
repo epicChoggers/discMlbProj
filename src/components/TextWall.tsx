@@ -161,7 +161,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
             <div className="flex-1 overflow-hidden">
               {activeTab === 'predictions' && (
                 <div className="h-full overflow-y-auto p-4">
-                  {gameState.game ? (
+                  {gameState.game && gameState.game.gamePk ? (
                     <div className="space-y-4">
                       {shouldShowLiveFeatures && (gameState.currentAtBat || isLiveMode) ? (
                         <>
@@ -202,7 +202,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                           </div>
                           
                           {/* Show predictions from this game if it's completed */}
-                          {gameState.game.status?.abstractGameState === 'Final' && (
+                          {gameState.game.status?.abstractGameState === 'Final' && gameState.game.gamePk && (
                             <PredictionResults
                               gamePk={gameState.game.gamePk}
                               currentAtBatIndex={0} // Show all predictions for the game

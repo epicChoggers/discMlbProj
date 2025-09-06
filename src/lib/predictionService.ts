@@ -16,6 +16,19 @@ export class PredictionService {
         throw new Error('User not authenticated')
       }
 
+      // Validate required parameters
+      if (!gamePk || gamePk === null || gamePk === undefined) {
+        console.error('PredictionService: gamePk is null/undefined:', { gamePk, atBatIndex, prediction })
+        throw new Error('Game PK is required and cannot be null')
+      }
+
+      if (atBatIndex === null || atBatIndex === undefined) {
+        console.error('PredictionService: atBatIndex is null/undefined:', { gamePk, atBatIndex, prediction })
+        throw new Error('At-bat index is required and cannot be null')
+      }
+
+      console.log('PredictionService: Submitting prediction with valid data:', { gamePk, atBatIndex, prediction })
+
       const finalAtBatIndex = atBatIndex
 
       const predictionData = {
