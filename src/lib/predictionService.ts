@@ -624,7 +624,8 @@ export class PredictionService {
       console.log('Extracting outcome from play:', {
         result: play.result,
         description: play.result?.description,
-        event: play.result?.event
+        event: play.result?.event,
+        eventType: play.result?.eventType
       })
 
       if (!play.result) {
@@ -632,9 +633,15 @@ export class PredictionService {
         return null
       }
 
-      const { type, event, description } = play.result
+      const { type, event, eventType, description } = play.result
       
-      // Use the event field first, as it's more reliable
+      // Use the eventType field first, as it's the most reliable standardized value
+      if (eventType) {
+        console.log(`Using eventType field: "${eventType}"`)
+        return this.mapEventTypeToOutcome(eventType, description)
+      }
+      
+      // Fall back to event field
       if (event) {
         console.log(`Using event field: "${event}"`)
         return this.mapEventToOutcome(event)
@@ -658,6 +665,59 @@ export class PredictionService {
       console.error('Error extracting outcome from play:', error)
       return null
     }
+  }
+
+  // Map eventType field to our outcome types (most reliable)
+  private mapEventTypeToOutcome(eventType: string, description?: string): AtBatOutcome {
+    const eventTypeMap: Record<string, AtBatOutcome> = {
+      // Hits
+      'single': 'single',
+      'double': 'double',
+      'triple': 'triple',
+      'home_run': 'home_run',
+      
+      // Walks and strikeouts
+      'walk': 'walk',
+      'strikeout': 'strikeout',
+      
+      // Outs - need to differentiate field_out types
+      'groundout': 'groundout',
+      'force_out': 'groundout',
+      'fielders_choice': 'fielders_choice',
+      
+      // Other outcomes
+      'hit_by_pitch': 'hit_by_pitch',
+      'error': 'error',
+      'sacrifice': 'sacrifice',
+      'sacrifice_fly': 'sacrifice',
+      'sacrifice_bunt': 'sacrifice',
+      'catcher_interference': 'hit_by_pitch',
+      'intentional_walk': 'walk'
+    }
+    
+    // Handle field_out by checking description
+    if (eventType === 'field_out' && description) {
+      const desc = description.toLowerCase()
+      if (desc.includes('flies out') || desc.includes('fly out')) {
+        console.log(`Mapped field_out with "flies out" to "flyout"`)
+        return 'flyout'
+      }
+      if (desc.includes('lines out') || desc.includes('line out')) {
+        console.log(`Mapped field_out with "lines out" to "lineout"`)
+        return 'lineout'
+      }
+      if (desc.includes('pops out') || desc.includes('pop out')) {
+        console.log(`Mapped field_out with "pops out" to "popout"`)
+        return 'popout'
+      }
+      // Default field_out to flyout
+      console.log(`Mapped field_out to "flyout" (default)`)
+      return 'flyout'
+    }
+    
+    const outcome = eventTypeMap[eventType] || 'other'
+    console.log(`Mapped eventType "${eventType}" to "${outcome}"`)
+    return outcome
   }
 
   // Map event field to our outcome types
