@@ -135,7 +135,7 @@ class MLBService {
     try {
       console.log(`Fetching detailed game data for game ${gamePk}...`)
       
-      const response = await fetch(`${this.apiBaseUrl}/game/${gamePk}`)
+      const response = await fetch(`${this.apiBaseUrl}/game?gamePk=${gamePk}`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
