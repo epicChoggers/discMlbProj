@@ -10,6 +10,15 @@ export class PredictionService {
     predictionCategory?: string
   ): Promise<AtBatPrediction | null> {
     try {
+      // Validate inputs
+      if (!gamePk || gamePk === null || gamePk === undefined) {
+        throw new Error('Invalid gamePk: gamePk is required and cannot be null')
+      }
+      
+      if (!atBatIndex || atBatIndex === null || atBatIndex === undefined) {
+        throw new Error('Invalid atBatIndex: atBatIndex is required and cannot be null')
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
@@ -34,13 +43,15 @@ export class PredictionService {
         .single()
 
       if (error) {
-        throw error
+        console.error('Supabase error:', error)
+        throw new Error(`Database error: ${error.message}`)
       }
 
       return data
     } catch (error) {
       console.error('Error submitting prediction:', error)
-      return null
+      // Re-throw the error so the UI can handle it properly
+      throw error
     }
   }
 

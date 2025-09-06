@@ -165,13 +165,13 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                     <div className="space-y-4">
                       {shouldShowLiveFeatures && (gameState.currentAtBat || isLiveMode) ? (
                         <>
-                          {gameState.currentAtBat ? (
+                          {gameState.currentAtBat && gameState.game.gamePk ? (
                             <PredictionForm
                               gamePk={gameState.game.gamePk}
                               currentAtBat={gameState.currentAtBat}
                               onPredictionSubmitted={handlePredictionSubmitted}
                             />
-                          ) : isLiveMode ? (() => {
+                          ) : isLiveMode && gameState.game.gamePk ? (() => {
                             const simulatedAtBat = createSimulatedAtBat(gameState.game)
                             return simulatedAtBat ? (
                               <PredictionForm
@@ -181,10 +181,12 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                               />
                             ) : null
                           })() : null}
-                          <PredictionResults
-                            gamePk={gameState.game.gamePk}
-                            currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
-                          />
+                          {gameState.game.gamePk && (
+                            <PredictionResults
+                              gamePk={gameState.game.gamePk}
+                              currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
+                            />
+                          )}
                         </>
                       ) : (
                         <div className="space-y-4">

@@ -56,6 +56,13 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
       return
     }
 
+    // Validate gamePk before submitting
+    if (!gamePk || gamePk === null || gamePk === undefined) {
+      console.error('Invalid gamePk:', gamePk)
+      setError('Game information is not available. Please refresh the page.')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -82,7 +89,9 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
         setError('Failed to submit prediction')
       }
     } catch (err) {
-      setError('Failed to submit prediction')
+      console.error('Prediction submission error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit prediction'
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
