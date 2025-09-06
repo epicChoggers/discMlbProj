@@ -534,18 +534,30 @@ export class PredictionService {
           table: 'at_bat_predictions',
           filter: `game_pk=eq.${gamePk}`
         },
-        async () => {
-          // Get predictions based on whether we want specific at-bat or all predictions
-          let predictions: AtBatPrediction[]
-          if (atBatIndex !== undefined) {
-            predictions = await this.getAtBatPredictions(gamePk, atBatIndex)
-          } else {
-            predictions = await this.getUserGamePredictions(gamePk)
+        async (payload) => {
+          console.log('Prediction subscription triggered:', payload)
+          
+          // Add a small delay to ensure database transaction is committed
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          try {
+            // Get predictions based on whether we want specific at-bat or all predictions
+            let predictions: AtBatPrediction[]
+            if (atBatIndex !== undefined) {
+              predictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+            } else {
+              predictions = await this.getUserGamePredictions(gamePk)
+            }
+            console.log('Updated predictions:', predictions.length)
+            callback(predictions)
+          } catch (error) {
+            console.error('Error in prediction subscription callback:', error)
           }
-          callback(predictions)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('Prediction subscription status:', status)
+      })
 
     return subscription
   }

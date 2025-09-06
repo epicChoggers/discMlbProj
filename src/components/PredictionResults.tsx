@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AtBatPrediction, PredictionStats } from '../lib/types'
 import { predictionService } from '../lib/predictionService'
+import { useRealtimePredictions } from '../lib/useRealtimePredictions'
 
 interface PredictionResultsProps {
   gamePk: number
@@ -8,79 +9,36 @@ interface PredictionResultsProps {
 }
 
 export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResultsProps) => {
-  const [predictions, setPredictions] = useState<AtBatPrediction[]>([])
   const [previousPredictions, setPreviousPredictions] = useState<AtBatPrediction[]>([])
   const [stats, setStats] = useState<PredictionStats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
-  const [isUpdating, setIsUpdating] = useState(false)
+  
+  // Use the new real-time predictions hook
+  const { predictions, isLoading, isUpdating, error } = useRealtimePredictions({
+    gamePk,
+    atBatIndex: currentAtBatIndex
+  })
 
   useEffect(() => {
-    const loadData = async () => {
-      if (isInitialLoad) {
-        setIsLoading(true)
-      }
+    const loadAdditionalData = async () => {
       try {
-        let predictionsData: AtBatPrediction[] = []
-        
-        // For real games, filter by currentAtBatIndex if specified
+        // Load previous at-bat predictions if we have a current at-bat index
         if (currentAtBatIndex !== undefined) {
-          // Get predictions for specific at-bat in real games
-          predictionsData = await predictionService.getAtBatPredictions(gamePk, currentAtBatIndex)
-          
-          // Get previous at-bat predictions
           const previousData = await predictionService.getPreviousAtBatPredictions(gamePk, currentAtBatIndex)
           setPreviousPredictions(previousData)
         } else {
-          // Get all predictions for the game when no specific at-bat
-          predictionsData = await predictionService.getUserGamePredictions(gamePk)
           setPreviousPredictions([])
         }
         
+        // Load user stats
         const statsData = await predictionService.getUserPredictionStats()
-        setPredictions(predictionsData)
         setStats(statsData)
       } catch (error) {
-        console.error('Error loading prediction data:', error)
-      } finally {
-        if (isInitialLoad) {
-          setIsLoading(false)
-          setIsInitialLoad(false)
-        }
+        console.error('Error loading additional prediction data:', error)
       }
     }
 
-    loadData()
-
-    // Subscribe to real-time updates
-    const subscription = predictionService.subscribeToPredictions(gamePk, async (newPredictions) => {
-      // Show subtle updating indicator
-      setIsUpdating(true)
-      
-      try {
-        setPredictions(newPredictions)
-        
-        // Also update previous at-bat predictions if we have a current at-bat index
-        if (currentAtBatIndex !== undefined) {
-          const previousData = await predictionService.getPreviousAtBatPredictions(gamePk, currentAtBatIndex)
-          setPreviousPredictions(previousData)
-        }
-        
-        // Update stats in real-time
-        const updatedStats = await predictionService.getUserPredictionStats()
-        setStats(updatedStats)
-      } catch (error) {
-        console.error('Error updating predictions:', error)
-      } finally {
-        // Hide updating indicator after a brief delay
-        setTimeout(() => setIsUpdating(false), 500)
-      }
-    }, currentAtBatIndex)
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [gamePk, currentAtBatIndex, isInitialLoad])
+    loadAdditionalData()
+  }, [gamePk, currentAtBatIndex])
 
   if (isLoading) {
     return (
@@ -92,6 +50,18 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
             <div className="h-3 bg-gray-700 rounded w-3/4"></div>
             <div className="h-3 bg-gray-700 rounded w-1/2"></div>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-900/50 border border-red-700 rounded-lg p-6 mb-4">
+        <div className="text-center">
+          <div className="text-red-300 text-lg mb-2">⚠️</div>
+          <h3 className="text-red-300 font-semibold mb-1">Error Loading Predictions</h3>
+          <p className="text-red-400 text-sm">{error}</p>
         </div>
       </div>
     )

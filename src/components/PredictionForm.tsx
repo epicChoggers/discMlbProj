@@ -105,6 +105,8 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
           setSelectedCategory(null)
           setSelectedOutcome(null)
         }, 2000)
+        
+        console.log('Prediction submitted successfully:', result)
       } else {
         setError('Failed to submit prediction')
       }
