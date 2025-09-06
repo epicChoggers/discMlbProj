@@ -194,15 +194,8 @@ export class PredictionService {
   async getAtBatPredictions(gamePk: number, atBatIndex: number): Promise<AtBatPrediction[]> {
     try {
       const { data, error } = await supabase
-        .from('at_bat_predictions')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            email,
-            raw_user_meta_data
-          )
-        `)
+        .from('predictions_with_users')
+        .select('*')
         .eq('game_pk', gamePk)
         .eq('at_bat_index', atBatIndex)
         .order('created_at', { ascending: false })
@@ -213,9 +206,8 @@ export class PredictionService {
 
       // Transform the data to include user information
       const transformedData = (data || []).map(prediction => ({
-        ...prediction,
+        id: prediction.id,
         userId: prediction.user_id,
-        user: prediction.user,
         gamePk: prediction.game_pk,
         atBatIndex: prediction.at_bat_index,
         prediction: prediction.prediction as AtBatOutcome,
@@ -225,7 +217,12 @@ export class PredictionService {
         isCorrect: prediction.is_correct,
         pointsEarned: prediction.points_earned,
         createdAt: prediction.created_at,
-        resolvedAt: prediction.resolved_at
+        resolvedAt: prediction.resolved_at,
+        user: {
+          id: prediction.user_id,
+          email: prediction.email,
+          raw_user_meta_data: prediction.raw_user_meta_data
+        }
       }))
 
       return transformedData
