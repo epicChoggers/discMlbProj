@@ -8,36 +8,55 @@ interface PredictionFormProps {
   onPredictionSubmitted: () => void
 }
 
-// Initial prediction categories with point values
-const INITIAL_OPTIONS = [
-  { value: 'strikeout', label: 'Strikeout', emoji: '❌', description: 'Three strikes', points: 2, bonusPercent: 0 },
-  { value: 'walk', label: 'Walk', emoji: '🚶', description: 'Four balls', points: 3, bonusPercent: 0 },
-  { value: 'home_run', label: 'Home Run', emoji: '💥', description: 'Over the fence', points: 23, bonusPercent: 50 },
-  { value: 'hit', label: 'Hit', emoji: '🏃', description: 'Ball in play for a hit', points: 2, bonusPercent: 0 },
-  { value: 'out', label: 'Out', emoji: '⚾', description: 'Ball in play for an out', points: 1, bonusPercent: 0 },
-  { value: 'other', label: 'Other', emoji: '❓', description: 'Hit by pitch, error, etc.', points: 1, bonusPercent: 0 }
+// Main prediction categories - simplified to three options
+const MAIN_CATEGORIES = [
+  { 
+    value: 'out', 
+    label: 'Out', 
+    emoji: '⚾', 
+    description: 'Batter makes an out',
+    basePoints: 1,
+    category: 'out'
+  },
+  { 
+    value: 'hit', 
+    label: 'Hit', 
+    emoji: '🏃', 
+    description: 'Batter gets a hit',
+    basePoints: 2,
+    category: 'hit'
+  },
+  { 
+    value: 'walk', 
+    label: 'Walk', 
+    emoji: '🚶', 
+    description: 'Batter walks or strikes out',
+    basePoints: 3,
+    category: 'walk'
+  }
 ]
 
-// Specific outcomes for each category with point values
-const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string; points: number; bonusPercent: number }[]> = {
-  hit: [
-    { value: 'single', label: 'Single', emoji: '🏃', points: 4, bonusPercent: 0 },
-    { value: 'double', label: 'Double', emoji: '🏃🏃', points: 10, bonusPercent: 25 },
-    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', points: 18, bonusPercent: 50 },
-    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 23, bonusPercent: 50 }
-  ],
+// Specific outcomes for each main category with higher point values
+const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string; points: number; bonusPercent: number; description: string }[]> = {
   out: [
-    { value: 'groundout', label: 'Groundout', emoji: '⚾', points: 1, bonusPercent: 0 },
-    { value: 'flyout', label: 'Flyout', emoji: '✈️', points: 1, bonusPercent: 0 },
-    { value: 'popout', label: 'Popout', emoji: '⬆️', points: 1, bonusPercent: 0 },
-    { value: 'lineout', label: 'Lineout', emoji: '📏', points: 1, bonusPercent: 0 },
-    { value: 'fielders_choice', label: "Fielder's Choice", emoji: '🤔', points: 1, bonusPercent: 0 }
+    { value: 'groundout', label: 'Groundout', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Ground ball out' },
+    { value: 'flyout', label: 'Flyout', emoji: '✈️', points: 1, bonusPercent: 0, description: 'Fly ball out' },
+    { value: 'popout', label: 'Popout', emoji: '⬆️', points: 1, bonusPercent: 0, description: 'Pop fly out' },
+    { value: 'lineout', label: 'Lineout', emoji: '📏', points: 2, bonusPercent: 100, description: 'Line drive out' },
+    { value: 'fielders_choice', label: "Fielder's Choice", emoji: '🤔', points: 1, bonusPercent: 0, description: 'Fielder chooses to get another out' }
   ],
-  other: [
-    { value: 'hit_by_pitch', label: 'Hit by Pitch', emoji: '💢', points: 2, bonusPercent: 0 },
-    { value: 'error', label: 'Error', emoji: '😅', points: 1, bonusPercent: 0 },
-    { value: 'sacrifice', label: 'Sacrifice', emoji: '🙏', points: 1, bonusPercent: 0 },
-    { value: 'other', label: 'Other', emoji: '❓', points: 1, bonusPercent: 0 }
+  hit: [
+    { value: 'single', label: 'Single', emoji: '🏃', points: 4, bonusPercent: 0, description: 'One base hit' },
+    { value: 'double', label: 'Double', emoji: '🏃🏃', points: 8, bonusPercent: 100, description: 'Two base hit' },
+    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', points: 15, bonusPercent: 275, description: 'Three base hit' },
+    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 25, bonusPercent: 1150, description: 'Over the fence' }
+  ],
+  walk: [
+    { value: 'walk', label: 'Walk', emoji: '🚶', points: 3, bonusPercent: 0, description: 'Four balls' },
+    { value: 'strikeout', label: 'Strikeout', emoji: '❌', points: 2, bonusPercent: 0, description: 'Three strikes' },
+    { value: 'hit_by_pitch', label: 'Hit by Pitch', emoji: '💢', points: 3, bonusPercent: 0, description: 'Pitch hits batter' },
+    { value: 'error', label: 'Error', emoji: '😅', points: 2, bonusPercent: 100, description: 'Fielding error' },
+    { value: 'sacrifice', label: 'Sacrifice', emoji: '🙏', points: 2, bonusPercent: 100, description: 'Sacrifice play' }
   ]
 }
 
@@ -170,11 +189,6 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category)
     setSelectedOutcome(null)
-    
-    // If it's a direct outcome (strikeout, walk, home_run), set it immediately
-    if (['strikeout', 'walk', 'home_run'].includes(category)) {
-      setSelectedOutcome(category as AtBatOutcome)
-    }
   }
 
   const handleOutcomeSelect = (outcome: AtBatOutcome) => {
@@ -238,28 +252,25 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
       <h3 className="text-white text-lg font-semibold mb-4">Make Your Prediction</h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Step 1: Category Selection */}
+        {/* Step 1: Main Category Selection */}
         {!selectedCategory && (
           <div>
-            <label className="block text-gray-300 text-sm font-medium mb-3">
+            <label className="block text-gray-300 text-lg font-medium mb-4 text-center">
               What type of outcome do you predict?
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {INITIAL_OPTIONS.map((option) => (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {MAIN_CATEGORIES.map((category) => (
                 <button
-                  key={option.value}
+                  key={category.value}
                   type="button"
-                  onClick={() => handleCategorySelect(option.value)}
-                  className="p-4 rounded-lg border-2 transition-all duration-200 border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500 hover:bg-gray-600"
+                  onClick={() => handleCategorySelect(category.value)}
+                  className="p-6 rounded-xl border-2 transition-all duration-200 border-gray-600 bg-gray-700 text-gray-300 hover:border-blue-500 hover:bg-gray-600 hover:scale-105"
                 >
-                  <div className="text-2xl mb-2">{option.emoji}</div>
-                  <div className="text-sm font-medium mb-1">{option.label}</div>
-                  <div className="text-xs text-gray-400 mb-1">{option.description}</div>
-                  <div className="text-xs text-yellow-400 font-bold">
-                    {option.points} pts
-                    {option.bonusPercent > 0 && (
-                      <span className="text-green-400 ml-1">+{option.bonusPercent}%</span>
-                    )}
+                  <div className="text-4xl mb-3">{category.emoji}</div>
+                  <div className="text-lg font-semibold mb-2">{category.label}</div>
+                  <div className="text-sm text-gray-400 mb-2">{category.description}</div>
+                  <div className="text-sm text-yellow-400 font-bold">
+                    {category.basePoints} pts base
                   </div>
                 </button>
               ))}
@@ -268,34 +279,35 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
         )}
 
         {/* Step 2: Specific Outcome Selection */}
-        {selectedCategory && !['strikeout', 'walk', 'home_run'].includes(selectedCategory) && (
+        {selectedCategory && (
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="block text-gray-300 text-sm font-medium">
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-gray-300 text-lg font-medium">
                 What specific outcome?
               </label>
               <button
                 type="button"
                 onClick={handleBack}
-                className="text-blue-400 hover:text-blue-300 text-sm"
+                className="text-blue-400 hover:text-blue-300 text-sm font-medium px-3 py-1 rounded-lg border border-blue-500 hover:bg-blue-900/20"
               >
                 ← Back
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {SPECIFIC_OUTCOMES[selectedCategory]?.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => handleOutcomeSelect(option.value)}
-                  className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${
                     selectedOutcome === option.value
-                      ? 'border-blue-500 bg-blue-900/30 text-blue-300'
-                      : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500 hover:bg-gray-600'
+                      ? 'border-blue-500 bg-blue-900/30 text-blue-300 scale-105'
+                      : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500 hover:bg-gray-600 hover:scale-105'
                   }`}
                 >
-                  <div className="text-lg mb-1">{option.emoji}</div>
-                  <div className="text-xs font-medium">{option.label}</div>
+                  <div className="text-2xl mb-2">{option.emoji}</div>
+                  <div className="text-sm font-medium mb-1">{option.label}</div>
+                  <div className="text-xs text-gray-400 mb-2">{option.description}</div>
                   <div className="text-xs text-yellow-400 font-bold">
                     {option.points} pts
                     {option.bonusPercent > 0 && (
@@ -310,39 +322,31 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
 
         {/* Selected Prediction Summary */}
         {selectedOutcome && (
-          <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
-            <div className="text-blue-300 text-sm font-medium mb-1">Your Prediction:</div>
+          <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+            <div className="text-blue-300 text-sm font-medium mb-2">Your Prediction:</div>
             <div className="text-white flex items-center justify-between">
-              <div>
-                {INITIAL_OPTIONS.find(opt => opt.value === selectedOutcome)?.emoji || 
-                 Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.emoji} {' '}
-                {INITIAL_OPTIONS.find(opt => opt.value === selectedOutcome)?.label || 
-                 Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.label}
+              <div className="flex items-center space-x-3">
+                <div className="text-2xl">
+                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.emoji}
+                </div>
+                <div>
+                  <div className="font-semibold">
+                    {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.label}
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.description}
+                  </div>
+                </div>
               </div>
-              <div className="text-yellow-400 font-bold">
-                {(() => {
-                  const outcome = Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)
-                  if (outcome) {
-                    return (
-                      <>
-                        {outcome.points} pts
-                        {outcome.bonusPercent > 0 && (
-                          <span className="text-green-400 ml-1">+{outcome.bonusPercent}%</span>
-                        )}
-                      </>
-                    )
-                  }
-                  // For direct outcomes like strikeout, walk, home_run
-                  const points = getOutcomePoints(selectedOutcome)
-                  return (
-                    <>
-                      {points.withBonus} pts
-                      {points.bonusPercent > 0 && (
-                        <span className="text-green-400 ml-1">+{points.bonusPercent}%</span>
-                      )}
-                    </>
-                  )
-                })()}
+              <div className="text-right">
+                <div className="text-yellow-400 font-bold text-lg">
+                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.points} pts
+                </div>
+                {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.bonusPercent > 0 && (
+                  <div className="text-green-400 text-sm">
+                    +{Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.bonusPercent}% bonus
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -8,6 +8,37 @@ interface PredictionResultsProps {
   currentAtBatIndex?: number // Keep for backward compatibility but not used
 }
 
+// Helper functions for outcome display
+const getOutcomeEmoji = (outcome: string) => {
+  const emojiMap: Record<string, string> = {
+    'single': '🏃',
+    'double': '🏃🏃',
+    'triple': '🏃🏃🏃',
+    'home_run': '💥',
+    'walk': '🚶',
+    'strikeout': '❌',
+    'groundout': '⚾',
+    'flyout': '✈️',
+    'popout': '⬆️',
+    'lineout': '📏',
+    'fielders_choice': '🤔',
+    'error': '😅',
+    'hit_by_pitch': '💢',
+    'sacrifice': '🙏',
+    'other': '❓'
+  }
+  return emojiMap[outcome] || '❓'
+}
+
+const getOutcomeLabel = (outcome: string) => {
+  if (!outcome || typeof outcome !== 'string') {
+    return 'Unknown'
+  }
+  return outcome.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ')
+}
+
 export const PredictionResults = ({ gamePk }: PredictionResultsProps) => {
   const [stats, setStats] = useState<PredictionStats | null>(null)
   
@@ -189,6 +220,19 @@ export const PredictionResults = ({ gamePk }: PredictionResultsProps) => {
                       </div>
                     ))}
                   </div>
+                  
+                  {/* Show the correct outcome after predictions if resolved */}
+                  {atBatPredictions[0].actualOutcome && (
+                    <div className="mt-4 p-4 bg-blue-900/30 border border-blue-600 rounded-lg">
+                      <div className="flex items-center justify-center space-x-3">
+                        <div className="text-blue-300 text-sm font-medium">Correct Outcome:</div>
+                        <div className="text-2xl">{getOutcomeEmoji(atBatPredictions[0].actualOutcome)}</div>
+                        <div className="text-blue-100 font-semibold text-lg">
+                          {getOutcomeLabel(atBatPredictions[0].actualOutcome)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
           </div>
@@ -203,35 +247,6 @@ interface PredictionCardProps {
 }
 
 const PredictionCard = ({ prediction }: PredictionCardProps) => {
-  const getOutcomeEmoji = (outcome: string) => {
-    const emojiMap: Record<string, string> = {
-      'single': '🏃',
-      'double': '🏃🏃',
-      'triple': '🏃🏃🏃',
-      'home_run': '💥',
-      'walk': '🚶',
-      'strikeout': '❌',
-      'groundout': '⚾',
-      'flyout': '✈️',
-      'popout': '⬆️',
-      'lineout': '📏',
-      'fielders_choice': '🤔',
-      'error': '😅',
-      'hit_by_pitch': '💢',
-      'sacrifice': '🙏',
-      'other': '❓'
-    }
-    return emojiMap[outcome] || '❓'
-  }
-
-  const getOutcomeLabel = (outcome: string) => {
-    if (!outcome || typeof outcome !== 'string') {
-      return 'Unknown'
-    }
-    return outcome.split('_').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ')
-  }
 
   const getUserDisplayName = (prediction: AtBatPrediction) => {
     if (prediction.user?.raw_user_meta_data?.preferred_username) {

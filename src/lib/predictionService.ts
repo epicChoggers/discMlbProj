@@ -2,6 +2,54 @@ import { supabase } from '../supabaseClient'
 import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory } from './types'
 
 export class PredictionService {
+  // Cache to track resolved at-bats per game to avoid redundant checks
+  private resolvedAtBatsCache = new Map<number, Set<number>>()
+
+  // Helper method to check if an at-bat is already resolved
+  private isAtBatResolved(gamePk: number, atBatIndex: number): boolean {
+    const gameResolvedAtBats = this.resolvedAtBatsCache.get(gamePk)
+    return gameResolvedAtBats?.has(atBatIndex) || false
+  }
+
+  // Helper method to mark an at-bat as resolved
+  private markAtBatResolved(gamePk: number, atBatIndex: number): void {
+    if (!this.resolvedAtBatsCache.has(gamePk)) {
+      this.resolvedAtBatsCache.set(gamePk, new Set())
+    }
+    this.resolvedAtBatsCache.get(gamePk)!.add(atBatIndex)
+  }
+
+
+  // Initialize cache with already resolved at-bats for a game
+  private async initializeResolvedAtBatsCache(gamePk: number): Promise<void> {
+    try {
+      // Get all predictions for this game that are already resolved
+      const { data: resolvedPredictions, error } = await supabase
+        .from('at_bat_predictions')
+        .select('at_bat_index')
+        .eq('game_pk', gamePk)
+        .not('actual_outcome', 'is', null)
+        .not('resolved_at', 'is', null)
+
+      if (error) {
+        console.error('Error initializing resolved at-bats cache:', error)
+        return
+      }
+
+      // Extract unique at-bat indices that are already resolved
+      const resolvedAtBatIndices = new Set(
+        resolvedPredictions?.map(p => p.at_bat_index) || []
+      )
+
+      // Initialize cache for this game
+      this.resolvedAtBatsCache.set(gamePk, resolvedAtBatIndices)
+      
+      console.log(`Initialized cache for game ${gamePk} with ${resolvedAtBatIndices.size} resolved at-bats`)
+    } catch (error) {
+      console.error('Error initializing resolved at-bats cache:', error)
+    }
+  }
+
   // Get current user ID
   async getCurrentUserId(): Promise<string | null> {
     try {
@@ -616,6 +664,11 @@ export class PredictionService {
         return
       }
 
+      // Check cache first to avoid redundant database queries
+      if (this.isAtBatResolved(gamePk, atBatIndex)) {
+        return // Already resolved, skip
+      }
+
       console.log(`Attempting to resolve predictions for at-bat ${atBatIndex} with outcome: ${completedAtBat.result.type}`)
 
       // Check if this at-bat's predictions are already resolved
@@ -623,7 +676,8 @@ export class PredictionService {
       const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
       
       if (unresolvedPredictions.length === 0) {
-        console.log(`At-bat ${atBatIndex} predictions already resolved`)
+        // Mark as resolved in cache to avoid future checks
+        this.markAtBatResolved(gamePk, atBatIndex)
         return // Already resolved
       }
 
@@ -635,6 +689,9 @@ export class PredictionService {
 
       // Resolve the predictions
       await this.resolveAtBatPredictions(gamePk, atBatIndex, mappedOutcome)
+      
+      // Mark as resolved in cache
+      this.markAtBatResolved(gamePk, atBatIndex)
       console.log(`Successfully resolved predictions for at-bat ${atBatIndex}`)
     } catch (error) {
       console.error('Error auto-resolving at-bat predictions:', error)
@@ -649,6 +706,11 @@ export class PredictionService {
         return
       }
 
+      // Initialize cache if not already done for this game
+      if (!this.resolvedAtBatsCache.has(gamePk)) {
+        await this.initializeResolvedAtBatsCache(gamePk)
+      }
+
       const { allPlays } = game.liveData.plays
       
       // Find all completed plays (those with a result type other than 'at_bat')
@@ -656,21 +718,28 @@ export class PredictionService {
         play.result.type && play.result.type !== 'at_bat'
       )
       
-      console.log(`Found ${completedPlays.length} completed plays to check for resolution`)
+      // Filter out already resolved at-bats using cache
+      const unresolvedPlays = completedPlays.filter((play: any) => {
+        const atBatIndex = play.about?.atBatIndex
+        return atBatIndex !== undefined && !this.isAtBatResolved(gamePk, atBatIndex)
+      })
+      
+      console.log(`Found ${completedPlays.length} completed plays, ${unresolvedPlays.length} need resolution`)
 
-      // Process each completed play
-      for (const play of completedPlays) {
+      // Process only unresolved plays
+      for (const play of unresolvedPlays) {
         const atBatIndex = play.about?.atBatIndex
         if (atBatIndex === undefined) {
           continue
         }
 
-        // Check if this at-bat's predictions are already resolved
+        // Double-check with database (cache might be stale)
         const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
         const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
         
         if (unresolvedPredictions.length === 0) {
-          console.log(`At-bat ${atBatIndex} predictions already resolved`)
+          // Mark as resolved in cache to avoid future checks
+          this.markAtBatResolved(gamePk, atBatIndex)
           continue // Already resolved
         }
 
@@ -682,6 +751,9 @@ export class PredictionService {
 
         // Resolve the predictions
         await this.resolveAtBatPredictions(gamePk, atBatIndex, mappedOutcome)
+        
+        // Mark as resolved in cache
+        this.markAtBatResolved(gamePk, atBatIndex)
         console.log(`Successfully resolved predictions for at-bat ${atBatIndex}`)
       }
     } catch (error) {
