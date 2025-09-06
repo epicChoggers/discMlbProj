@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS at_bat_predictions (
     actual_category TEXT,
     is_correct BOOLEAN,
     points_earned INTEGER DEFAULT 0,
+    streak_count INTEGER DEFAULT 0, -- Current streak count when this prediction was made
+    streak_bonus INTEGER DEFAULT 0, -- Bonus points earned from streak
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     resolved_at TIMESTAMP WITH TIME ZONE,
     
@@ -61,6 +63,8 @@ CREATE TABLE IF NOT EXISTS at_bat_predictions (
 ALTER TABLE at_bat_predictions ADD COLUMN IF NOT EXISTS prediction_category TEXT;
 ALTER TABLE at_bat_predictions ADD COLUMN IF NOT EXISTS actual_category TEXT;
 ALTER TABLE at_bat_predictions ADD COLUMN IF NOT EXISTS points_earned INTEGER DEFAULT 0;
+ALTER TABLE at_bat_predictions ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0;
+ALTER TABLE at_bat_predictions ADD COLUMN IF NOT EXISTS streak_bonus INTEGER DEFAULT 0;
 
 -- Remove confidence column if it exists (legacy from old system)
 ALTER TABLE at_bat_predictions DROP COLUMN IF EXISTS confidence;
@@ -160,7 +164,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create trigger to automatically update updated_at
+-- Create trigger to automatically update updated_at (drop first if exists)
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
 CREATE TRIGGER update_user_profiles_updated_at 
     BEFORE UPDATE ON user_profiles 
     FOR EACH ROW 
@@ -262,6 +267,8 @@ SELECT
     p.actual_category,
     p.is_correct,
     p.points_earned,
+    p.streak_count,
+    p.streak_bonus,
     p.created_at,
     p.resolved_at,
     u.email,

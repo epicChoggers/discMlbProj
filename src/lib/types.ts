@@ -209,6 +209,8 @@ export interface AtBatPrediction {
   actualCategory?: string // The category of the actual outcome
   isCorrect?: boolean
   pointsEarned?: number // Points earned for this prediction (1 or 3)
+  streakCount?: number // Current streak count when this prediction was made
+  streakBonus?: number // Bonus points earned from streak
   user?: {
     id: string
     email: string

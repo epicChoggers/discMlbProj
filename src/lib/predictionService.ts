@@ -55,12 +55,13 @@ export class PredictionService {
     }
   }
 
-  // Calculate points for a prediction based on accuracy
+  // Calculate points for a prediction based on accuracy and streak
   calculatePoints(
     predictedOutcome: AtBatOutcome,
     predictedCategory: string | undefined,
-    actualOutcome: AtBatOutcome
-  ): { points: number; isExact: boolean; isCategoryCorrect: boolean; bonusInfo?: string } {
+    actualOutcome: AtBatOutcome,
+    currentStreak: number = 0
+  ): { points: number; isExact: boolean; isCategoryCorrect: boolean; bonusInfo?: string; streakBonus: number } {
     const actualCategory = getOutcomeCategory(actualOutcome)
     
     // Check if exact prediction is correct
@@ -71,6 +72,7 @@ export class PredictionService {
     
     let points = 0
     let bonusInfo = ''
+    let streakBonus = 0
     
     if (isExact) {
       // Base points for exact predictions
@@ -83,12 +85,24 @@ export class PredictionService {
       if (multiplier > 1) {
         bonusInfo = `+${Math.round((multiplier - 1) * 100)}% risk bonus`
       }
+      
+      // Calculate streak bonus for correct predictions
+      streakBonus = this.calculateStreakBonus(currentStreak + 1)
+      if (streakBonus > 0) {
+        bonusInfo += bonusInfo ? `, +${streakBonus} streak bonus` : `+${streakBonus} streak bonus`
+      }
     } else if (isCategoryCorrect) {
       // Points for correct category predictions
       points = this.getCategoryPoints(predictedCategory, actualCategory)
+      
+      // Calculate streak bonus for correct predictions
+      streakBonus = this.calculateStreakBonus(currentStreak + 1)
+      if (streakBonus > 0) {
+        bonusInfo = `+${streakBonus} streak bonus`
+      }
     }
     
-    return { points, isExact, isCategoryCorrect, bonusInfo }
+    return { points, isExact, isCategoryCorrect, bonusInfo, streakBonus }
   }
 
   // Get base points for each outcome type
@@ -152,6 +166,52 @@ export class PredictionService {
     return 0
   }
 
+  // Calculate streak bonus points
+  private calculateStreakBonus(streakCount: number): number {
+    if (streakCount < 2) return 0 // No bonus for first correct prediction
+    
+    // Progressive streak bonuses
+    if (streakCount >= 10) return 10 // 10+ streak = 10 bonus points
+    if (streakCount >= 7) return 7   // 7+ streak = 7 bonus points
+    if (streakCount >= 5) return 5   // 5+ streak = 5 bonus points
+    if (streakCount >= 3) return 3   // 3+ streak = 3 bonus points
+    return 1 // 2+ streak = 1 bonus point
+  }
+
+  // Get current streak for a user
+  async getUserCurrentStreak(userId: string): Promise<number> {
+    try {
+      const { data, error } = await supabase
+        .from('at_bat_predictions')
+        .select('is_correct, created_at')
+        .eq('user_id', userId)
+        .not('is_correct', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(20) // Check last 20 predictions for streak calculation
+
+      if (error) {
+        console.error('Error fetching user streak:', error)
+        return 0
+      }
+
+      if (!data || data.length === 0) return 0
+
+      let streak = 0
+      for (const prediction of data) {
+        if (prediction.is_correct) {
+          streak++
+        } else {
+          break // Streak ends on first incorrect prediction
+        }
+      }
+
+      return streak
+    } catch (error) {
+      console.error('Error calculating user streak:', error)
+      return 0
+    }
+  }
+
   // Resolve predictions for a completed at-bat
   async resolveAtBatPredictions(
     gamePk: number,
@@ -164,11 +224,18 @@ export class PredictionService {
       
       // Update each prediction with the actual outcome and points
       for (const prediction of predictions) {
-        const { points, isExact, isCategoryCorrect } = this.calculatePoints(
+        // Get current streak before this prediction
+        const currentStreak = await this.getUserCurrentStreak(prediction.userId)
+        
+        const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
           prediction.prediction,
           prediction.predictionCategory,
-          actualOutcome
+          actualOutcome,
+          currentStreak
         )
+        
+        // Calculate new streak count
+        const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
         
         const { error } = await supabase
           .from('at_bat_predictions')
@@ -176,7 +243,9 @@ export class PredictionService {
             actual_outcome: actualOutcome,
             actual_category: getOutcomeCategory(actualOutcome),
             is_correct: isExact || isCategoryCorrect,
-            points_earned: points,
+            points_earned: points + streakBonus,
+            streak_count: newStreakCount,
+            streak_bonus: streakBonus,
             resolved_at: new Date().toISOString()
           })
           .eq('id', prediction.id)
@@ -216,6 +285,8 @@ export class PredictionService {
         actualCategory: prediction.actual_category,
         isCorrect: prediction.is_correct,
         pointsEarned: prediction.points_earned,
+        streakCount: prediction.streak_count,
+        streakBonus: prediction.streak_bonus,
         createdAt: prediction.created_at,
         resolvedAt: prediction.resolved_at,
         user: {

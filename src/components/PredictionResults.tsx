@@ -250,9 +250,14 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
               {isCorrect ? (
                 <>
                   <span className="text-green-400 text-lg">✅</span>
-                  <span className="text-green-400 text-sm font-medium">
-                    Correct! +{prediction.pointsEarned || 0}pts
-                  </span>
+                  <div className="text-green-400 text-sm font-medium">
+                    <div>Correct! +{prediction.pointsEarned || 0}pts</div>
+                    {prediction.streakBonus && prediction.streakBonus > 0 && (
+                      <div className="text-yellow-400 text-xs">
+                        🔥 {prediction.streakCount} streak (+{prediction.streakBonus} bonus)
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
                 <>
