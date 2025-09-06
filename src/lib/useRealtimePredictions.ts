@@ -27,6 +27,7 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredic
         predictionsData = await predictionService.getUserGamePredictions(gamePk)
       }
       
+      console.log('Loaded predictions:', predictionsData.length)
       setPredictions(predictionsData)
     } catch (err) {
       console.error('Error loading predictions:', err)
@@ -36,58 +37,84 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredic
     }
   }, [gamePk, atBatIndex])
 
-  // Handle real-time updates
-  const handleRealtimeUpdate = useCallback(async (payload: any) => {
-    console.log('Real-time prediction update:', payload)
-    
-    // Show updating indicator
-    setIsUpdating(true)
-    
-    try {
-      // Add a small delay to ensure database consistency
-      await new Promise(resolve => setTimeout(resolve, 150))
-      
-      // Reload predictions
-      await loadPredictions()
-    } catch (err) {
-      console.error('Error handling real-time update:', err)
-    } finally {
-      // Hide updating indicator
-      setTimeout(() => setIsUpdating(false), 500)
-    }
-  }, [loadPredictions])
-
   // Set up real-time subscription
   useEffect(() => {
     if (!gamePk) return
 
-    // Load initial data
-    loadPredictions()
+    let channel: any
 
-    // Set up real-time subscription
-    const channel = supabase
-      .channel(`predictions-${gamePk}-${atBatIndex || 'all'}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'at_bat_predictions',
-          filter: `game_pk=eq.${gamePk}`
-        },
-        handleRealtimeUpdate
-      )
-      .subscribe((status) => {
-        console.log('Prediction subscription status:', status)
-        if (status === 'CHANNEL_ERROR') {
-          setError('Connection error')
-        }
-      })
+    const setupRealtime = async () => {
+      try {
+        console.log('Setting up prediction real-time subscription for game:', gamePk, 'atBat:', atBatIndex)
+        
+        // Load initial data
+        await loadPredictions()
+
+        // Set up real-time subscription
+        const channelName = `predictions-${gamePk}-${atBatIndex !== undefined ? atBatIndex : 'all'}`
+        console.log('Creating channel:', channelName)
+        
+        channel = supabase
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'at_bat_predictions',
+              filter: `game_pk=eq.${gamePk}`
+            },
+            async (payload) => {
+              console.log('Received prediction real-time update:', payload)
+              
+              // If we're filtering by atBatIndex, check if this event is relevant
+              if (atBatIndex !== undefined && payload.new && payload.new.at_bat_index !== atBatIndex) {
+                console.log('Event not relevant for current at-bat:', payload.new.at_bat_index, 'vs', atBatIndex)
+                return
+              }
+              
+              // Show updating indicator
+              setIsUpdating(true)
+              
+              try {
+                // Add a small delay to ensure database consistency
+                await new Promise(resolve => setTimeout(resolve, 200))
+                
+                // Reload predictions
+                await loadPredictions()
+                console.log('Successfully updated predictions after real-time event')
+              } catch (err) {
+                console.error('Error handling real-time update:', err)
+              } finally {
+                // Hide updating indicator
+                setTimeout(() => setIsUpdating(false), 500)
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log('Prediction subscription status:', status)
+            if (status === 'SUBSCRIBED') {
+              console.log('Successfully subscribed to prediction updates')
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('Prediction subscription error')
+              setError('Connection error')
+            }
+          })
+      } catch (err) {
+        console.error('Error setting up prediction real-time:', err)
+        setError('Failed to connect')
+      }
+    }
+
+    setupRealtime()
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        console.log('Cleaning up prediction subscription')
+        supabase.removeChannel(channel)
+      }
     }
-  }, [gamePk, atBatIndex, loadPredictions, handleRealtimeUpdate])
+  }, [gamePk, atBatIndex, loadPredictions])
 
   return {
     predictions,

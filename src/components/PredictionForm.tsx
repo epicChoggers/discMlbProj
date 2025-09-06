@@ -88,6 +88,13 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
 
     try {
       const predictionCategory = getOutcomeCategory(selectedOutcome)
+      console.log('Submitting prediction:', {
+        gamePk,
+        atBatIndex: currentAtBat.about.atBatIndex,
+        prediction: selectedOutcome,
+        category: predictionCategory
+      })
+
       const result = await predictionService.submitPrediction(
         gamePk,
         currentAtBat.about.atBatIndex,
@@ -96,6 +103,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
       )
 
       if (result) {
+        console.log('Prediction submitted successfully:', result)
         setSuccess(true)
         onPredictionSubmitted()
         
@@ -105,9 +113,8 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
           setSelectedCategory(null)
           setSelectedOutcome(null)
         }, 2000)
-        
-        console.log('Prediction submitted successfully:', result)
       } else {
+        console.error('Prediction submission returned null/undefined')
         setError('Failed to submit prediction')
       }
     } catch (err) {

@@ -7,6 +7,7 @@ import { Leaderboard } from './Leaderboard'
 import { UserProfile } from './UserProfile'
 import { ScoringSystem } from './ScoringSystem'
 import { ToastContainer } from './Toast'
+import { DebugPredictions } from './DebugPredictions'
 import { signOut } from '../supabaseClient'
 import { MLBGame, MLBPlay } from '../lib/types'
 
@@ -182,10 +183,13 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                             ) : null
                           })() : null}
                           {gameState.game.gamePk && (
-                            <PredictionResults
-                              gamePk={gameState.game.gamePk}
-                              currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
-                            />
+                            <>
+                              <DebugPredictions gamePk={gameState.game.gamePk} />
+                              <PredictionResults
+                                gamePk={gameState.game.gamePk}
+                                currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
+                              />
+                            </>
                           )}
                         </>
                       ) : (
