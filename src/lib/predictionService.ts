@@ -620,6 +620,8 @@ export class PredictionService {
 
   // Map MLB API result types to our AtBatOutcome types
   private mapMLBOutcomeToAtBatOutcome(mlbType: string): AtBatOutcome {
+    console.log(`Mapping MLB outcome: "${mlbType}"`)
+    
     const outcomeMap: Record<string, AtBatOutcome> = {
       // Hits
       'single': 'single',
@@ -630,6 +632,8 @@ export class PredictionService {
       // Walks and strikeouts
       'walk': 'walk',
       'strikeout': 'strikeout',
+      'strikeout_double_play': 'strikeout',
+      'strikeout_triple_play': 'strikeout',
       
       // Outs
       'groundout': 'groundout',
@@ -637,17 +641,33 @@ export class PredictionService {
       'popout': 'popout',
       'lineout': 'lineout',
       'fielders_choice': 'fielders_choice',
+      'fielders_choice_out': 'fielders_choice',
+      'groundout_double_play': 'groundout',
+      'flyout_double_play': 'flyout',
+      'popout_double_play': 'popout',
+      'lineout_double_play': 'lineout',
       
       // Other outcomes
       'hit_by_pitch': 'hit_by_pitch',
       'error': 'error',
       'sacrifice': 'sacrifice',
+      'sacrifice_fly': 'sacrifice',
+      'sacrifice_bunt': 'sacrifice',
+      'catcher_interference': 'hit_by_pitch',
+      'intentional_walk': 'walk',
       
-      // Default fallback
+      // Default fallback - but log unknown types
       'other': 'other'
     }
     
-    return outcomeMap[mlbType] || 'other'
+    const mappedOutcome = outcomeMap[mlbType] || 'other'
+    
+    if (mappedOutcome === 'other' && mlbType !== 'other') {
+      console.warn(`Unknown MLB outcome type: "${mlbType}" - mapping to 'other'`)
+    }
+    
+    console.log(`Mapped "${mlbType}" to "${mappedOutcome}"`)
+    return mappedOutcome
   }
 
   // Auto-resolve predictions when an at-bat is completed
@@ -669,7 +689,12 @@ export class PredictionService {
         return // Already resolved, skip
       }
 
-      console.log(`Attempting to resolve predictions for at-bat ${atBatIndex} with outcome: ${completedAtBat.result.type}`)
+      console.log(`Attempting to resolve predictions for at-bat ${atBatIndex}`)
+      console.log(`MLB API result:`, {
+        type: completedAtBat.result.type,
+        event: completedAtBat.result.event,
+        description: completedAtBat.result.description
+      })
 
       // Check if this at-bat's predictions are already resolved
       const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
