@@ -12,18 +12,6 @@ interface GameStateWithToggleProps extends GameStateProps {
 export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) => {
   const { game, currentAtBat, isLoading, error } = gameState
 
-  // Debug: Log the game data structure
-  console.log('GameState component received:', {
-    hasGame: !!game,
-    gameKeys: game ? Object.keys(game) : [],
-    gamePk: game?.gamePk,
-    hasTeams: !!game?.teams,
-    teamsKeys: game?.teams ? Object.keys(game.teams) : [],
-    homeTeam: game?.teams?.home,
-    awayTeam: game?.teams?.away,
-    hasGameData: !!game?.gameData,
-    gameDataTeams: game?.gameData?.teams
-  })
 
 
   if (isLoading) {
@@ -58,7 +46,11 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
   const homeTeam = game.teams?.home || game.gameData?.teams?.home
   const awayTeam = game.teams?.away || game.gameData?.teams?.away
   
-  if (!homeTeam?.team?.id || !awayTeam?.team?.id) {
+  // Check for team ID - handle both structures: team.id (schedule) and id (game details)
+  const homeTeamId = (homeTeam as any)?.team?.id || (homeTeam as any)?.id
+  const awayTeamId = (awayTeam as any)?.team?.id || (awayTeam as any)?.id
+  
+  if (!homeTeamId || !awayTeamId) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="text-center">
@@ -72,7 +64,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
     )
   }
   
-  const isMarinersHome = homeTeam.team.id === 147
+  const isMarinersHome = homeTeamId === 147
   const marinersTeam = isMarinersHome ? homeTeam : awayTeam
   const opponentTeam = isMarinersHome ? awayTeam : homeTeam
 
@@ -84,7 +76,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
           <div className="text-2xl">⚾</div>
           <div>
             <h3 className="text-white text-lg font-semibold">
-              {marinersTeam.team.name} vs {opponentTeam.team.name}
+              {(marinersTeam as any)?.team?.name || (marinersTeam as any)?.name} vs {(opponentTeam as any)?.team?.name || (opponentTeam as any)?.name}
             </h3>
             <p className="text-gray-400 text-sm">
               {game.venue.name} • {new Date(game.gameDate).toLocaleDateString()}
@@ -109,7 +101,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
         <div className="bg-gray-700 rounded-lg p-4 mb-4">
           <div className="flex justify-between items-center">
             <div className="text-center">
-              <div className="text-gray-400 text-sm">{opponentTeam.team.abbreviation}</div>
+              <div className="text-gray-400 text-sm">{(opponentTeam as any)?.team?.abbreviation || (opponentTeam as any)?.abbreviation}</div>
               <div className="text-white text-2xl font-bold">
                 {game.liveData.linescore.teams.away.runs}
               </div>
@@ -123,7 +115,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
               </div>
             </div>
             <div className="text-center">
-              <div className="text-gray-400 text-sm">{marinersTeam.team.abbreviation}</div>
+              <div className="text-gray-400 text-sm">{(marinersTeam as any)?.team?.abbreviation || (marinersTeam as any)?.abbreviation}</div>
               <div className="text-white text-2xl font-bold">
                 {game.liveData.linescore.teams.home.runs}
               </div>
