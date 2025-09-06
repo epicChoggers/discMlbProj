@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 
-const MLB_BASE_URL = 'https://statsapi.mlb.com/api/v1'
+const MLB_BASE_URL = 'https://statsapi.mlb.com/api/v1.1'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*')
