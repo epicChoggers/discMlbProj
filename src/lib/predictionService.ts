@@ -617,6 +617,54 @@ export class PredictionService {
     }
   }
 
+  // Auto-resolve ALL completed at-bats for a game
+  async autoResolveAllCompletedAtBats(gamePk: number, game: any): Promise<void> {
+    try {
+      if (!game?.liveData?.plays?.allPlays) {
+        console.log('No game plays data available')
+        return
+      }
+
+      const { allPlays } = game.liveData.plays
+      
+      // Find all completed plays (those with a result type other than 'at_bat')
+      const completedPlays = allPlays.filter((play: any) => 
+        play.result.type && play.result.type !== 'at_bat'
+      )
+      
+      console.log(`Found ${completedPlays.length} completed plays to check for resolution`)
+
+      // Process each completed play
+      for (const play of completedPlays) {
+        const atBatIndex = play.about?.atBatIndex
+        if (atBatIndex === undefined) {
+          continue
+        }
+
+        // Check if this at-bat's predictions are already resolved
+        const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+        const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
+        
+        if (unresolvedPredictions.length === 0) {
+          console.log(`At-bat ${atBatIndex} predictions already resolved`)
+          continue // Already resolved
+        }
+
+        console.log(`Resolving ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
+
+        // Map MLB outcome to our AtBatOutcome type
+        const mappedOutcome = this.mapMLBOutcomeToAtBatOutcome(play.result.type)
+        console.log(`Mapped MLB outcome "${play.result.type}" to "${mappedOutcome}" for at-bat ${atBatIndex}`)
+
+        // Resolve the predictions
+        await this.resolveAtBatPredictions(gamePk, atBatIndex, mappedOutcome)
+        console.log(`Successfully resolved predictions for at-bat ${atBatIndex}`)
+      }
+    } catch (error) {
+      console.error('Error auto-resolving all completed at-bat predictions:', error)
+    }
+  }
+
   // Subscribe to prediction updates
   subscribeToPredictions(
     gamePk: number,

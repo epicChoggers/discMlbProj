@@ -15,12 +15,9 @@ export const useGameState = () => {
     setGameState(prev => ({ ...prev, isLoading: true }))
     const newGameState = await mlbService.getGameState()
     
-    // Auto-resolve any completed at-bats
+    // Auto-resolve ALL completed at-bats
     if (newGameState.game && newGameState.game.gamePk) {
-      const completedAtBat = mlbService.getMostRecentCompletedAtBat(newGameState.game)
-      if (completedAtBat) {
-        await predictionService.autoResolveCompletedAtBats(newGameState.game.gamePk, completedAtBat)
-      }
+      await predictionService.autoResolveAllCompletedAtBats(newGameState.game.gamePk, newGameState.game)
     }
     
     setGameState(newGameState)
@@ -32,12 +29,9 @@ export const useGameState = () => {
 
     // Set up real-time updates
     const handleGameUpdate = async (newGameState: GameState) => {
-      // Auto-resolve any completed at-bats on real-time updates too
+      // Auto-resolve ALL completed at-bats on real-time updates too
       if (newGameState.game && newGameState.game.gamePk) {
-        const completedAtBat = mlbService.getMostRecentCompletedAtBat(newGameState.game)
-        if (completedAtBat) {
-          await predictionService.autoResolveCompletedAtBats(newGameState.game.gamePk, completedAtBat)
-        }
+        await predictionService.autoResolveAllCompletedAtBats(newGameState.game.gamePk, newGameState.game)
       }
       
       setGameState(newGameState)

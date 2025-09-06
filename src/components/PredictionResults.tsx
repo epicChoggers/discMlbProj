@@ -91,12 +91,35 @@ export const PredictionResults = ({ gamePk }: PredictionResultsProps) => {
           <h3 className="text-white text-lg font-semibold">
             All Predictions for This Game ({predictions.length})
           </h3>
-          {isUpdating && (
-            <div className="flex items-center space-x-2 text-blue-400 text-sm">
-              <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-              <span>Updating...</span>
-            </div>
-          )}
+          <div className="flex items-center space-x-3">
+            {isUpdating && (
+              <div className="flex items-center space-x-2 text-blue-400 text-sm">
+                <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                <span>Updating...</span>
+              </div>
+            )}
+            <button
+              onClick={async () => {
+                try {
+                  const { mlbService } = await import('../lib/mlbService')
+                  const { predictionService } = await import('../lib/predictionService')
+                  
+                  // Get current game state
+                  const currentGameState = await mlbService.getGameState()
+                  if (currentGameState.game && currentGameState.game.gamePk) {
+                    console.log('Manually triggering resolution of all completed at-bats...')
+                    await predictionService.autoResolveAllCompletedAtBats(currentGameState.game.gamePk, currentGameState.game)
+                    console.log('Manual resolution complete')
+                  }
+                } catch (error) {
+                  console.error('Error manually resolving predictions:', error)
+                }
+              }}
+              className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition-colors"
+            >
+              Resolve All
+            </button>
+          </div>
         </div>
         
         {predictions.length === 0 ? (
@@ -212,6 +235,13 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
       setIsResolving(true)
       const timer = setTimeout(() => setIsResolving(false), 2000)
       return () => clearTimeout(timer)
+    }
+  }, [isResolved, isResolving])
+
+  // Reset resolving state when prediction becomes unresolved (shouldn't happen but safety check)
+  useEffect(() => {
+    if (!isResolved && isResolving) {
+      setIsResolving(false)
     }
   }, [isResolved, isResolving])
 
