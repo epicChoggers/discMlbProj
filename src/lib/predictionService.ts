@@ -2,6 +2,35 @@ import { supabase } from '../supabaseClient'
 import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory } from './types'
 
 export class PredictionService {
+  // Check if user has already made a prediction for this at-bat
+  async hasUserPredictedForAtBat(gamePk: number, atBatIndex: number): Promise<boolean> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        return false
+      }
+
+      const { data, error } = await supabase
+        .from('at_bat_predictions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('game_pk', gamePk)
+        .eq('at_bat_index', atBatIndex)
+        .single()
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error('Error checking existing prediction:', error)
+        return false
+      }
+
+      return !!data // Return true if prediction exists
+    } catch (error) {
+      console.error('Error checking existing prediction:', error)
+      return false
+    }
+  }
+
   // Submit a new prediction
   async submitPrediction(
     gamePk: number,
@@ -23,6 +52,12 @@ export class PredictionService {
       
       if (!user) {
         throw new Error('User not authenticated')
+      }
+
+      // Check if user has already made a prediction for this at-bat
+      const hasExistingPrediction = await this.hasUserPredictedForAtBat(gamePk, atBatIndex)
+      if (hasExistingPrediction) {
+        throw new Error('You have already made a prediction for this at-bat. Please wait for the next at-bat.')
       }
 
       const finalAtBatIndex = atBatIndex
@@ -259,6 +294,21 @@ export class PredictionService {
     }
   }
 
+  // Get predictions for the previous at-bat
+  async getPreviousAtBatPredictions(gamePk: number, currentAtBatIndex: number): Promise<AtBatPrediction[]> {
+    try {
+      const previousAtBatIndex = currentAtBatIndex - 1
+      if (previousAtBatIndex < 0) {
+        return [] // No previous at-bat
+      }
+      
+      return await this.getAtBatPredictions(gamePk, previousAtBatIndex)
+    } catch (error) {
+      console.error('Error fetching previous at-bat predictions:', error)
+      return []
+    }
+  }
+
   // Get predictions for a specific at-bat
   async getAtBatPredictions(gamePk: number, atBatIndex: number): Promise<AtBatPrediction[]> {
     try {
@@ -438,6 +488,33 @@ export class PredictionService {
     } catch (error) {
       console.error('Error resolving prediction:', error)
       return false
+    }
+  }
+
+  // Auto-resolve predictions when an at-bat is completed
+  async autoResolveCompletedAtBats(gamePk: number, completedAtBat: any): Promise<void> {
+    try {
+      if (!completedAtBat || !completedAtBat.result || !completedAtBat.result.type) {
+        return
+      }
+
+      const atBatIndex = completedAtBat.about?.atBatIndex
+      if (atBatIndex === undefined) {
+        return
+      }
+
+      // Check if this at-bat's predictions are already resolved
+      const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+      const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
+      
+      if (unresolvedPredictions.length === 0) {
+        return // Already resolved
+      }
+
+      // Resolve the predictions
+      await this.resolveAtBatPredictions(gamePk, atBatIndex, completedAtBat.result.type)
+    } catch (error) {
+      console.error('Error auto-resolving at-bat predictions:', error)
     }
   }
 

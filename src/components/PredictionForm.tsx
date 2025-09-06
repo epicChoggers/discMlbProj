@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AtBatOutcome, MLBPlay, getOutcomeCategory, getOutcomePoints } from '../lib/types'
 import { predictionService } from '../lib/predictionService'
 
@@ -47,6 +47,26 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [hasAlreadyPredicted, setHasAlreadyPredicted] = useState(false)
+  const [isCheckingPrediction, setIsCheckingPrediction] = useState(true)
+
+  // Check if user has already made a prediction for this at-bat
+  useEffect(() => {
+    const checkExistingPrediction = async () => {
+      try {
+        setIsCheckingPrediction(true)
+        const hasPredicted = await predictionService.hasUserPredictedForAtBat(gamePk, currentAtBat.about.atBatIndex)
+        setHasAlreadyPredicted(hasPredicted)
+      } catch (error) {
+        console.error('Error checking existing prediction:', error)
+        setHasAlreadyPredicted(false)
+      } finally {
+        setIsCheckingPrediction(false)
+      }
+    }
+
+    checkExistingPrediction()
+  }, [gamePk, currentAtBat.about.atBatIndex])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -123,6 +143,29 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
           <div className="text-green-300 text-lg mb-2">✅</div>
           <h3 className="text-green-300 font-semibold mb-1">Prediction Submitted!</h3>
           <p className="text-green-400 text-sm">Good luck with your prediction!</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isCheckingPrediction) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 mb-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
+          <p className="text-gray-400 text-sm">Checking prediction status...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (hasAlreadyPredicted) {
+    return (
+      <div className="bg-yellow-900/50 border border-yellow-700 rounded-lg p-4 mb-4">
+        <div className="text-center">
+          <div className="text-yellow-300 text-lg mb-2">⏳</div>
+          <h3 className="text-yellow-300 font-semibold mb-1">Already Predicted!</h3>
+          <p className="text-yellow-400 text-sm">You've already made a prediction for this at-bat. Please wait for the next at-bat.</p>
         </div>
       </div>
     )

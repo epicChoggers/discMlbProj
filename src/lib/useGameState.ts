@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { GameState } from './types'
 import { mlbService } from './mlbService'
+import { predictionService } from './predictionService'
 
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -13,6 +14,15 @@ export const useGameState = () => {
   const refreshGameState = useCallback(async () => {
     setGameState(prev => ({ ...prev, isLoading: true }))
     const newGameState = await mlbService.getGameState()
+    
+    // Auto-resolve any completed at-bats
+    if (newGameState.game && newGameState.game.gamePk) {
+      const completedAtBat = mlbService.getMostRecentCompletedAtBat(newGameState.game)
+      if (completedAtBat) {
+        await predictionService.autoResolveCompletedAtBats(newGameState.game.gamePk, completedAtBat)
+      }
+    }
+    
     setGameState(newGameState)
   }, [])
 

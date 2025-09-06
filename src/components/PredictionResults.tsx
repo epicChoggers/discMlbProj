@@ -9,6 +9,7 @@ interface PredictionResultsProps {
 
 export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResultsProps) => {
   const [predictions, setPredictions] = useState<AtBatPrediction[]>([])
+  const [previousPredictions, setPreviousPredictions] = useState<AtBatPrediction[]>([])
   const [stats, setStats] = useState<PredictionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -26,9 +27,14 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
         if (currentAtBatIndex !== undefined) {
           // Get predictions for specific at-bat in real games
           predictionsData = await predictionService.getAtBatPredictions(gamePk, currentAtBatIndex)
+          
+          // Get previous at-bat predictions
+          const previousData = await predictionService.getPreviousAtBatPredictions(gamePk, currentAtBatIndex)
+          setPreviousPredictions(previousData)
         } else {
           // Get all predictions for the game when no specific at-bat
           predictionsData = await predictionService.getUserGamePredictions(gamePk)
+          setPreviousPredictions([])
         }
         
         const statsData = await predictionService.getUserPredictionStats()
@@ -53,6 +59,12 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
       
       try {
         setPredictions(newPredictions)
+        
+        // Also update previous at-bat predictions if we have a current at-bat index
+        if (currentAtBatIndex !== undefined) {
+          const previousData = await predictionService.getPreviousAtBatPredictions(gamePk, currentAtBatIndex)
+          setPreviousPredictions(previousData)
+        }
         
         // Update stats in real-time
         const updatedStats = await predictionService.getUserPredictionStats()
@@ -153,6 +165,39 @@ export const PredictionResults = ({ gamePk, currentAtBatIndex }: PredictionResul
           </div>
         )}
       </div>
+
+      {/* Previous At-Bat Predictions */}
+      {previousPredictions.length > 0 && (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white text-lg font-semibold">
+              Predictions for Last At-Bat ({previousPredictions.length})
+            </h3>
+            {isUpdating && (
+              <div className="flex items-center space-x-2 text-blue-400 text-sm">
+                <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                <span>Updating...</span>
+              </div>
+            )}
+          </div>
+          
+          <div className="space-y-3">
+            {previousPredictions.map((prediction, index) => (
+              <div 
+                key={prediction.id} 
+                className={`transition-all duration-300 ${
+                  isUpdating ? 'opacity-90' : 'opacity-100'
+                }`}
+                style={{
+                  animationDelay: `${index * 50}ms`
+                }}
+              >
+                <PredictionCard prediction={prediction} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

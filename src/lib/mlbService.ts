@@ -184,6 +184,27 @@ class MLBService {
     return completedPlays.length > 0 ? completedPlays[completedPlays.length - 1] : null
   }
 
+  // Get the most recent completed at-bat that should be resolved
+  getMostRecentCompletedAtBat(game: MLBGame): MLBPlay | null {
+    if (!game.liveData?.plays) {
+      return null
+    }
+
+    const { allPlays } = game.liveData.plays
+    
+    // Find all completed plays (those with a result type other than 'at_bat')
+    const completedPlays = allPlays.filter(play => 
+      play.result.type && play.result.type !== 'at_bat'
+    )
+    
+    if (completedPlays.length === 0) {
+      return null
+    }
+
+    // Return the most recent completed play
+    return completedPlays[completedPlays.length - 1]
+  }
+
   // Check if game is currently live
   isGameLive(game: MLBGame): boolean {
     return game.status?.abstractGameState === 'Live'
