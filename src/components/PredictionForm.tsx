@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { AtBatOutcome, MLBPlay, getOutcomeCategory, getOutcomePoints } from '../lib/types'
+import { AtBatOutcome, MLBPlay, getOutcomeCategory } from '../lib/types'
 import { predictionService } from '../lib/predictionService'
 
 interface PredictionFormProps {
@@ -327,22 +327,22 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
             <div className="text-white flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="text-2xl">
-                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.emoji}
+                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.emoji || '❓'}
                 </div>
                 <div>
                   <div className="font-semibold">
-                    {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.label}
+                    {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.label || 'Unknown'}
                   </div>
                   <div className="text-sm text-gray-400">
-                    {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.description}
+                    {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.description || 'Unknown outcome'}
                   </div>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-yellow-400 font-bold text-lg">
-                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.points} pts
+                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.points || 0} pts
                 </div>
-                {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.bonusPercent > 0 && (
+                {(Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.bonusPercent || 0) > 0 && (
                   <div className="text-green-400 text-sm">
                     +{Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.bonusPercent}% bonus
                   </div>
