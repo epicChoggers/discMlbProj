@@ -70,7 +70,6 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
   }
   
   // For testing: treat any team as "our team" (originally Mariners)
-  const isMarinersHome = true // Always show home team first for testing
   const marinersTeam = homeTeam
   const opponentTeam = awayTeam
 
