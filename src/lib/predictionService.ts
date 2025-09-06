@@ -285,14 +285,14 @@ export class PredictionService {
         actualCategory: prediction.actual_category,
         isCorrect: prediction.is_correct,
         pointsEarned: prediction.points_earned,
-        streakCount: prediction.streak_count,
-        streakBonus: prediction.streak_bonus,
+        streakCount: prediction.streak_count || 0,
+        streakBonus: prediction.streak_bonus || 0,
         createdAt: prediction.created_at,
         resolvedAt: prediction.resolved_at,
         user: {
           id: prediction.user_id,
-          email: prediction.email,
-          raw_user_meta_data: prediction.raw_user_meta_data
+          email: prediction.email || '',
+          raw_user_meta_data: prediction.raw_user_meta_data || {}
         }
       }))
 

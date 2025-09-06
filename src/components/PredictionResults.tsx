@@ -186,6 +186,9 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
   }
 
   const getOutcomeLabel = (outcome: string) => {
+    if (!outcome || typeof outcome !== 'string') {
+      return 'Unknown'
+    }
     return outcome.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ')
@@ -198,7 +201,7 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
     if (prediction.user?.raw_user_meta_data?.full_name) {
       return prediction.user.raw_user_meta_data.full_name
     }
-    if (prediction.user?.email) {
+    if (prediction.user?.email && typeof prediction.user.email === 'string') {
       return prediction.user.email.split('@')[0]
     }
     return 'Anonymous'
