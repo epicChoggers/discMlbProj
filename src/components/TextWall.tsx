@@ -97,7 +97,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
       <header className="bg-gray-800 border-b border-gray-700 px-4 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">⚾ Mariners Predictions</h1>
+            <h1 className="text-2xl font-bold text-white">⚾ Do You Know Ball?</h1>
             <p className="text-sm text-gray-400">
               {shouldShowLiveFeatures ? 'Live Game' : 'Most Recent Game'}
             </p>
