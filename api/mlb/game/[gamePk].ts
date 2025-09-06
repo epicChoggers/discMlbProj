@@ -3,7 +3,6 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 const MLB_BASE_URL = 'https://statsapi.mlb.com/api/v1'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -20,23 +19,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { gamePk } = req.query
-    
+
     if (!gamePk || typeof gamePk !== 'string') {
       res.status(400).json({ error: 'Game PK is required' })
       return
     }
 
-    // Get detailed game data including live data
     const url = `${MLB_BASE_URL}/game/${gamePk}/feed/live`
-    
     const response = await fetch(url)
-    
+
     if (!response.ok) {
       throw new Error(`MLB API error: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
-    
+
     res.status(200).json({
       success: true,
       game: data.gameData,
