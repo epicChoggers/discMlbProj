@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 
-const MARINERS_TEAM_ID = 136
+const MARINERS_TEAM_ID = 147
 const MLB_BASE_URL = 'https://statsapi.mlb.com/api/v1'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
