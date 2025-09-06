@@ -17,9 +17,9 @@ export class PredictionService {
         .eq('user_id', user.id)
         .eq('game_pk', gamePk)
         .eq('at_bat_index', atBatIndex)
-        .single()
+        .maybeSingle() // Use maybeSingle() instead of single() to handle no results gracefully
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+      if (error) {
         console.error('Error checking existing prediction:', error)
         return false
       }
