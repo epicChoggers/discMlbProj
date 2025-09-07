@@ -1,6 +1,6 @@
 import { MLBGame, MLBPlay, GameState } from './types'
 
-const MARINERS_TEAM_ID = 112 // Seattle Mariners team ID in MLB API
+const MARINERS_TEAM_ID = 143 // Seattle Mariners team ID in MLB API
 
 class MLBService {
   private apiBaseUrl = '/api/mlb'

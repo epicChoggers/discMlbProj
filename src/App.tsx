@@ -11,6 +11,39 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Check if we're running locally and should bypass authentication
+        const isLocalDev = import.meta.env.DEV && import.meta.env.VITE_LOCAL_BYPASS_AUTH === 'true'
+        
+        if (isLocalDev) {
+          console.log('Local development mode detected - bypassing authentication')
+          
+          // Try to sign in with admin credentials for local development
+          const adminEmail = import.meta.env.VITE_ADMIN_EMAIL
+          const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD
+          
+          if (adminEmail && adminPassword) {
+            try {
+              const { data, error } = await supabase.auth.signInWithPassword({
+                email: adminEmail,
+                password: adminPassword,
+              })
+              
+              if (error) {
+                console.warn('Admin login failed, falling back to normal auth:', error.message)
+              } else if (data.session) {
+                console.log('Successfully authenticated as admin:', data.session.user?.email)
+                setIsAuthenticated(true)
+                setIsLoading(false)
+                return
+              }
+            } catch (err) {
+              console.warn('Admin authentication error, falling back to normal auth:', err)
+            }
+          } else {
+            console.warn('Admin credentials not configured, falling back to normal auth')
+          }
+        }
+
         // Check if we have auth tokens in the URL hash
         if (window.location.hash.includes('access_token')) {
           console.log('Found auth tokens in URL hash, processing...')
