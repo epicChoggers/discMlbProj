@@ -1,6 +1,3 @@
-# Text Wall
-
-A real-time collaborative text wall application built with Vite, React, TypeScript, Tailwind CSS, and Supabase. Users enter a shared password to access a live text wall where they can post messages that appear instantly for all connected users.
 
 ## Features
 
