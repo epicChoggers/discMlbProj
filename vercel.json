@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/mlb/refresh-cache",
-      "schedule": "* * * * *"
+      "schedule": "0 1 * * *"
     }
   ],
   "rewrites": [

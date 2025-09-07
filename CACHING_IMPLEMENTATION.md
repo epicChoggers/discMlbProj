@@ -33,7 +33,7 @@ The MLB prediction app has been updated to use server-side caching instead of in
 - **Purpose**: Background endpoint to refresh the cache
 - **Method**: GET/POST
 - **Usage**: Called automatically by Vercel cron job
-- **Schedule**: Every minute
+- **Schedule** (Hobby): Once daily (windowed)
 - **Response**: Cache refresh status
 
 ## Client-Side Changes
@@ -44,9 +44,9 @@ The MLB prediction app has been updated to use server-side caching instead of in
 - Real-time updates use cached data
 - Automatic fallback to cached data on errors
 
-### Performance Improvements
-- **Response Time**: ~90% faster for cached requests
-- **API Calls**: Reduced from N users × multiple calls to 1 call per minute
+### Performance Notes (Hobby)
+- **Cache Strategy**: API fetch on demand with short TTL during live games
+- **Cron**: Daily refresh to warm cache; precise timing not guaranteed on Hobby
 - **Reliability**: Fallback to stale data if API fails
 - **Scalability**: Supports unlimited concurrent users
 
@@ -58,7 +58,7 @@ The MLB prediction app has been updated to use server-side caching instead of in
   "crons": [
     {
       "path": "/api/mlb/refresh-cache",
-      "schedule": "* * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }
