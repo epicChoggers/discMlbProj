@@ -64,7 +64,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
     )
   }
   
-  const isMarinersHome = homeTeamId === 133
+  const isMarinersHome = homeTeamId === 136
   const marinersTeam = isMarinersHome ? homeTeam : awayTeam
   const opponentTeam = isMarinersHome ? awayTeam : homeTeam
 
