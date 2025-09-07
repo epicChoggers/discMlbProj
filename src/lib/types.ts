@@ -222,22 +222,99 @@ export interface AtBatPrediction {
   }
 }
 
+// MLB API Event Types - Based on actual API data
 export type AtBatOutcome = 
+  // Hits (plateAppearance: true, hit: true)
   | 'single'
   | 'double' 
   | 'triple'
   | 'home_run'
+  
+  // Walks and Hit by Pitch (plateAppearance: true, hit: false)
   | 'walk'
-  | 'strikeout'
-  | 'groundout'
-  | 'flyout'
-  | 'popout'
-  | 'lineout'
-  | 'fielders_choice'
-  | 'error'
+  | 'intent_walk'
   | 'hit_by_pitch'
-  | 'sacrifice'
-  | 'other'
+  
+  // Strikeouts (plateAppearance: true, hit: false)
+  | 'strikeout'
+  | 'strike_out'
+  | 'strikeout_double_play'
+  | 'strikeout_triple_play'
+  
+  // Field Outs (plateAppearance: true, hit: false)
+  | 'field_out'
+  | 'fielders_choice'
+  | 'fielders_choice_out'
+  | 'force_out'
+  | 'grounded_into_double_play'
+  | 'grounded_into_triple_play'
+  | 'triple_play'
+  
+  // Sacrifice Plays (plateAppearance: true, hit: false)
+  | 'sac_fly'
+  | 'sac_bunt'
+  | 'sac_fly_double_play'
+  | 'sac_bunt_double_play'
+  
+  // Errors and Interference (plateAppearance: true, hit: false)
+  | 'field_error'
+  | 'catcher_interf'
+  | 'batter_interference'
+  | 'fan_interference'
+  
+  // Double Plays (plateAppearance: true, hit: false)
+  | 'double_play'
+  
+  // Non-plate appearance events (plateAppearance: false) - these should not be at-bat outcomes
+  // but we include them for completeness in case they appear in play data
+  | 'pickoff_1b'
+  | 'pickoff_2b'
+  | 'pickoff_3b'
+  | 'pickoff_error_1b'
+  | 'pickoff_error_2b'
+  | 'pickoff_error_3b'
+  | 'stolen_base'
+  | 'stolen_base_2b'
+  | 'stolen_base_3b'
+  | 'stolen_base_home'
+  | 'caught_stealing'
+  | 'caught_stealing_2b'
+  | 'caught_stealing_3b'
+  | 'caught_stealing_home'
+  | 'wild_pitch'
+  | 'passed_ball'
+  | 'balk'
+  | 'forced_balk'
+  | 'other_advance'
+  | 'runner_double_play'
+  | 'cs_double_play'
+  | 'defensive_indiff'
+  | 'other_out'
+  
+  // Administrative events
+  | 'batter_timeout'
+  | 'mound_visit'
+  | 'no_pitch'
+  | 'pitcher_step_off'
+  | 'injury'
+  | 'ejection'
+  | 'game_advisory'
+  | 'os_ruling_pending_prior'
+  | 'os_ruling_pending_primary'
+  | 'at_bat_start'
+  | 'batter_turn'
+  | 'fielder_interference'
+  | 'runner_interference'
+  | 'runner_placed'
+  | 'pitching_substitution'
+  | 'offensive_substitution'
+  | 'defensive_substitution'
+  | 'defensive_switch'
+  | 'umpire_substitution'
+  | 'pitcher_switch'
+  | 'pickoff_caught_stealing_2b'
+  | 'pickoff_caught_stealing_3b'
+  | 'pickoff_caught_stealing_home'
 
 export interface PredictionStats {
   totalPredictions: number
@@ -253,72 +330,257 @@ export interface PredictionStats {
 // Helper function to determine the category of an outcome
 export const getOutcomeCategory = (outcome: AtBatOutcome): string => {
   switch (outcome) {
-    case 'strikeout':
-      return 'strikeout'
-    case 'walk':
-      return 'walk'
-    case 'home_run':
-      return 'home_run'
+    // Hits
     case 'single':
     case 'double':
     case 'triple':
+    case 'home_run':
       return 'hit'
-    case 'groundout':
-    case 'flyout':
-    case 'popout':
-    case 'lineout':
+    
+    // Walks
+    case 'walk':
+    case 'intent_walk':
+      return 'walk'
+    
+    // Strikeouts
+    case 'strikeout':
+    case 'strike_out':
+    case 'strikeout_double_play':
+    case 'strikeout_triple_play':
+      return 'strikeout'
+    
+    // Field Outs
+    case 'field_out':
     case 'fielders_choice':
+    case 'fielders_choice_out':
+    case 'force_out':
+    case 'grounded_into_double_play':
+    case 'grounded_into_triple_play':
+    case 'triple_play':
+    case 'double_play':
       return 'out'
+    
+    // Sacrifice Plays
+    case 'sac_fly':
+    case 'sac_bunt':
+    case 'sac_fly_double_play':
+    case 'sac_bunt_double_play':
+      return 'sacrifice'
+    
+    // Errors and Interference
+    case 'field_error':
+    case 'catcher_interf':
+    case 'batter_interference':
+    case 'fan_interference':
+      return 'error'
+    
+    // Hit by Pitch
     case 'hit_by_pitch':
-    case 'error':
-    case 'sacrifice':
-    case 'other':
-      return 'other'
+      return 'hit_by_pitch'
+    
+    // Non-plate appearance events (should not be at-bat outcomes)
+    case 'pickoff_1b':
+    case 'pickoff_2b':
+    case 'pickoff_3b':
+    case 'pickoff_error_1b':
+    case 'pickoff_error_2b':
+    case 'pickoff_error_3b':
+    case 'stolen_base':
+    case 'stolen_base_2b':
+    case 'stolen_base_3b':
+    case 'stolen_base_home':
+    case 'caught_stealing':
+    case 'caught_stealing_2b':
+    case 'caught_stealing_3b':
+    case 'caught_stealing_home':
+    case 'wild_pitch':
+    case 'passed_ball':
+    case 'balk':
+    case 'forced_balk':
+    case 'other_advance':
+    case 'runner_double_play':
+    case 'cs_double_play':
+    case 'defensive_indiff':
+    case 'other_out':
+      return 'baserunning'
+    
+    // Administrative events
+    case 'batter_timeout':
+    case 'mound_visit':
+    case 'no_pitch':
+    case 'pitcher_step_off':
+    case 'injury':
+    case 'ejection':
+    case 'game_advisory':
+    case 'os_ruling_pending_prior':
+    case 'os_ruling_pending_primary':
+    case 'at_bat_start':
+    case 'batter_turn':
+    case 'fielder_interference':
+    case 'runner_interference':
+    case 'runner_placed':
+    case 'pitching_substitution':
+    case 'offensive_substitution':
+    case 'defensive_substitution':
+    case 'defensive_switch':
+    case 'umpire_substitution':
+    case 'pitcher_switch':
+    case 'pickoff_caught_stealing_2b':
+    case 'pickoff_caught_stealing_3b':
+    case 'pickoff_caught_stealing_home':
+      return 'administrative'
+    
     default:
-      return 'other'
+      return 'unknown'
   }
 }
 
 // Helper function to get point values for outcomes (for UI display)
 export const getOutcomePoints = (outcome: AtBatOutcome): { base: number; withBonus: number; bonusPercent: number } => {
-  const basePoints: Record<AtBatOutcome, number> = {
-    'home_run': 15,
-    'triple': 12,
-    'double': 8,
-    'single': 4,
-    'walk': 3,
-    'strikeout': 2,
-    'groundout': 1,
-    'flyout': 1,
-    'popout': 1,
-    'lineout': 1,
-    'fielders_choice': 1,
-    'hit_by_pitch': 2,
-    'error': 1,
-    'sacrifice': 1,
-    'other': 1
+  // Define base points for each outcome type
+  const getBasePoints = (outcome: AtBatOutcome): number => {
+    switch (outcome) {
+      // Hits - High value for rare outcomes
+      case 'home_run': return 20
+      case 'triple': return 15
+      case 'double': return 10
+      case 'single': return 5
+      
+      // Walks - Moderate value
+      case 'walk': return 4
+      case 'intent_walk': return 4
+      case 'hit_by_pitch': return 3
+      
+      // Strikeouts - Moderate value
+      case 'strikeout': return 3
+      case 'strike_out': return 3
+      case 'strikeout_double_play': return 2
+      case 'strikeout_triple_play': return 1
+      
+      // Field Outs - Low value
+      case 'field_out': return 1
+      case 'fielders_choice': return 1
+      case 'fielders_choice_out': return 1
+      case 'force_out': return 1
+      case 'grounded_into_double_play': return 1
+      case 'grounded_into_triple_play': return 1
+      case 'triple_play': return 1
+      case 'double_play': return 1
+      
+      // Sacrifice Plays - Moderate value
+      case 'sac_fly': return 3
+      case 'sac_bunt': return 2
+      case 'sac_fly_double_play': return 2
+      case 'sac_bunt_double_play': return 1
+      
+      // Errors and Interference - Low value
+      case 'field_error': return 1
+      case 'catcher_interf': return 2
+      case 'batter_interference': return 1
+      case 'fan_interference': return 1
+      
+      // Non-plate appearance events - Should not be at-bat outcomes
+      case 'pickoff_1b':
+      case 'pickoff_2b':
+      case 'pickoff_3b':
+      case 'pickoff_error_1b':
+      case 'pickoff_error_2b':
+      case 'pickoff_error_3b':
+      case 'stolen_base':
+      case 'stolen_base_2b':
+      case 'stolen_base_3b':
+      case 'stolen_base_home':
+      case 'caught_stealing':
+      case 'caught_stealing_2b':
+      case 'caught_stealing_3b':
+      case 'caught_stealing_home':
+      case 'wild_pitch':
+      case 'passed_ball':
+      case 'balk':
+      case 'forced_balk':
+      case 'other_advance':
+      case 'runner_double_play':
+      case 'cs_double_play':
+      case 'defensive_indiff':
+      case 'other_out':
+        return 0 // These should not be at-bat outcomes
+      
+      // Administrative events - Should not be at-bat outcomes
+      case 'batter_timeout':
+      case 'mound_visit':
+      case 'no_pitch':
+      case 'pitcher_step_off':
+      case 'injury':
+      case 'ejection':
+      case 'game_advisory':
+      case 'os_ruling_pending_prior':
+      case 'os_ruling_pending_primary':
+      case 'at_bat_start':
+      case 'batter_turn':
+      case 'fielder_interference':
+      case 'runner_interference':
+      case 'runner_placed':
+      case 'pitching_substitution':
+      case 'offensive_substitution':
+      case 'defensive_substitution':
+      case 'defensive_switch':
+      case 'umpire_substitution':
+      case 'pitcher_switch':
+      case 'pickoff_caught_stealing_2b':
+      case 'pickoff_caught_stealing_3b':
+      case 'pickoff_caught_stealing_home':
+        return 0 // These should not be at-bat outcomes
+      
+      default:
+        return 1
+    }
   }
 
-  const multipliers: Record<AtBatOutcome, number> = {
-    'home_run': 1.5,
-    'triple': 1.5,
-    'double': 1.25,
-    'single': 1.0,
-    'walk': 1.0,
-    'strikeout': 1.0,
-    'groundout': 1.0,
-    'flyout': 1.0,
-    'popout': 1.0,
-    'lineout': 1.0,
-    'fielders_choice': 1.0,
-    'hit_by_pitch': 1.0,
-    'error': 1.0,
-    'sacrifice': 1.0,
-    'other': 1.0
+  // Define risk multipliers for outcomes (higher risk = higher reward)
+  const getMultiplier = (outcome: AtBatOutcome): number => {
+    switch (outcome) {
+      // Rare outcomes get higher multipliers
+      case 'home_run': return 2.0  // +100% bonus
+      case 'triple': return 1.8   // +80% bonus
+      case 'double': return 1.5   // +50% bonus
+      case 'single': return 1.2   // +20% bonus
+      
+      // Moderate outcomes get small bonuses
+      case 'walk': return 1.1     // +10% bonus
+      case 'intent_walk': return 1.1
+      case 'hit_by_pitch': return 1.1
+      case 'strikeout': return 1.1
+      case 'strike_out': return 1.1
+      case 'sac_fly': return 1.1
+      
+      // Common outcomes get no bonus
+      case 'field_out':
+      case 'fielders_choice':
+      case 'fielders_choice_out':
+      case 'force_out':
+      case 'sac_bunt':
+      case 'field_error':
+      case 'catcher_interf':
+      case 'batter_interference':
+      case 'fan_interference':
+      case 'strikeout_double_play':
+      case 'strikeout_triple_play':
+      case 'grounded_into_double_play':
+      case 'grounded_into_triple_play':
+      case 'triple_play':
+      case 'double_play':
+      case 'sac_fly_double_play':
+      case 'sac_bunt_double_play':
+        return 1.0
+      
+      // Non-at-bat events get no points
+      default:
+        return 1.0
+    }
   }
 
-  const base = basePoints[outcome] || 1
-  const multiplier = multipliers[outcome] || 1.0
+  const base = getBasePoints(outcome)
+  const multiplier = getMultiplier(outcome)
   const withBonus = Math.round(base * multiplier)
   const bonusPercent = Math.round((multiplier - 1) * 100)
 

@@ -6,9 +6,10 @@ import { predictionService } from './predictionService'
 interface UseRealtimePredictionsProps {
   gamePk: number
   atBatIndex?: number
+  onGameStateUpdate?: (callback: () => void) => () => void // Function to register for game state updates
 }
 
-export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredictionsProps) => {
+export const useRealtimePredictions = ({ gamePk, atBatIndex, onGameStateUpdate }: UseRealtimePredictionsProps) => {
   const [predictions, setPredictions] = useState<AtBatPrediction[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -37,6 +38,28 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex }: UseRealtimePredic
       setIsLoading(false)
     }
   }, [gamePk, atBatIndex])
+
+  // Refresh predictions when game state updates (for when at-bat outcomes are resolved)
+  const refreshPredictions = useCallback(async () => {
+    console.log('Game state updated, refreshing predictions...')
+    setIsUpdating(true)
+    try {
+      await loadPredictions()
+    } catch (err) {
+      console.error('Error refreshing predictions on game state update:', err)
+    } finally {
+      setTimeout(() => setIsUpdating(false), 500)
+    }
+  }, [loadPredictions])
+
+  // Register for game state updates
+  useEffect(() => {
+    if (onGameStateUpdate) {
+      console.log('Registering for game state updates to refresh predictions')
+      const unsubscribe = onGameStateUpdate(refreshPredictions)
+      return unsubscribe
+    }
+  }, [onGameStateUpdate, refreshPredictions])
 
   // Set up real-time subscription
   useEffect(() => {

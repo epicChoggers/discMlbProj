@@ -11,6 +11,20 @@ export const useGameState = () => {
     lastUpdated: new Date().toISOString()
   })
 
+  // Callback to notify other components when game state updates
+  const [gameStateUpdateCallbacks, setGameStateUpdateCallbacks] = useState<Set<() => void>>(new Set())
+
+  const addGameStateUpdateCallback = useCallback((callback: () => void) => {
+    setGameStateUpdateCallbacks(prev => new Set([...prev, callback]))
+    return () => {
+      setGameStateUpdateCallbacks(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(callback)
+        return newSet
+      })
+    }
+  }, [])
+
   const refreshGameState = useCallback(async () => {
     setGameState(prev => ({ ...prev, isLoading: true }))
     const newGameState = await mlbService.getGameState()
@@ -21,7 +35,16 @@ export const useGameState = () => {
     }
     
     setGameState(newGameState)
-  }, [])
+    
+    // Notify all registered callbacks that game state has updated
+    gameStateUpdateCallbacks.forEach(callback => {
+      try {
+        callback()
+      } catch (error) {
+        console.error('Error in game state update callback:', error)
+      }
+    })
+  }, [gameStateUpdateCallbacks])
 
   useEffect(() => {
     // Initial load
@@ -35,6 +58,15 @@ export const useGameState = () => {
       }
       
       setGameState(newGameState)
+      
+      // Notify all registered callbacks that game state has updated
+      gameStateUpdateCallbacks.forEach(callback => {
+        try {
+          callback()
+        } catch (error) {
+          console.error('Error in game state update callback:', error)
+        }
+      })
     }
 
     mlbService.startLiveUpdates(handleGameUpdate)
@@ -43,7 +75,7 @@ export const useGameState = () => {
     return () => {
       mlbService.removeListener(handleGameUpdate)
     }
-  }, [refreshGameState])
+  }, [refreshGameState, gameStateUpdateCallbacks])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -55,7 +87,8 @@ export const useGameState = () => {
   return {
     gameState,
     refreshGameState,
-    isGameLive: gameState.game ? mlbService.isGameLive(gameState.game) : false
+    isGameLive: gameState.game ? mlbService.isGameLive(gameState.game) : false,
+    addGameStateUpdateCallback
   }
 }
 

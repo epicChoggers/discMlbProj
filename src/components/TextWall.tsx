@@ -16,7 +16,7 @@ interface TextWallProps {
 }
 
 export const TextWall = ({ onSignOut }: TextWallProps) => {
-  const { gameState, isGameLive } = useGameState()
+  const { gameState, isGameLive, addGameStateUpdateCallback } = useGameState()
   const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard' | 'scoring'>('predictions')
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [toasts, setToasts] = useState<Array<{
@@ -188,6 +188,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                               <PredictionResults
                                 gamePk={gameState.game.gamePk}
                                 currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
+                                onGameStateUpdate={addGameStateUpdateCallback}
                               />
                             </>
                           )}
@@ -212,6 +213,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                             <PredictionResults
                               gamePk={gameState.game.gamePk}
                               currentAtBatIndex={0} // Show all predictions for the game
+                              onGameStateUpdate={addGameStateUpdateCallback}
                             />
                           )}
                         </div>

@@ -1,18 +1,70 @@
 import { MLBGame, MLBPlay, GameState } from './types'
 
-const MARINERS_TEAM_ID = 143 // Seattle Mariners team ID in MLB API
+const MARINERS_TEAM_ID = 133 // Seattle Mariners team ID in MLB API
 
 class MLBService {
-  private apiBaseUrl = '/api/mlb'
+  private apiBaseUrl: string
+  private mlbDirectApiUrl = 'https://statsapi.mlb.com/api/v1'
+  private mlbGameFeedUrl = 'https://statsapi.mlb.com/api/v1.1'
+  private isDevelopment: boolean
   private updateInterval: NodeJS.Timeout | null = null
   private listeners: ((gameState: GameState) => void)[] = []
 
-  // Get current games using our backend API
+  constructor() {
+    // Check if we're in development mode
+    this.isDevelopment = import.meta.env.DEV
+    // Allow forcing production mode locally for testing
+    const forceProduction = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true'
+    
+    if (forceProduction) {
+      this.isDevelopment = false
+      console.log('🚀 Production mode forced locally for testing')
+    }
+    
+    this.apiBaseUrl = this.isDevelopment ? this.mlbDirectApiUrl : '/api/mlb'
+    console.log(`MLB Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode`)
+  }
+
+  // Helper method to get Pacific Time date string to avoid timezone issues
+  private getPacificDateString(): string {
+    const now = new Date()
+    // Get Pacific Time components directly
+    const pacificYear = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
+    const pacificMonth = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
+    const pacificDay = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
+    
+    return `${pacificYear}-${pacificMonth}-${pacificDay}`
+  }
+
+  // Helper method to get Pacific Time date string for a specific date
+  private getPacificDateStringForDate(date: Date): string {
+    // Get Pacific Time components directly
+    const pacificYear = date.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
+    const pacificMonth = date.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
+    const pacificDay = date.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
+    
+    return `${pacificYear}-${pacificMonth}-${pacificDay}`
+  }
+
+  // Get current games using our backend API or direct MLB API
   async getCurrentGames(): Promise<any[]> {
     try {
       console.log('Fetching current games from MLB API...')
       
-      const response = await fetch(`${this.apiBaseUrl}/schedule`)
+      let url: string
+      if (this.isDevelopment) {
+        // Direct MLB API call in development
+        // Use Pacific Time for Mariners games to avoid timezone issues
+        const today = this.getPacificDateString()
+        const utcToday = new Date().toISOString().split('T')[0]
+        console.log(`Using Pacific Time date: ${today} (UTC would be: ${utcToday})`)
+        url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${MARINERS_TEAM_ID}&startDate=${today}&endDate=${today}`
+      } else {
+        // Server rerouting in production
+        url = `${this.apiBaseUrl}/schedule`
+      }
+      
+      const response = await fetch(url)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -20,12 +72,24 @@ class MLBService {
 
       const data = await response.json()
       
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch games')
+      if (this.isDevelopment) {
+        // Direct API returns different structure
+        const games = data.dates?.flatMap((date: any) => date.games || []) || []
+        console.log(`Successfully fetched ${games.length} games`)
+        if (games.length > 0) {
+          games.forEach((game: any, index: number) => {
+            console.log(`Game ${index + 1}: ${game.teams?.away?.team?.name} @ ${game.teams?.home?.team?.name} on ${game.gameDate}`)
+          })
+        }
+        return games
+      } else {
+        // Server API returns wrapped response
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch games')
+        }
+        console.log(`Successfully fetched ${data.totalGames} games`)
+        return data.games
       }
-
-      console.log(`Successfully fetched ${data.totalGames} games`)
-      return data.games
     } catch (error) {
       console.error('Error fetching current games:', error)
       // Return empty array on error to prevent app crashes
@@ -98,10 +162,29 @@ class MLBService {
       const startDate = new Date()
       startDate.setDate(startDate.getDate() - 7)
 
-      const startDateStr = startDate.toISOString().split('T')[0]
-      const endDateStr = endDate.toISOString().split('T')[0]
+      let startDateStr: string
+      let endDateStr: string
+      
+      if (this.isDevelopment) {
+        // Use Pacific Time for direct API calls
+        startDateStr = this.getPacificDateStringForDate(startDate)
+        endDateStr = this.getPacificDateStringForDate(endDate)
+      } else {
+        // Use UTC for server API calls
+        startDateStr = startDate.toISOString().split('T')[0]
+        endDateStr = endDate.toISOString().split('T')[0]
+      }
 
-      const response = await fetch(`${this.apiBaseUrl}/schedule?teamId=${MARINERS_TEAM_ID}&startDate=${startDateStr}&endDate=${endDateStr}`)
+      let url: string
+      if (this.isDevelopment) {
+        // Direct MLB API call in development
+        url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${MARINERS_TEAM_ID}&startDate=${startDateStr}&endDate=${endDateStr}`
+      } else {
+        // Server rerouting in production
+        url = `${this.apiBaseUrl}/schedule?teamId=${MARINERS_TEAM_ID}&startDate=${startDateStr}&endDate=${endDateStr}`
+      }
+
+      const response = await fetch(url)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -109,11 +192,17 @@ class MLBService {
 
       const data = await response.json()
       
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch games')
+      let allGames: any[]
+      if (this.isDevelopment) {
+        // Direct API returns different structure
+        allGames = data.dates?.flatMap((date: any) => date.games || []) || []
+      } else {
+        // Server API returns wrapped response
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch games')
+        }
+        allGames = data.games || []
       }
-
-      const allGames = data.games || []
       
       // Find Mariners games and sort by date (most recent first)
       const marinersGames = allGames
@@ -135,7 +224,16 @@ class MLBService {
     try {
       console.log(`Fetching detailed game data for game ${gamePk}...`)
       
-      const response = await fetch(`${this.apiBaseUrl}/game?gamePk=${gamePk}`)
+      let url: string
+      if (this.isDevelopment) {
+        // Direct MLB API call in development - use GUMBO v1.1 endpoint
+        url = `${this.mlbGameFeedUrl}/game/${gamePk}/feed/live`
+      } else {
+        // Server rerouting in production
+        url = `${this.apiBaseUrl}/game?gamePk=${gamePk}`
+      }
+      
+      const response = await fetch(url)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -143,16 +241,26 @@ class MLBService {
 
       const data = await response.json()
       
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch game details')
-      }
-
-      // The game details API returns gameData, so we need to structure it properly
-      // data.game is actually data.gameData from the MLB API
-      const gameData = {
-        ...data.game,
-        gamePk: data.gamePk, // Add the gamePk from the API response
-        liveData: data.liveData
+      let gameData: any
+      if (this.isDevelopment) {
+        // Direct API returns the full MLB API response
+        gameData = {
+          ...data.gameData,
+          gamePk: gamePk,
+          liveData: data.liveData
+        }
+      } else {
+        // Server API returns wrapped response
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to fetch game details')
+        }
+        // The game details API returns gameData, so we need to structure it properly
+        // data.game is actually data.gameData from the MLB API
+        gameData = {
+          ...data.game,
+          gamePk: data.gamePk, // Add the gamePk from the API response
+          liveData: data.liveData
+        }
       }
 
       console.log('Successfully fetched detailed game data')
@@ -210,8 +318,45 @@ class MLBService {
     return game.status?.abstractGameState === 'Live'
   }
 
+  // Get game state from cached server endpoint (production only)
+  async getCachedGameState(): Promise<GameState> {
+    try {
+      console.log('Fetching cached game state from server...')
+      
+      const response = await fetch(`${this.apiBaseUrl}/game-state`)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch cached game state')
+      }
+
+      console.log('Successfully fetched cached game state')
+      return data
+    } catch (error) {
+      console.error('Error fetching cached game state:', error)
+      return {
+        game: null,
+        currentAtBat: null,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch cached game state',
+        lastUpdated: new Date().toISOString()
+      }
+    }
+  }
+
   // Get game state for the current Mariners game
   async getGameState(): Promise<GameState> {
+    // In production, use the cached endpoint
+    if (!this.isDevelopment) {
+      return this.getCachedGameState()
+    }
+
+    // In development, use the original method
     try {
       const game = await this.getTodaysMarinersGame()
       

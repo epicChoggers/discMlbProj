@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory } from './types'
+import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory, getOutcomePoints } from './types'
 
 export class PredictionService {
   // Cache to track resolved at-bats per game to avoid redundant checks
@@ -201,59 +201,32 @@ export class PredictionService {
 
   // Get base points for each outcome type
   private getBasePointsForOutcome(outcome: AtBatOutcome): number {
-    const pointMap: Record<AtBatOutcome, number> = {
-      'home_run': 15,    // Rare, high impact
-      'triple': 12,       // Very rare
-      'double': 8,        // Uncommon
-      'single': 4,        // Common
-      'walk': 3,          // Common
-      'strikeout': 2,     // Very common
-      'groundout': 1,     // Most common
-      'flyout': 1,        // Most common
-      'popout': 1,        // Most common
-      'lineout': 1,       // Most common
-      'fielders_choice': 1, // Most common
-      'hit_by_pitch': 2,  // Uncommon
-      'error': 1,         // Most common
-      'sacrifice': 1,     // Most common
-      'other': 1          // Most common
-    }
-    
-    return pointMap[outcome] || 1
+    // Use the centralized point calculation from types.ts
+    const { base } = getOutcomePoints(outcome)
+    return base
   }
 
   // Get risk multiplier for outcomes (higher risk = higher reward)
   private getRiskMultiplier(outcome: AtBatOutcome): number {
-    const riskMap: Record<AtBatOutcome, number> = {
-      'home_run': 1.5,    // +50% bonus for rare outcomes
-      'triple': 1.5,      // +50% bonus for rare outcomes
-      'double': 1.25,     // +25% bonus for uncommon outcomes
-      'single': 1.0,      // No bonus for common outcomes
-      'walk': 1.0,        // No bonus for common outcomes
-      'strikeout': 1.0,   // No bonus for common outcomes
-      'groundout': 1.0,   // No bonus for common outcomes
-      'flyout': 1.0,      // No bonus for common outcomes
-      'popout': 1.0,      // No bonus for common outcomes
-      'lineout': 1.0,     // No bonus for common outcomes
-      'fielders_choice': 1.0, // No bonus for common outcomes
-      'hit_by_pitch': 1.0, // No bonus for common outcomes
-      'error': 1.0,       // No bonus for common outcomes
-      'sacrifice': 1.0,   // No bonus for common outcomes
-      'other': 1.0        // No bonus for common outcomes
-    }
-    
-    return riskMap[outcome] || 1.0
+    // Use the centralized multiplier calculation from types.ts
+    const { withBonus, base } = getOutcomePoints(outcome)
+    return base > 0 ? withBonus / base : 1.0
   }
 
   // Get points for category predictions
   private getCategoryPoints(predictedCategory: string, actualCategory: string): number {
     if (predictedCategory === actualCategory) {
       switch (actualCategory) {
-        case 'hit': return 2      // Hit category (single, double, triple, home run)
-        case 'out': return 1      // Out category (groundout, flyout, etc.)
-        case 'walk': return 3     // Walk category
-        case 'strikeout': return 2 // Strikeout category
-        case 'home_run': return 2  // Home run category
+        case 'hit': return 3        // Hit category (single, double, triple, home run)
+        case 'out': return 1        // Out category (field_out, fielders_choice, etc.)
+        case 'walk': return 2       // Walk category
+        case 'strikeout': return 2  // Strikeout category
+        case 'sacrifice': return 2  // Sacrifice category
+        case 'error': return 1      // Error category
+        case 'hit_by_pitch': return 2 // Hit by pitch category
+        case 'baserunning': return 0 // Baserunning events (should not be at-bat outcomes)
+        case 'administrative': return 0 // Administrative events (should not be at-bat outcomes)
+        case 'unknown': return 0    // Unknown events
         default: return 1
       }
     }
@@ -669,130 +642,259 @@ export class PredictionService {
 
   // Map eventType field to our outcome types (most reliable)
   private mapEventTypeToOutcome(eventType: string, description?: string): AtBatOutcome {
+    // Direct mapping from MLB API event types to our AtBatOutcome types
     const eventTypeMap: Record<string, AtBatOutcome> = {
+      // Hits (plateAppearance: true, hit: true)
+      'single': 'single',
+      'double': 'double',
+      'triple': 'triple',
+      'home_run': 'home_run',
+      
+      // Walks and Hit by Pitch (plateAppearance: true, hit: false)
+      'walk': 'walk',
+      'intent_walk': 'intent_walk',
+      'hit_by_pitch': 'hit_by_pitch',
+      
+      // Strikeouts (plateAppearance: true, hit: false)
+      'strikeout': 'strikeout',
+      'strike_out': 'strike_out',
+      'strikeout_double_play': 'strikeout_double_play',
+      'strikeout_triple_play': 'strikeout_triple_play',
+      
+      // Field Outs (plateAppearance: true, hit: false)
+      'field_out': 'field_out',
+      'fielders_choice': 'fielders_choice',
+      'fielders_choice_out': 'fielders_choice_out',
+      'force_out': 'force_out',
+      'grounded_into_double_play': 'grounded_into_double_play',
+      'grounded_into_triple_play': 'grounded_into_triple_play',
+      'triple_play': 'triple_play',
+      'double_play': 'double_play',
+      
+      // Sacrifice Plays (plateAppearance: true, hit: false)
+      'sac_fly': 'sac_fly',
+      'sac_bunt': 'sac_bunt',
+      'sac_fly_double_play': 'sac_fly_double_play',
+      'sac_bunt_double_play': 'sac_bunt_double_play',
+      
+      // Errors and Interference (plateAppearance: true, hit: false)
+      'field_error': 'field_error',
+      'catcher_interf': 'catcher_interf',
+      'batter_interference': 'batter_interference',
+      'fan_interference': 'fan_interference',
+      
+      // Non-plate appearance events (plateAppearance: false) - these should not be at-bat outcomes
+      'pickoff_1b': 'pickoff_1b',
+      'pickoff_2b': 'pickoff_2b',
+      'pickoff_3b': 'pickoff_3b',
+      'pickoff_error_1b': 'pickoff_error_1b',
+      'pickoff_error_2b': 'pickoff_error_2b',
+      'pickoff_error_3b': 'pickoff_error_3b',
+      'stolen_base': 'stolen_base',
+      'stolen_base_2b': 'stolen_base_2b',
+      'stolen_base_3b': 'stolen_base_3b',
+      'stolen_base_home': 'stolen_base_home',
+      'caught_stealing': 'caught_stealing',
+      'caught_stealing_2b': 'caught_stealing_2b',
+      'caught_stealing_3b': 'caught_stealing_3b',
+      'caught_stealing_home': 'caught_stealing_home',
+      'wild_pitch': 'wild_pitch',
+      'passed_ball': 'passed_ball',
+      'balk': 'balk',
+      'forced_balk': 'forced_balk',
+      'other_advance': 'other_advance',
+      'runner_double_play': 'runner_double_play',
+      'cs_double_play': 'cs_double_play',
+      'defensive_indiff': 'defensive_indiff',
+      'other_out': 'other_out',
+      
+      // Administrative events
+      'batter_timeout': 'batter_timeout',
+      'mound_visit': 'mound_visit',
+      'no_pitch': 'no_pitch',
+      'pitcher_step_off': 'pitcher_step_off',
+      'injury': 'injury',
+      'ejection': 'ejection',
+      'game_advisory': 'game_advisory',
+      'os_ruling_pending_prior': 'os_ruling_pending_prior',
+      'os_ruling_pending_primary': 'os_ruling_pending_primary',
+      'at_bat_start': 'at_bat_start',
+      'batter_turn': 'batter_turn',
+      'fielder_interference': 'fielder_interference',
+      'runner_interference': 'runner_interference',
+      'runner_placed': 'runner_placed',
+      'pitching_substitution': 'pitching_substitution',
+      'offensive_substitution': 'offensive_substitution',
+      'defensive_substitution': 'defensive_substitution',
+      'defensive_switch': 'defensive_switch',
+      'umpire_substitution': 'umpire_substitution',
+      'pitcher_switch': 'pitcher_switch',
+      'pickoff_caught_stealing_2b': 'pickoff_caught_stealing_2b',
+      'pickoff_caught_stealing_3b': 'pickoff_caught_stealing_3b',
+      'pickoff_caught_stealing_home': 'pickoff_caught_stealing_home'
+    }
+    
+    const outcome = eventTypeMap[eventType]
+    
+    if (outcome) {
+      console.log(`Mapped eventType "${eventType}" to "${outcome}"`)
+      return outcome
+    } else {
+      console.warn(`⚠️ UNMAPPED EVENT TYPE: "${eventType}" - Description: "${description}" - This should be added to the mapping`)
+      // For unmapped event types, try to determine if it's a plate appearance or not
+      // If we can't determine, we'll need to investigate this event type
+      return 'field_out' // Default to a common at-bat outcome
+    }
+  }
+
+  // Map event field to our outcome types
+  private mapEventToOutcome(event: string): AtBatOutcome {
+    const eventMap: Record<string, AtBatOutcome> = {
+      // Hits
+      'Single': 'single',
+      'Double': 'double',
+      'Triple': 'triple',
+      'Home Run': 'home_run',
+      
+      // Walks and Hit by Pitch
+      'Walk': 'walk',
+      'Intentional Walk': 'intent_walk',
+      'Hit By Pitch': 'hit_by_pitch',
+      
+      // Strikeouts
+      'Strikeout': 'strikeout',
+      'Strike Out': 'strike_out',
+      
+      // Field Outs
+      'Field Out': 'field_out',
+      "Fielder's Choice": 'fielders_choice',
+      'Forceout': 'force_out',
+      'Groundout': 'field_out', // Generic field out
+      'Flyout': 'field_out', // Generic field out
+      'Pop Out': 'field_out', // Generic field out
+      'Lineout': 'field_out', // Generic field out
+      
+      // Sacrifice Plays
+      'Sacrifice Fly': 'sac_fly',
+      'Sacrifice Bunt': 'sac_bunt',
+      
+      // Errors and Interference
+      'Field Error': 'field_error',
+      'Catcher Interference': 'catcher_interf',
+      'Batter Interference': 'batter_interference',
+      'Fan Interference': 'fan_interference',
+      
+      // Double/Triple Plays
+      'Double Play': 'double_play',
+      'Triple Play': 'triple_play',
+      'Grounded Into DP': 'grounded_into_double_play',
+      'Grounded Into TP': 'grounded_into_triple_play'
+    }
+    
+    const outcome = eventMap[event]
+    
+    if (outcome) {
+      console.log(`Mapped event "${event}" to "${outcome}"`)
+      return outcome
+    } else {
+      console.warn(`⚠️ UNMAPPED EVENT: "${event}" - This should be added to the mapping`)
+      return 'field_out' // Default to a common at-bat outcome
+    }
+  }
+
+  // Map type field to our outcome types
+  private mapTypeToOutcome(type: string): AtBatOutcome {
+    const typeMap: Record<string, AtBatOutcome> = {
       // Hits
       'single': 'single',
       'double': 'double',
       'triple': 'triple',
       'home_run': 'home_run',
       
-      // Walks and strikeouts
+      // Walks and Hit by Pitch
       'walk': 'walk',
-      'strikeout': 'strikeout',
-      
-      // Outs - need to differentiate field_out types
-      'groundout': 'groundout',
-      'force_out': 'groundout',
-      'fielders_choice': 'fielders_choice',
-      
-      // Other outcomes
+      'intent_walk': 'intent_walk',
       'hit_by_pitch': 'hit_by_pitch',
-      'error': 'error',
-      'sacrifice': 'sacrifice',
-      'sacrifice_fly': 'sacrifice',
-      'sacrifice_bunt': 'sacrifice',
-      'catcher_interference': 'hit_by_pitch',
-      'intentional_walk': 'walk'
-    }
-    
-    // Handle field_out by checking description
-    if (eventType === 'field_out' && description) {
-      const desc = description.toLowerCase()
-      if (desc.includes('flies out') || desc.includes('fly out')) {
-        console.log(`Mapped field_out with "flies out" to "flyout"`)
-        return 'flyout'
-      }
-      if (desc.includes('lines out') || desc.includes('line out')) {
-        console.log(`Mapped field_out with "lines out" to "lineout"`)
-        return 'lineout'
-      }
-      if (desc.includes('pops out') || desc.includes('pop out')) {
-        console.log(`Mapped field_out with "pops out" to "popout"`)
-        return 'popout'
-      }
-      // Default field_out to flyout
-      console.log(`Mapped field_out to "flyout" (default)`)
-      return 'flyout'
-    }
-    
-    const outcome = eventTypeMap[eventType] || 'other'
-    console.log(`Mapped eventType "${eventType}" to "${outcome}"`)
-    return outcome
-  }
-
-  // Map event field to our outcome types
-  private mapEventToOutcome(event: string): AtBatOutcome {
-    const eventMap: Record<string, AtBatOutcome> = {
-      'Single': 'single',
-      'Double': 'double',
-      'Triple': 'triple',
-      'Home Run': 'home_run',
-      'Walk': 'walk',
-      'Strikeout': 'strikeout',
-      'Groundout': 'groundout',
-      'Flyout': 'flyout',
-      'Pop Out': 'popout',
-      'Lineout': 'lineout',
-      "Fielder's Choice": 'fielders_choice',
-      'Hit By Pitch': 'hit_by_pitch',
-      'Error': 'error',
-      'Sacrifice': 'sacrifice',
-      'Sacrifice Fly': 'sacrifice',
-      'Sacrifice Bunt': 'sacrifice',
-      'Intentional Walk': 'walk',
-      'Catcher Interference': 'hit_by_pitch'
-    }
-    
-    const outcome = eventMap[event] || 'other'
-    console.log(`Mapped event "${event}" to "${outcome}"`)
-    return outcome
-  }
-
-  // Map type field to our outcome types
-  private mapTypeToOutcome(type: string): AtBatOutcome {
-    const typeMap: Record<string, AtBatOutcome> = {
-      'single': 'single',
-      'double': 'double',
-      'triple': 'triple',
-      'home_run': 'home_run',
-      'walk': 'walk',
+      
+      // Strikeouts
       'strikeout': 'strikeout',
-      'groundout': 'groundout',
-      'flyout': 'flyout',
-      'popout': 'popout',
-      'lineout': 'lineout',
+      'strike_out': 'strike_out',
+      
+      // Field Outs
+      'field_out': 'field_out',
       'fielders_choice': 'fielders_choice',
-      'hit_by_pitch': 'hit_by_pitch',
-      'error': 'error',
-      'sacrifice': 'sacrifice'
+      'force_out': 'force_out',
+      
+      // Sacrifice Plays
+      'sac_fly': 'sac_fly',
+      'sac_bunt': 'sac_bunt',
+      
+      // Errors
+      'field_error': 'field_error',
+      'catcher_interf': 'catcher_interf',
+      
+      // Double/Triple Plays
+      'double_play': 'double_play',
+      'triple_play': 'triple_play',
+      'grounded_into_double_play': 'grounded_into_double_play',
+      'grounded_into_triple_play': 'grounded_into_triple_play'
     }
     
-    const outcome = typeMap[type] || 'other'
-    console.log(`Mapped type "${type}" to "${outcome}"`)
-    return outcome
+    const outcome = typeMap[type]
+    
+    if (outcome) {
+      console.log(`Mapped type "${type}" to "${outcome}"`)
+      return outcome
+    } else {
+      console.warn(`⚠️ UNMAPPED TYPE: "${type}" - This should be added to the mapping`)
+      return 'field_out' // Default to a common at-bat outcome
+    }
   }
 
   // Parse description to extract outcome
   private parseDescriptionToOutcome(description: string): AtBatOutcome {
     const desc = description.toLowerCase()
     
-    if (desc.includes('home run') || desc.includes('homer')) return 'home_run'
+    // Hits
+    if (desc.includes('home run') || desc.includes('homer') || desc.includes('homerun')) return 'home_run'
     if (desc.includes('triple')) return 'triple'
     if (desc.includes('double')) return 'double'
     if (desc.includes('single')) return 'single'
-    if (desc.includes('walk') || desc.includes('ball')) return 'walk'
-    if (desc.includes('strikeout') || desc.includes('strikes out')) return 'strikeout'
-    if (desc.includes('groundout') || desc.includes('ground out')) return 'groundout'
-    if (desc.includes('flyout') || desc.includes('fly out')) return 'flyout'
-    if (desc.includes('pop out') || desc.includes('popout')) return 'popout'
-    if (desc.includes('lineout') || desc.includes('line out')) return 'lineout'
-    if (desc.includes('fielder\'s choice')) return 'fielders_choice'
-    if (desc.includes('hit by pitch') || desc.includes('hbp')) return 'hit_by_pitch'
-    if (desc.includes('error')) return 'error'
-    if (desc.includes('sacrifice')) return 'sacrifice'
     
-    console.log(`Could not parse description "${description}", defaulting to 'other'`)
-    return 'other'
+    // Walks and Hit by Pitch
+    if (desc.includes('intentional walk')) return 'intent_walk'
+    if (desc.includes('walk') || desc.includes('ball')) return 'walk'
+    if (desc.includes('hit by pitch') || desc.includes('hbp') || desc.includes('hit-by-pitch')) return 'hit_by_pitch'
+    
+    // Strikeouts
+    if (desc.includes('strikeout') || desc.includes('strikes out') || desc.includes('struck out') || desc.includes('k\'s')) return 'strikeout'
+    
+    // Field Outs
+    if (desc.includes('fielder\'s choice') || desc.includes('fielders choice')) return 'fielders_choice'
+    if (desc.includes('force out') || desc.includes('forced out')) return 'force_out'
+    if (desc.includes('groundout') || desc.includes('ground out') || desc.includes('grounded out')) return 'field_out'
+    if (desc.includes('flyout') || desc.includes('fly out') || desc.includes('flied out')) return 'field_out'
+    if (desc.includes('pop out') || desc.includes('popout') || desc.includes('popped out')) return 'field_out'
+    if (desc.includes('lineout') || desc.includes('line out') || desc.includes('lined out')) return 'field_out'
+    
+    // Sacrifice Plays
+    if (desc.includes('sacrifice fly') || desc.includes('sac fly')) return 'sac_fly'
+    if (desc.includes('sacrifice bunt') || desc.includes('sac bunt')) return 'sac_bunt'
+    
+    // Errors and Interference
+    if (desc.includes('fielding error') || desc.includes('field error')) return 'field_error'
+    if (desc.includes('catcher interference') || desc.includes('catcher\'s interference')) return 'catcher_interf'
+    if (desc.includes('batter interference')) return 'batter_interference'
+    if (desc.includes('fan interference')) return 'fan_interference'
+    
+    // Double/Triple Plays
+    if (desc.includes('grounded into double play') || desc.includes('grounded into dp')) return 'grounded_into_double_play'
+    if (desc.includes('grounded into triple play') || desc.includes('grounded into tp')) return 'grounded_into_triple_play'
+    if (desc.includes('double play')) return 'double_play'
+    if (desc.includes('triple play')) return 'triple_play'
+    
+    console.log(`Could not parse description "${description}", defaulting to 'field_out'`)
+    return 'field_out'
   }
 
   // Auto-resolve predictions when an at-bat is completed

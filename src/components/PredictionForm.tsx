@@ -39,24 +39,30 @@ const MAIN_CATEGORIES = [
 // Specific outcomes for each main category with higher point values
 const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string; points: number; bonusPercent: number; description: string }[]> = {
   out: [
-    { value: 'groundout', label: 'Groundout', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Ground ball out' },
-    { value: 'flyout', label: 'Flyout', emoji: '✈️', points: 1, bonusPercent: 0, description: 'Fly ball out' },
-    { value: 'popout', label: 'Popout', emoji: '⬆️', points: 1, bonusPercent: 0, description: 'Pop fly out' },
-    { value: 'lineout', label: 'Lineout', emoji: '📏', points: 2, bonusPercent: 100, description: 'Line drive out' },
-    { value: 'fielders_choice', label: "Fielder's Choice", emoji: '🤔', points: 1, bonusPercent: 0, description: 'Fielder chooses to get another out' }
+    { value: 'field_out', label: 'Field Out', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Generic field out' },
+    { value: 'fielders_choice', label: "Fielder's Choice", emoji: '🤔', points: 1, bonusPercent: 0, description: 'Fielder chooses to get another out' },
+    { value: 'force_out', label: 'Force Out', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Force play out' },
+    { value: 'grounded_into_double_play', label: 'Grounded Into DP', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Double play groundout' },
+    { value: 'grounded_into_triple_play', label: 'Grounded Into TP', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Triple play groundout' },
+    { value: 'triple_play', label: 'Triple Play', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Triple play' },
+    { value: 'double_play', label: 'Double Play', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Double play' }
   ],
   hit: [
-    { value: 'single', label: 'Single', emoji: '🏃', points: 4, bonusPercent: 0, description: 'One base hit' },
-    { value: 'double', label: 'Double', emoji: '🏃🏃', points: 8, bonusPercent: 100, description: 'Two base hit' },
-    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', points: 15, bonusPercent: 275, description: 'Three base hit' },
-    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 25, bonusPercent: 1150, description: 'Over the fence' }
+    { value: 'single', label: 'Single', emoji: '🏃', points: 6, bonusPercent: 20, description: 'One base hit' },
+    { value: 'double', label: 'Double', emoji: '🏃🏃', points: 15, bonusPercent: 50, description: 'Two base hit' },
+    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', points: 27, bonusPercent: 80, description: 'Three base hit' },
+    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 40, bonusPercent: 100, description: 'Over the fence' }
   ],
   walk: [
-    { value: 'walk', label: 'Walk', emoji: '🚶', points: 3, bonusPercent: 0, description: 'Four balls' },
-    { value: 'strikeout', label: 'Strikeout', emoji: '❌', points: 2, bonusPercent: 0, description: 'Three strikes' },
-    { value: 'hit_by_pitch', label: 'Hit by Pitch', emoji: '💢', points: 3, bonusPercent: 0, description: 'Pitch hits batter' },
-    { value: 'error', label: 'Error', emoji: '😅', points: 2, bonusPercent: 100, description: 'Fielding error' },
-    { value: 'sacrifice', label: 'Sacrifice', emoji: '🙏', points: 2, bonusPercent: 100, description: 'Sacrifice play' }
+    { value: 'walk', label: 'Walk', emoji: '🚶', points: 4, bonusPercent: 10, description: 'Four balls' },
+    { value: 'intent_walk', label: 'Intentional Walk', emoji: '🚶', points: 4, bonusPercent: 10, description: 'Intentional walk' },
+    { value: 'strikeout', label: 'Strikeout', emoji: '❌', points: 3, bonusPercent: 10, description: 'Three strikes' },
+    { value: 'strike_out', label: 'Strike Out', emoji: '❌', points: 3, bonusPercent: 10, description: 'Three strikes' },
+    { value: 'hit_by_pitch', label: 'Hit by Pitch', emoji: '💢', points: 3, bonusPercent: 10, description: 'Pitch hits batter' },
+    { value: 'field_error', label: 'Field Error', emoji: '😅', points: 1, bonusPercent: 0, description: 'Fielding error' },
+    { value: 'catcher_interf', label: 'Catcher Interference', emoji: '😅', points: 2, bonusPercent: 0, description: 'Catcher interference' },
+    { value: 'sac_fly', label: 'Sacrifice Fly', emoji: '🙏', points: 3, bonusPercent: 10, description: 'Sacrifice fly' },
+    { value: 'sac_bunt', label: 'Sacrifice Bunt', emoji: '🙏', points: 2, bonusPercent: 0, description: 'Sacrifice bunt' }
   ]
 }
 
