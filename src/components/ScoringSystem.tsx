@@ -2,47 +2,45 @@ import { AtBatOutcome, getOutcomePoints } from '../lib/types'
 
 export const ScoringSystem = () => {
   const outcomes: AtBatOutcome[] = [
-    'home_run', 'triple', 'double', 'single', 'walk', 'strikeout', 'groundout', 'flyout', 'popout', 'lineout', 'fielders_choice', 'hit_by_pitch', 'error', 'sacrifice', 'other'
+    'home_run', 'triple', 'double', 'single', 'walk', 'strikeout', 'field_out', 'fielders_choice', 'hit_by_pitch', 'field_error', 'sac_fly', 'sac_bunt', 'double_play', 'other_out'
   ]
 
   const getOutcomeLabel = (outcome: AtBatOutcome): string => {
-    const labels: Record<AtBatOutcome, string> = {
+    const labels: Partial<Record<AtBatOutcome, string>> = {
       'home_run': 'Home Run',
       'triple': 'Triple',
       'double': 'Double',
       'single': 'Single',
       'walk': 'Walk',
       'strikeout': 'Strikeout',
-      'groundout': 'Groundout',
-      'flyout': 'Flyout',
-      'popout': 'Popout',
-      'lineout': 'Lineout',
+      'field_out': 'Out',
       'fielders_choice': "Fielder's Choice",
       'hit_by_pitch': 'Hit by Pitch',
-      'error': 'Error',
-      'sacrifice': 'Sacrifice',
-      'other': 'Other'
+      'field_error': 'Error',
+      'sac_fly': 'Sacrifice Fly',
+      'sac_bunt': 'Sacrifice Bunt',
+      'double_play': 'Double Play',
+      'other_out': 'Other Out'
     }
     return labels[outcome] || outcome
   }
 
   const getOutcomeEmoji = (outcome: AtBatOutcome): string => {
-    const emojis: Record<AtBatOutcome, string> = {
+    const emojis: Partial<Record<AtBatOutcome, string>> = {
       'home_run': '💥',
       'triple': '🏃🏃🏃',
       'double': '🏃🏃',
       'single': '🏃',
       'walk': '🚶',
       'strikeout': '❌',
-      'groundout': '⚾',
-      'flyout': '✈️',
-      'popout': '⬆️',
-      'lineout': '📏',
+      'field_out': '⚾',
       'fielders_choice': '🤔',
       'hit_by_pitch': '💢',
-      'error': '😅',
-      'sacrifice': '🙏',
-      'other': '❓'
+      'field_error': '😅',
+      'sac_fly': '🙏',
+      'sac_bunt': '🙏',
+      'double_play': '2️⃣',
+      'other_out': '❓'
     }
     return emojis[outcome] || '❓'
   }
@@ -109,16 +107,24 @@ export const ScoringSystem = () => {
           <h4 className="text-purple-300 font-medium mb-2">⚡ Risk & Reward</h4>
           <div className="text-gray-300 text-sm space-y-2">
             <div className="flex items-center space-x-2">
-              <span className="text-green-400">+50% Bonus:</span>
-              <span>Home Run, Triple (rare outcomes)</span>
+              <span className="text-green-400">+100% Bonus:</span>
+              <span>Home Run</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-blue-400">+25% Bonus:</span>
-              <span>Double (uncommon outcome)</span>
+              <span className="text-blue-400">+80% Bonus:</span>
+              <span>Triple</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-blue-400">+50% Bonus:</span>
+              <span>Double</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-blue-400">+20% Bonus:</span>
+              <span>Single</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-gray-400">No Bonus:</span>
-              <span>Single, Walk, Strikeout, Outs (common outcomes)</span>
+              <span>Walk, Strikeout, Outs (common outcomes)</span>
             </div>
           </div>
         </div>
