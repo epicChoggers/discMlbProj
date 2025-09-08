@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AtBatOutcome, MLBPlay, getOutcomeCategory } from '../lib/types'
 import { predictionServiceNew } from '../lib/predictionService'
-import { gumboMlbService, GumboAtBatData } from '../lib/gumboMlbService'
 
 interface PredictionFormProps {
   gamePk: number
@@ -76,41 +75,6 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   const [hasAlreadyPredicted, setHasAlreadyPredicted] = useState(false)
   const [isCheckingPrediction, setIsCheckingPrediction] = useState(true)
   const [isWaitingForResolution, setIsWaitingForResolution] = useState(false)
-  
-  // Enhanced GUMBO data state
-  const [gumboAtBatData, setGumboAtBatData] = useState<GumboAtBatData | null>(null)
-  const [previousAtBatData, setPreviousAtBatData] = useState<GumboAtBatData | null>(null)
-  const [isLoadingGumboData, setIsLoadingGumboData] = useState(false)
-
-  // Load enhanced GUMBO data for current and previous at-bats
-  useEffect(() => {
-    const loadGumboData = async () => {
-      try {
-        setIsLoadingGumboData(true)
-        console.log('Loading GUMBO data for enhanced prediction form...')
-        
-        const predictionData = await gumboMlbService.getAtBatPredictionData(gamePk)
-        
-        if (predictionData.currentAtBat) {
-          setGumboAtBatData(predictionData.currentAtBat)
-          console.log('Loaded current at-bat GUMBO data:', predictionData.currentAtBat.about?.atBatIndex)
-        }
-        
-        if (predictionData.previousAtBat) {
-          setPreviousAtBatData(predictionData.previousAtBat)
-          console.log('Loaded previous at-bat GUMBO data:', predictionData.previousAtBat.about?.atBatIndex)
-        }
-        
-      } catch (error) {
-        console.error('Error loading GUMBO data:', error)
-        // Fall back to legacy data - don't show error to user
-      } finally {
-        setIsLoadingGumboData(false)
-      }
-    }
-
-    loadGumboData()
-  }, [gamePk])
 
   // Check if user has already made a prediction for this at-bat and if it's resolved
   useEffect(() => {
@@ -424,108 +388,8 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
             <span>Count: {currentAtBat.count.balls}-{currentAtBat.count.strikes}</span>
             <span>Outs: {currentAtBat.count.outs}</span>
           </div>
-          {gumboAtBatData?.about?.atBatIndex && (
-            <div className="flex justify-between mt-1">
-              <span>At-Bat Index: {gumboAtBatData.about.atBatIndex}</span>
-              <span>Inning: {gumboAtBatData.about.inning} {gumboAtBatData.about.halfInning}</span>
-            </div>
-          )}
         </div>
       </div>
-
-      {/* Enhanced Pitcher/Batter Stats */}
-      {gumboAtBatData && (
-        <div className="mt-4 pt-4 border-t border-gray-700">
-          <h4 className="text-white text-sm font-semibold mb-3">Enhanced Matchup Stats</h4>
-          
-          {/* Pitcher Stats */}
-          {gumboAtBatData.pitcherDetails && (
-            <div className="mb-4">
-              <div className="text-blue-300 text-sm font-medium mb-2">
-                {gumboAtBatData.matchup.pitcher.fullName} (Pitcher)
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {gumboAtBatData.pitcherDetails.stats?.pitching && (
-                  <>
-                    <div className="bg-gray-700 rounded p-2">
-                      <div className="text-gray-300">Game Stats</div>
-                      <div className="text-white font-medium">
-                        {gumboAtBatData.pitcherDetails.stats.pitching.summary || 'No game stats'}
-                      </div>
-                    </div>
-                    <div className="bg-gray-700 rounded p-2">
-                      <div className="text-gray-300">Season Stats</div>
-                      <div className="text-white font-medium">
-                        ERA: {gumboAtBatData.pitcherDetails.seasonStats?.pitching?.era || 'N/A'}
-                      </div>
-                      <div className="text-white font-medium">
-                        WHIP: {gumboAtBatData.pitcherDetails.seasonStats?.pitching?.whip || 'N/A'}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Batter Stats */}
-          {gumboAtBatData.batterDetails && (
-            <div className="mb-4">
-              <div className="text-green-300 text-sm font-medium mb-2">
-                {gumboAtBatData.matchup.batter.fullName} (Batter)
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {gumboAtBatData.batterDetails.stats?.batting && (
-                  <>
-                    <div className="bg-gray-700 rounded p-2">
-                      <div className="text-gray-300">Game Stats</div>
-                      <div className="text-white font-medium">
-                        {gumboAtBatData.batterDetails.stats.batting.summary || 'No game stats'}
-                      </div>
-                    </div>
-                    <div className="bg-gray-700 rounded p-2">
-                      <div className="text-gray-300">Season Stats</div>
-                      <div className="text-white font-medium">
-                        AVG: {gumboAtBatData.batterDetails.seasonStats?.batting?.avg || 'N/A'}
-                      </div>
-                      <div className="text-white font-medium">
-                        OPS: {gumboAtBatData.batterDetails.seasonStats?.batting?.ops || 'N/A'}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Previous At-Bat Context */}
-          {previousAtBatData && (
-            <div className="mt-4 pt-3 border-t border-gray-600">
-              <div className="text-yellow-300 text-sm font-medium mb-2">
-                Previous At-Bat Context
-              </div>
-              <div className="text-xs text-gray-400">
-                <div className="flex justify-between">
-                  <span>At-Bat #{previousAtBatData.about?.atBatIndex}</span>
-                  <span>{previousAtBatData.result?.event || 'In Progress'}</span>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span>Pitcher: {previousAtBatData.matchup?.pitcher?.fullName}</span>
-                  <span>Batter: {previousAtBatData.matchup?.batter?.fullName}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Loading indicator for GUMBO data */}
-          {isLoadingGumboData && (
-            <div className="text-center py-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mx-auto mb-1"></div>
-              <div className="text-gray-400 text-xs">Loading enhanced stats...</div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

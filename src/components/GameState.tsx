@@ -1,6 +1,5 @@
 import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
 import { getPlayerHeadshot } from '../lib/mlbHeadshots'
-import { AtBatHistory } from './AtBatHistory'
 
 interface GameStateProps {
   gameState: GameStateType
@@ -130,14 +129,6 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
       {/* Current At-Bat */}
       {currentAtBat && isLive && (
         <CurrentAtBat atBat={currentAtBat} />
-      )}
-
-      {/* At-Bat History - Enhanced with GUMBO data */}
-      {isLive && game.gamePk && (
-        <AtBatHistory 
-          gamePk={game.gamePk} 
-          currentAtBatIndex={currentAtBat?.about?.atBatIndex} 
-        />
       )}
 
       {/* Final Play for Completed Games */}
