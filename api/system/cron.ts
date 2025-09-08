@@ -71,12 +71,12 @@ async function handleTriggerCronJob(req: VercelRequest, res: VercelResponse) {
     switch (action) {
       case 'start':
         await cronService.start()
-        result = { message: 'Cron service started', jobs: cronService.getJobStatus() }
+        result = { message: 'Interval-based service started', jobs: cronService.getJobStatus() }
         break
 
       case 'stop':
         cronService.stop()
-        result = { message: 'Cron service stopped' }
+        result = { message: 'Interval-based service stopped' }
         break
 
       case 'enable':
@@ -89,6 +89,20 @@ async function handleTriggerCronJob(req: VercelRequest, res: VercelResponse) {
         result = { message: `Job ${jobId} disabled` }
         break
 
+      case 'trigger':
+        // Manually trigger event-driven jobs
+        if (jobId === 'all') {
+          result = await cronService.triggerAllEventDrivenJobs()
+        } else if (jobId === 'game_state_sync') {
+          result = await cronService.triggerGameStateSync()
+        } else if (jobId === 'prediction_resolution') {
+          result = await cronService.triggerPredictionResolution()
+        } else {
+          res.status(400).json({ error: `Cannot trigger job: ${jobId}. Supported jobs: all, game_state_sync, prediction_resolution` })
+          return
+        }
+        break
+
       case 'status':
         result = {
           jobs: cronService.getJobStatus(),
@@ -97,7 +111,7 @@ async function handleTriggerCronJob(req: VercelRequest, res: VercelResponse) {
         break
 
       default:
-        res.status(400).json({ error: 'Invalid action. Supported actions: start, stop, enable, disable, status' })
+        res.status(400).json({ error: 'Invalid action. Supported actions: start, stop, enable, disable, trigger, status' })
         return
     }
 

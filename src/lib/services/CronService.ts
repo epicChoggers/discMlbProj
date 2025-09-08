@@ -22,32 +22,49 @@ export interface CronJobResult {
 export class CronService {
   private jobs: Map<string, CronJobConfig> = new Map()
   private isRunning = false
+  private syncInterval: NodeJS.Timeout | null = null
+  private cleanupInterval: NodeJS.Timeout | null = null
 
   constructor() {
     this.initializeDefaultJobs()
   }
 
-  // Initialize default cron jobs
+  // Initialize default jobs (now event-driven instead of cron-based)
   private initializeDefaultJobs(): void {
-    // Consolidated jobs to work within Vercel's 2 cron job limit
-    this.jobs.set('high_frequency_tasks', {
-      name: 'High Frequency Tasks (Game State + Predictions)',
-      schedule: '*/5 * * * *', // Every 5 minutes - handles both game state sync and prediction resolution
+    this.jobs.set('game_state_sync', {
+      name: 'Game State Sync',
+      schedule: 'event-driven', // Triggered by user actions and real-time events
       enabled: true,
       timeout: 30000,
       retryAttempts: 3
     })
 
-    this.jobs.set('maintenance_tasks', {
-      name: 'Maintenance Tasks (Cache + Health)',
-      schedule: '*/10 * * * *', // Every 10 minutes - handles cache cleanup and health checks
+    this.jobs.set('prediction_resolution', {
+      name: 'Prediction Resolution',
+      schedule: 'event-driven', // Triggered by game state changes
+      enabled: true,
+      timeout: 15000,
+      retryAttempts: 2
+    })
+
+    this.jobs.set('cache_cleanup', {
+      name: 'Cache Cleanup',
+      schedule: 'interval-based', // Runs every 10 minutes via setInterval
       enabled: true,
       timeout: 60000,
-      retryAttempts: 2
+      retryAttempts: 1
+    })
+
+    this.jobs.set('health_check', {
+      name: 'Health Check',
+      schedule: 'interval-based', // Runs every 5 minutes via setInterval
+      enabled: true,
+      timeout: 10000,
+      retryAttempts: 1
     })
   }
 
-  // Start the cron service
+  // Start the cron service (now interval-based instead of cron-based)
   async start(): Promise<void> {
     if (this.isRunning) {
       console.log('Cron service is already running')
@@ -55,29 +72,54 @@ export class CronService {
     }
 
     this.isRunning = true
-    console.log('Starting cron service...')
+    console.log('Starting interval-based service...')
 
     // Start the data sync service
     await dataSyncService.start()
 
-    // Start each enabled job
-    for (const [jobId, config] of this.jobs) {
-      if (config.enabled) {
-        this.startJob(jobId, config)
-      }
-    }
+    // Start interval-based jobs
+    this.startIntervalBasedJobs()
 
-    console.log('Cron service started successfully')
+    console.log('Interval-based service started successfully')
+  }
+
+  // Start interval-based jobs
+  private startIntervalBasedJobs(): void {
+    // Health check every 5 minutes
+    this.cleanupInterval = setInterval(async () => {
+      if (this.jobs.get('health_check')?.enabled) {
+        await this.executeJob('health_check', this.jobs.get('health_check')!)
+      }
+    }, 5 * 60 * 1000) // 5 minutes
+
+    // Cache cleanup every 10 minutes
+    this.syncInterval = setInterval(async () => {
+      if (this.jobs.get('cache_cleanup')?.enabled) {
+        await this.executeJob('cache_cleanup', this.jobs.get('cache_cleanup')!)
+      }
+    }, 10 * 60 * 1000) // 10 minutes
+
+    console.log('Interval-based jobs started')
   }
 
   // Stop the cron service
   stop(): void {
     this.isRunning = false
     
+    // Clear intervals
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval)
+      this.syncInterval = null
+    }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval)
+      this.cleanupInterval = null
+    }
+    
     // Stop the data sync service
     dataSyncService.stop()
     
-    console.log('Cron service stopped')
+    console.log('Interval-based service stopped')
   }
 
   // Start a specific job
@@ -107,23 +149,17 @@ export class CronService {
       
       let result: any
       switch (jobId) {
-        case 'high_frequency_tasks':
-          // Execute both game state sync and prediction resolution
-          const gameStateResult = await this.executeGameStateSync()
-          const predictionResult = await this.executePredictionResolution()
-          result = {
-            game_state_sync: gameStateResult,
-            prediction_resolution: predictionResult
-          }
+        case 'game_state_sync':
+          result = await this.executeGameStateSync()
           break
-        case 'maintenance_tasks':
-          // Execute both cache cleanup and health check
-          const cacheResult = await this.executeCacheCleanup()
-          const healthResult = await this.executeHealthCheck()
-          result = {
-            cache_cleanup: cacheResult,
-            health_check: healthResult
-          }
+        case 'prediction_resolution':
+          result = await this.executePredictionResolution()
+          break
+        case 'cache_cleanup':
+          result = await this.executeCacheCleanup()
+          break
+        case 'health_check':
+          result = await this.executeHealthCheck()
           break
         default:
           throw new Error(`Unknown job: ${jobId}`)
@@ -421,6 +457,50 @@ export class CronService {
       config.enabled = enabled
       console.log(`Job ${jobId} ${enabled ? 'enabled' : 'disabled'}`)
     }
+  }
+
+  // Manually trigger event-driven jobs
+  async triggerGameStateSync(): Promise<CronJobResult> {
+    const config = this.jobs.get('game_state_sync')
+    if (!config) {
+      throw new Error('Game state sync job not found')
+    }
+    return await this.executeJob('game_state_sync', config)
+  }
+
+  async triggerPredictionResolution(): Promise<CronJobResult> {
+    const config = this.jobs.get('prediction_resolution')
+    if (!config) {
+      throw new Error('Prediction resolution job not found')
+    }
+    return await this.executeJob('prediction_resolution', config)
+  }
+
+  // Trigger all event-driven jobs (useful for manual sync)
+  async triggerAllEventDrivenJobs(): Promise<{ [key: string]: CronJobResult }> {
+    const results: { [key: string]: CronJobResult } = {}
+    
+    try {
+      results.game_state_sync = await this.triggerGameStateSync()
+    } catch (error) {
+      results.game_state_sync = {
+        success: false,
+        duration: 0,
+        error: (error as Error).message
+      }
+    }
+
+    try {
+      results.prediction_resolution = await this.triggerPredictionResolution()
+    } catch (error) {
+      results.prediction_resolution = {
+        success: false,
+        duration: 0,
+        error: (error as Error).message
+      }
+    }
+
+    return results
   }
 
   // Get system health summary
