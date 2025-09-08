@@ -1,0 +1,471 @@
+import { supabase } from '../../supabaseClient'
+import { gameDataService } from './GameDataService'
+import { gameCacheService } from './GameCacheService'
+import { predictionService } from '../predictionService'
+import { dataSyncService } from './DataSyncService'
+
+export interface CronJobConfig {
+  name: string
+  schedule: string
+  enabled: boolean
+  timeout: number
+  retryAttempts: number
+}
+
+export interface CronJobResult {
+  success: boolean
+  duration: number
+  error?: string
+  data?: any
+}
+
+export class CronService {
+  private jobs: Map<string, CronJobConfig> = new Map()
+  private isRunning = false
+
+  constructor() {
+    this.initializeDefaultJobs()
+  }
+
+  // Initialize default cron jobs
+  private initializeDefaultJobs(): void {
+    this.jobs.set('game_state_sync', {
+      name: 'Game State Sync',
+      schedule: '*/10 * * * * *', // Every 10 seconds
+      enabled: true,
+      timeout: 30000,
+      retryAttempts: 3
+    })
+
+    this.jobs.set('prediction_resolution', {
+      name: 'Prediction Resolution',
+      schedule: '*/5 * * * * *', // Every 5 seconds
+      enabled: true,
+      timeout: 15000,
+      retryAttempts: 2
+    })
+
+    this.jobs.set('cache_cleanup', {
+      name: 'Cache Cleanup',
+      schedule: '0 */10 * * * *', // Every 10 minutes
+      enabled: true,
+      timeout: 60000,
+      retryAttempts: 1
+    })
+
+    this.jobs.set('health_check', {
+      name: 'Health Check',
+      schedule: '0 */5 * * * *', // Every 5 minutes
+      enabled: true,
+      timeout: 10000,
+      retryAttempts: 1
+    })
+  }
+
+  // Start the cron service
+  async start(): Promise<void> {
+    if (this.isRunning) {
+      console.log('Cron service is already running')
+      return
+    }
+
+    this.isRunning = true
+    console.log('Starting cron service...')
+
+    // Start the data sync service
+    await dataSyncService.start()
+
+    // Start each enabled job
+    for (const [jobId, config] of this.jobs) {
+      if (config.enabled) {
+        this.startJob(jobId, config)
+      }
+    }
+
+    console.log('Cron service started successfully')
+  }
+
+  // Stop the cron service
+  stop(): void {
+    this.isRunning = false
+    
+    // Stop the data sync service
+    dataSyncService.stop()
+    
+    console.log('Cron service stopped')
+  }
+
+  // Start a specific job
+  private startJob(jobId: string, config: CronJobConfig): void {
+    const interval = this.parseSchedule(config.schedule)
+    
+    setInterval(async () => {
+      if (!this.isRunning) return
+
+      try {
+        await this.executeJob(jobId, config)
+      } catch (error) {
+        console.error(`Error executing job ${jobId}:`, error)
+        await this.logJobError(jobId, error as Error)
+      }
+    }, interval)
+
+    console.log(`Started job: ${config.name} (${config.schedule})`)
+  }
+
+  // Execute a specific job
+  private async executeJob(jobId: string, config: CronJobConfig): Promise<CronJobResult> {
+    const startTime = Date.now()
+    
+    try {
+      console.log(`Executing job: ${config.name}`)
+      
+      let result: any
+      switch (jobId) {
+        case 'game_state_sync':
+          result = await this.executeGameStateSync()
+          break
+        case 'prediction_resolution':
+          result = await this.executePredictionResolution()
+          break
+        case 'cache_cleanup':
+          result = await this.executeCacheCleanup()
+          break
+        case 'health_check':
+          result = await this.executeHealthCheck()
+          break
+        default:
+          throw new Error(`Unknown job: ${jobId}`)
+      }
+
+      const duration = Date.now() - startTime
+      await this.logJobSuccess(jobId, duration, result)
+
+      return {
+        success: true,
+        duration,
+        data: result
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime
+      await this.logJobError(jobId, error as Error)
+
+      return {
+        success: false,
+        duration,
+        error: (error as Error).message
+      }
+    }
+  }
+
+  // Execute game state synchronization
+  private async executeGameStateSync(): Promise<any> {
+    try {
+      // Use the DataSyncService for game state sync
+      const result = await dataSyncService.syncGameState()
+      
+      return {
+        success: result.success,
+        gamePk: result.gamePk,
+        syncType: result.syncType,
+        dataSize: result.dataSize,
+        duration: result.duration,
+        error: result.error
+      }
+    } catch (error) {
+      console.error('Error in game state sync:', error)
+      throw error
+    }
+  }
+
+  // Execute prediction resolution
+  private async executePredictionResolution(): Promise<any> {
+    try {
+      // Get the most recent cached game
+      const cachedGame = await gameCacheService.getMostRecentCachedGame()
+      
+      if (!cachedGame || !cachedGame.is_live) {
+        return { message: 'No live game to resolve predictions for' }
+      }
+
+      const gamePk = cachedGame.game_pk
+
+      // Use the DataSyncService for prediction resolution
+      const result = await dataSyncService.resolvePredictions(gamePk)
+
+      return {
+        success: result.success,
+        gamePk: result.gamePk,
+        predictionsResolved: result.predictionsResolved,
+        pointsAwarded: result.pointsAwarded,
+        duration: result.duration,
+        error: result.error
+      }
+    } catch (error) {
+      console.error('Error in prediction resolution:', error)
+      throw error
+    }
+  }
+
+  // Execute cache cleanup
+  private async executeCacheCleanup(): Promise<any> {
+    try {
+      await gameCacheService.cleanupStaleCache()
+      
+      // Also run the database cleanup function
+      const { data, error } = await supabase.rpc('cleanup_old_cache_entries')
+      
+      if (error) {
+        throw error
+      }
+
+      return {
+        cleaned: data || 0,
+        message: 'Cache cleanup completed'
+      }
+    } catch (error) {
+      console.error('Error in cache cleanup:', error)
+      throw error
+    }
+  }
+
+  // Execute health check
+  private async executeHealthCheck(): Promise<any> {
+    try {
+      const healthData = {
+        gameDataService: await this.checkGameDataServiceHealth(),
+        gameCacheService: await this.checkGameCacheServiceHealth(),
+        database: await this.checkDatabaseHealth()
+      }
+
+      // Update system health record
+      await this.updateSystemHealth('cron_service', 'healthy', healthData)
+
+      return healthData
+    } catch (error) {
+      console.error('Error in health check:', error)
+      await this.updateSystemHealth('cron_service', 'error', { error: (error as Error).message })
+      throw error
+    }
+  }
+
+  // Check game data service health
+  private async checkGameDataServiceHealth(): Promise<any> {
+    try {
+      const startTime = Date.now()
+      await gameDataService.getTodaysMarinersGame()
+      const responseTime = Date.now() - startTime
+
+      return {
+        status: 'healthy',
+        responseTime,
+        cacheStats: gameDataService.getCacheStats()
+      }
+    } catch (error) {
+      return {
+        status: 'error',
+        error: (error as Error).message
+      }
+    }
+  }
+
+  // Check game cache service health
+  private async checkGameCacheServiceHealth(): Promise<any> {
+    try {
+      const stats = await gameCacheService.getCacheStats()
+      return {
+        status: 'healthy',
+        stats
+      }
+    } catch (error) {
+      return {
+        status: 'error',
+        error: (error as Error).message
+      }
+    }
+  }
+
+  // Check database health
+  private async checkDatabaseHealth(): Promise<any> {
+    try {
+      const startTime = Date.now()
+      const { data, error } = await supabase
+        .from('system_health')
+        .select('id')
+        .limit(1)
+      
+      const responseTime = Date.now() - startTime
+
+      if (error) {
+        throw error
+      }
+
+      return {
+        status: 'healthy',
+        responseTime
+      }
+    } catch (error) {
+      return {
+        status: 'error',
+        error: (error as Error).message
+      }
+    }
+  }
+
+  // Update system health record
+  private async updateSystemHealth(serviceName: string, status: string, metadata: any): Promise<void> {
+    try {
+      const healthData = {
+        service_name: serviceName,
+        status,
+        metadata,
+        last_success: status === 'healthy' ? new Date().toISOString() : null,
+        last_error: status === 'error' ? new Date().toISOString() : null
+      }
+
+      await supabase
+        .from('system_health')
+        .insert([healthData])
+    } catch (error) {
+      console.error('Error updating system health:', error)
+    }
+  }
+
+  // Log job success
+  private async logJobSuccess(jobId: string, duration: number, result: any): Promise<void> {
+    try {
+      await supabase
+        .from('system_health')
+        .insert([{
+          service_name: `cron_${jobId}`,
+          status: 'healthy',
+          response_time_ms: duration,
+          metadata: { result }
+        }])
+    } catch (error) {
+      console.error('Error logging job success:', error)
+    }
+  }
+
+  // Log job error
+  private async logJobError(jobId: string, error: Error): Promise<void> {
+    try {
+      await supabase
+        .from('system_health')
+        .insert([{
+          service_name: `cron_${jobId}`,
+          status: 'error',
+          error_count: 1,
+          last_error: new Date().toISOString(),
+          metadata: { error: error.message }
+        }])
+    } catch (logError) {
+      console.error('Error logging job error:', logError)
+    }
+  }
+
+  // Log sync event
+  private async logSyncEvent(
+    gamePk: number,
+    syncType: string,
+    status: string,
+    errorMessage?: string,
+    dataSize?: number,
+    duration?: number
+  ): Promise<void> {
+    try {
+      await supabase
+        .from('game_sync_log')
+        .insert([{
+          game_pk: gamePk,
+          sync_type: syncType,
+          status,
+          error_message: errorMessage,
+          data_size: dataSize,
+          sync_duration_ms: duration
+        }])
+    } catch (error) {
+      console.error('Error logging sync event:', error)
+    }
+  }
+
+  // Parse cron schedule to milliseconds
+  private parseSchedule(schedule: string): number {
+    // Simple parser for common schedules
+    // Format: "*/10 * * * * *" (seconds minutes hours days months weekdays)
+    const parts = schedule.split(' ')
+    
+    if (parts.length === 6) {
+      const seconds = parts[0]
+      if (seconds.startsWith('*/')) {
+        const interval = parseInt(seconds.substring(2))
+        return interval * 1000 // Convert to milliseconds
+      }
+    }
+    
+    // Default to 10 seconds if parsing fails
+    return 10000
+  }
+
+  // Get job status
+  getJobStatus(): Record<string, any> {
+    const status: Record<string, any> = {}
+    
+    for (const [jobId, config] of this.jobs) {
+      status[jobId] = {
+        name: config.name,
+        schedule: config.schedule,
+        enabled: config.enabled,
+        running: this.isRunning
+      }
+    }
+    
+    return status
+  }
+
+  // Enable/disable a job
+  setJobEnabled(jobId: string, enabled: boolean): void {
+    const config = this.jobs.get(jobId)
+    if (config) {
+      config.enabled = enabled
+      console.log(`Job ${jobId} ${enabled ? 'enabled' : 'disabled'}`)
+    }
+  }
+
+  // Get system health summary
+  async getSystemHealthSummary(): Promise<any> {
+    try {
+      const { data, error } = await supabase
+        .from('system_health')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (error) {
+        throw error
+      }
+
+      const summary = {
+        total_services: data.length,
+        healthy_services: data.filter(s => s.status === 'healthy').length,
+        error_services: data.filter(s => s.status === 'error').length,
+        recent_errors: data.filter(s => s.status === 'error').slice(0, 5),
+        last_updated: data[0]?.created_at || null
+      }
+
+      return summary
+    } catch (error) {
+      console.error('Error getting system health summary:', error)
+      return {
+        total_services: 0,
+        healthy_services: 0,
+        error_services: 0,
+        recent_errors: [],
+        last_updated: null
+      }
+    }
+  }
+}
+
+// Export singleton instance
+export const cronService = new CronService()

@@ -6,8 +6,20 @@
   "devCommand": "npm run dev",
   "crons": [
     {
-      "path": "/api/mlb/refresh-cache",
-      "schedule": "0 1 * * *"
+      "path": "/api/system/cron",
+      "schedule": "*/10 * * * * *"
+    },
+    {
+      "path": "/api/system/cron",
+      "schedule": "*/5 * * * * *"
+    },
+    {
+      "path": "/api/system/cron",
+      "schedule": "0 */10 * * * *"
+    },
+    {
+      "path": "/api/system/cron",
+      "schedule": "0 */5 * * * *"
     }
   ],
   "rewrites": [
