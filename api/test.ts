@@ -23,7 +23,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       timestamp: new Date().toISOString(),
       environment: {
         nodeVersion: process.version,
-        platform: process.platform
+        platform: process.platform,
+        hasSupabaseUrl: Boolean(process.env.VITE_SUPABASE_URL),
+        hasSupabaseAnonKey: Boolean(process.env.VITE_SUPABASE_ANON_KEY),
+        hasMlbBaseUrl: Boolean(process.env.VITE_MLB_API_BASE_URL)
       }
     })
   } catch (error) {
