@@ -103,44 +103,6 @@ export class GameDataService {
     return null
   }
 
-  // Get all at-bats from game (extracted from GUMBO allPlays array)
-  getAllAtBats(game: any): any[] {
-    console.log(`[GameDataService] Getting all at-bats from game data`)
-    
-    if (!game.liveData?.plays?.allPlays) {
-      console.log(`[GameDataService] No allPlays data available`)
-      return []
-    }
-    
-    const allPlays = game.liveData.plays.allPlays
-    console.log(`[GameDataService] Found ${allPlays.length} total plays`)
-    
-    // Filter to only include at-bats (plays with atBatIndex)
-    const atBats = allPlays.filter((play: any) => {
-      const hasAtBatIndex = play.about?.atBatIndex !== undefined
-      const isAtBat = play.result?.type === 'atBat' || play.result?.eventType === 'atBat'
-      
-      // Include plays that have atBatIndex OR are explicitly marked as at-bats
-      return hasAtBatIndex || isAtBat
-    })
-    
-    console.log(`[GameDataService] Filtered to ${atBats.length} at-bats`)
-    
-    // Sort by atBatIndex to ensure proper order
-    atBats.sort((a: any, b: any) => {
-      const aIndex = a.about?.atBatIndex ?? 999
-      const bIndex = b.about?.atBatIndex ?? 999
-      return aIndex - bIndex
-    })
-    
-    // Log summary of at-bats
-    atBats.forEach((atBat: any, index: number) => {
-      console.log(`[GameDataService] At-bat ${index + 1}: ${atBat.matchup?.batter?.fullName} vs ${atBat.matchup?.pitcher?.fullName} (Index: ${atBat.about?.atBatIndex}, Complete: ${atBat.about?.isComplete})`)
-    })
-    
-    return atBats
-  }
-
   // Get game details by gamePk
   async getGameDetails(gamePk: number): Promise<any | null> {
     try {

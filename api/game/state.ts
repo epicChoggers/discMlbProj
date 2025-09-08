@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { gameDataService } from '../lib/gameDataService.js'
+import { gumboGameDataService } from '../lib/gumboGameDataService.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -20,13 +21,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const debug = req.query?.debug === 'true'
     const ping = req.query?.ping === 'true'
+    const useGumbo = req.query?.useGumbo === 'true' // New parameter to enable GUMBO
     const apiBase = gameDataService.getApiBaseUrl()
-    console.log('Fetching fresh game state from MLB API', { fetchType: typeof fetch, apiBase })
+    console.log('Fetching fresh game state from MLB API', { fetchType: typeof fetch, apiBase, useGumbo })
 
     if (ping) {
       res.status(200).json({ ok: true, apiBase, fetchType: typeof fetch, now: new Date().toISOString() })
       return
     }
+
+    // Use GUMBO-based service if requested
+    if (useGumbo) {
+      console.log('[State API] Using GUMBO-based service')
+      const gumboState = await gumboGameDataService.getComprehensiveGameState()
+      
+      if (!gumboState.success) {
+        console.error('[State API] GUMBO service failed:', gumboState.error)
+        return res.status(500).json({
+          success: false,
+          error: gumboState.error,
+          lastUpdated: gumboState.lastUpdated,
+          source: 'gumbo-error'
+        })
+      }
+
+      console.log('[State API] Successfully retrieved GUMBO game state')
+      console.log(`[State API] Game: ${gumboState.game?.gamePk || 'N/A'}`)
+      console.log(`[State API] Current at-bat: ${gumboState.currentAtBat?.about?.atBatIndex || 'N/A'}`)
+      console.log(`[State API] Previous at-bat: ${gumboState.previousAtBat?.about?.atBatIndex || 'N/A'}`)
+      console.log(`[State API] Game live: ${gumboGameDataService.isGameLive(gumboState.game)}`)
+
+      // Return GUMBO game state
+      return res.status(200).json({
+        success: true,
+        game: gumboState.game,
+        currentAtBat: gumboState.currentAtBat,
+        previousAtBat: gumboState.previousAtBat,
+        isLoading: false,
+        isGameLive: gumboGameDataService.isGameLive(gumboState.game),
+        lastUpdated: gumboState.lastUpdated,
+        source: 'gumbo',
+        // Additional metadata for GUMBO
+        metaData: {
+          apiVersion: 'gumbo-v1.1',
+          hydrations: ['credits', 'alignment', 'flags', 'officials', 'preState'],
+          atBatTracking: 'index-based',
+          dataSource: 'MLB Stats API GUMBO'
+        },
+        debug: debug ? { fetchType: typeof fetch, now: new Date().toISOString() } : undefined
+      })
+    }
+    
+    // Legacy service for backward compatibility
+    console.log('[State API] Using legacy service')
     
     // First get the basic game info from schedule
     const game = await gameDataService.getTodaysMarinersGame()
@@ -85,28 +132,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[State API] Game is not live (isLive: ${isLive}, gamePk: ${game.gamePk})`)
     }
 
-    // Get all at-bats if we have detailed game data
-    let allAtBats = null
-    if (detailedGame && detailedGame.liveData) {
-      allAtBats = gameDataService.getAllAtBats(detailedGame)
-      console.log(`[State API] Found ${allAtBats.length} at-bats`)
-    }
-
     const gameState = {
       game: detailedGame,
       currentAtBat,
-      allAtBats: allAtBats ? {
-        count: allAtBats.length,
-        atBats: allAtBats.map(atBat => ({
-          atBatIndex: atBat.about?.atBatIndex,
-          batter: atBat.matchup?.batter?.fullName,
-          pitcher: atBat.matchup?.pitcher?.fullName,
-          isComplete: atBat.about?.isComplete,
-          result: atBat.result?.event,
-          inning: atBat.about?.inning,
-          halfInning: atBat.about?.halfInning
-        }))
-      } : null,
       isLoading: false,
       error: isLive ? undefined : 'Game is not currently live',
       lastUpdated: new Date().toISOString()

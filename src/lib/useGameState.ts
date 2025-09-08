@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { GameState } from './types'
 import { mlbServiceNew } from './mlbService'
+import { gumboMlbService } from './gumboMlbService'
 
 export const useGameStateNew = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -26,12 +27,29 @@ export const useGameStateNew = () => {
 
   const refreshGameState = useCallback(async () => {
     setGameState(prev => ({ ...prev, isLoading: true }))
-    const newGameState = await mlbServiceNew.getGameState()
+    
+    try {
+      // Try GUMBO service first
+      console.log('Attempting to use GUMBO service for game state...')
+      const gumboState = await gumboMlbService.getGumboGameState()
+      
+      if (gumboState.success) {
+        console.log('Using GUMBO service for game state')
+        const legacyGameState = gumboMlbService.convertToLegacyGameState(gumboState)
+        setGameState(legacyGameState)
+      } else {
+        console.log('GUMBO service failed, falling back to legacy service')
+        const newGameState = await mlbServiceNew.getGameState()
+        setGameState(newGameState)
+      }
+    } catch (error) {
+      console.error('Error with GUMBO service, falling back to legacy:', error)
+      const newGameState = await mlbServiceNew.getGameState()
+      setGameState(newGameState)
+    }
     
     // Note: Prediction resolution is now handled server-side by DataSyncService
     // No need to call autoResolveAllCompletedAtBats here
-    
-    setGameState(newGameState)
     
     // Notify all registered callbacks that game state has updated
     gameStateUpdateCallbacks.forEach(callback => {
