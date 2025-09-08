@@ -1,5 +1,4 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { gameCacheService } from '../lib/gameCacheService'
 import { gameDataService } from '../lib/gameDataService'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -19,28 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { gamePk, forceRefresh } = req.query
-    const targetGamePk = gamePk ? parseInt(gamePk as string) : undefined
-    const shouldForceRefresh = forceRefresh === 'true'
-
-    console.log(`Game state request: gamePk=${targetGamePk}, forceRefresh=${shouldForceRefresh}`)
-
-    // Try to get cached data first (unless force refresh is requested)
-    if (!shouldForceRefresh) {
-      const cachedState = await gameCacheService.getCachedGameState(targetGamePk)
-      if (cachedState) {
-        console.log('Serving cached game state')
-        res.status(200).json({
-          success: true,
-          ...cachedState,
-          source: 'cache'
-        })
-        return
-      }
-    }
-
-    // If no cached data or force refresh, fetch fresh data
-    console.log('Fetching fresh game state from MLB API')
+    const debug = req.query?.debug === 'true'
+    console.log('Fetching fresh game state from MLB API', { fetchType: typeof fetch })
     const game = await gameDataService.getTodaysMarinersGame()
     
     if (!game) {
@@ -67,44 +46,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lastUpdated: new Date().toISOString()
     }
 
-    // Cache the fresh data for future requests
-    try {
-      await gameCacheService.cacheGameState(gameState)
-      console.log('Cached fresh game state')
-    } catch (cacheError) {
-      console.warn('Failed to cache game state:', cacheError)
-      // Don't fail the request if caching fails
-    }
-
     res.status(200).json({
       success: true,
       ...gameState,
-      source: 'api'
+      source: 'api',
+      debug: debug ? { fetchType: typeof fetch, now: new Date().toISOString() } : undefined
     })
 
   } catch (error) {
-    console.error('Error fetching game state:', error)
-    
-    // Try to serve stale cached data as fallback
-    try {
-      const staleState = await gameCacheService.getCachedGameState()
-      if (staleState) {
-        console.log('Serving stale cached data due to error')
-        res.status(200).json({
-          success: true,
-          ...staleState,
-          source: 'stale_cache',
-          error: 'Using cached data due to API error'
-        })
-        return
-      }
-    } catch (fallbackError) {
-      console.error('Fallback to stale cache also failed:', fallbackError)
-    }
+    const message = error instanceof Error ? error.message : 'Failed to fetch game state'
+    console.error('Error fetching game state:', message, error)
     
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch game state',
+      error: message,
+      details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
       game: null,
       currentAtBat: null,
       isLoading: false,

@@ -10,13 +10,20 @@ export class GameDataService {
   async getTodaysMarinersGame(): Promise<any | null> {
     try {
       const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-      const response = await fetch(`${this.apiBaseUrl}/schedule?sportId=1&teamId=136&date=${today}`)
+      const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=136&date=${today}`
+      console.log('[GameDataService] Requesting schedule URL:', url)
+      const response = await fetch(url)
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const text = await response.text().catch(() => '')
+        console.error('[GameDataService] Non-OK response', { status: response.status, text })
+        throw new Error(`HTTP error ${response.status}`)
       }
       
-      const data = await response.json()
+      const data = await response.json().catch((err) => {
+        console.error('[GameDataService] JSON parse failed:', err)
+        throw new Error('Failed to parse MLB API response')
+      })
       
       if (data.dates && data.dates.length > 0 && data.dates[0].games) {
         const games = data.dates[0].games
@@ -28,7 +35,7 @@ export class GameDataService {
       
       return null
     } catch (error) {
-      console.error('Error fetching today\'s Mariners game:', error)
+      console.error("[GameDataService] Error fetching today's Mariners game:", error)
       return null
     }
   }
