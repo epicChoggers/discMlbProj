@@ -84,12 +84,26 @@ export class GameDataService {
   // Get game details by gamePk
   async getGameDetails(gamePk: number): Promise<any | null> {
     try {
+      console.log(`[GameDataService] Fetching detailed game data for game ${gamePk}`)
       const response = await fetch(`${this.apiBaseUrl}/game/${gamePk}/feed/live`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data = await response.json()
-      return data || null
+      
+      // Structure the data properly - combine gameData and liveData from MLB API response
+      const structuredData = {
+        ...data.gameData,
+        gamePk: gamePk,
+        liveData: data.liveData
+      }
+      
+      console.log(`[GameDataService] Successfully fetched detailed game data for game ${gamePk}`)
+      console.log(`[GameDataService] Live data available:`, !!data.liveData)
+      console.log(`[GameDataService] Current play available:`, !!data.liveData?.plays?.currentPlay)
+      console.log(`[GameDataService] All plays count:`, data.liveData?.plays?.allPlays?.length || 0)
+      
+      return structuredData
     } catch (error) {
       console.error('Error fetching game details:', error)
       return null
