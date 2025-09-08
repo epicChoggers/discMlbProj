@@ -1,4 +1,5 @@
 import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
+import { getPlayerHeadshot } from '../lib/mlbHeadshots'
 
 interface GameStateProps {
   gameState: GameStateType
@@ -164,16 +165,66 @@ const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
       <div className="grid grid-cols-2 gap-4 mb-4">
         {/* Batter */}
         <div className="text-center">
-          <div className="text-gray-400 text-sm mb-1">Batter</div>
-          <div className="text-white font-medium">{batter.fullName}</div>
-          <div className="text-gray-400 text-xs">#{batter.primaryNumber}</div>
+          <div className="text-gray-400 text-sm mb-2">Batter</div>
+          <div className="flex flex-col items-center space-y-2">
+            <div className="relative">
+              <img
+                src={getPlayerHeadshot(batter.id, { resolution: 120 })}
+                alt={batter.fullName}
+                className="w-12 h-12 rounded-full object-cover border-2 border-gray-600"
+                onError={(e) => {
+                  // Fallback to emoji if image fails to load
+                  const target = e.currentTarget as HTMLImageElement
+                  target.style.display = 'none'
+                  const nextElement = target.nextElementSibling as HTMLElement
+                  if (nextElement) {
+                    nextElement.style.display = 'flex'
+                  }
+                }}
+              />
+              <div 
+                className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center text-lg hidden"
+              >
+                ⚾
+              </div>
+            </div>
+            <div>
+              <div className="text-white font-medium">{batter.fullName}</div>
+              <div className="text-gray-400 text-xs">#{batter.primaryNumber}</div>
+            </div>
+          </div>
         </div>
 
         {/* Pitcher */}
         <div className="text-center">
-          <div className="text-gray-400 text-sm mb-1">Pitcher</div>
-          <div className="text-white font-medium">{pitcher.fullName}</div>
-          <div className="text-gray-400 text-xs">#{pitcher.primaryNumber}</div>
+          <div className="text-gray-400 text-sm mb-2">Pitcher</div>
+          <div className="flex flex-col items-center space-y-2">
+            <div className="relative">
+              <img
+                src={getPlayerHeadshot(pitcher.id, { resolution: 120 })}
+                alt={pitcher.fullName}
+                className="w-12 h-12 rounded-full object-cover border-2 border-gray-600"
+                onError={(e) => {
+                  // Fallback to emoji if image fails to load
+                  const target = e.currentTarget as HTMLImageElement
+                  target.style.display = 'none'
+                  const nextElement = target.nextElementSibling as HTMLElement
+                  if (nextElement) {
+                    nextElement.style.display = 'flex'
+                  }
+                }}
+              />
+              <div 
+                className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center text-lg hidden"
+              >
+                ⚾
+              </div>
+            </div>
+            <div>
+              <div className="text-white font-medium">{pitcher.fullName}</div>
+              <div className="text-gray-400 text-xs">#{pitcher.primaryNumber}</div>
+            </div>
+          </div>
         </div>
       </div>
 

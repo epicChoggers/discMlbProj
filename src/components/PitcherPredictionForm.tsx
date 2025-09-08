@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
-import { MLBPitcher } from '../lib/types'
+import { MLBPitcher, MLBGame } from '../lib/types'
 import { pitcherPredictionService } from '../lib/pitcherPredictionService'
+import { getPlayerHeadshot } from '../lib/mlbHeadshots'
 
 interface PitcherPredictionFormProps {
   gamePk?: number
   pitcher: MLBPitcher
+  game?: MLBGame
   onPredictionSubmitted: () => void
 }
 
-export const PitcherPredictionForm = ({ gamePk, pitcher, onPredictionSubmitted }: PitcherPredictionFormProps) => {
+export const PitcherPredictionForm = ({ gamePk, pitcher, game, onPredictionSubmitted }: PitcherPredictionFormProps) => {
   const [formData, setFormData] = useState({
     predictedIp: 6.0,
     predictedHits: 5,
@@ -21,6 +23,11 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, onPredictionSubmitted }
   const [success, setSuccess] = useState(false)
   const [hasAlreadyPredicted, setHasAlreadyPredicted] = useState(false)
   const [isCheckingPrediction, setIsCheckingPrediction] = useState(true)
+  
+  // Check if game has started (no longer accepting predictions)
+  const isGameStarted = game?.status?.abstractGameState === 'Live' || 
+                       game?.status?.abstractGameState === 'Final' ||
+                       game?.status?.abstractGameState === 'Postponed'
 
   // Check if user has already made a prediction for this pitcher
   useEffect(() => {
@@ -137,6 +144,23 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, onPredictionSubmitted }
     )
   }
 
+  if (isGameStarted) {
+    return (
+      <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-4">
+        <div className="text-center">
+          <div className="text-red-300 text-lg mb-2">🚫</div>
+          <h3 className="text-red-300 font-semibold mb-1">Game Has Started!</h3>
+          <p className="text-red-400 text-sm">
+            The game has begun and pitcher predictions are no longer being accepted. 
+            {game?.status?.abstractGameState === 'Live' ? ' The game is currently in progress.' : 
+             game?.status?.abstractGameState === 'Final' ? ' The game has ended.' : 
+             ' The game has been postponed.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 mb-4">
       <h3 className="text-white text-lg font-semibold mb-4">Predict {pitcher.fullName}'s Line</h3>
@@ -145,7 +169,25 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, onPredictionSubmitted }
         {/* Pitcher Info */}
         <div className="bg-gray-700 rounded-lg p-4 mb-4">
           <div className="flex items-center space-x-3">
-            <div className="text-2xl">⚾</div>
+            <div className="relative">
+              {pitcher.headshotUrl ? (
+                <img
+                  src={pitcher.headshotUrl}
+                  alt={pitcher.fullName}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-gray-600"
+                  onError={(e) => {
+                    // Fallback to emoji if image fails to load
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling!.style.display = 'flex'
+                  }}
+                />
+              ) : null}
+              <div 
+                className={`w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center text-2xl ${pitcher.headshotUrl ? 'hidden' : ''}`}
+              >
+                ⚾
+              </div>
+            </div>
             <div>
               <div className="text-white font-medium">{pitcher.fullName}</div>
               <div className="text-gray-400 text-sm">#{pitcher.primaryNumber} • {pitcher.currentTeam.name}</div>

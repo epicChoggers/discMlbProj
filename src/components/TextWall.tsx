@@ -247,7 +247,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
               {activeTab === 'pitcher-predictions' && (
                 <div className="h-full overflow-y-auto p-2 sm:p-4">
                   {gameState.game ? (
-                    <PitcherPredictions gamePk={gameState.game.gamePk} />
+                    <PitcherPredictions gamePk={gameState.game.gamePk} game={gameState.game} />
                   ) : (
                     <div className="text-center text-gray-400 mt-8">
                       <div className="text-4xl mb-2">⚾</div>

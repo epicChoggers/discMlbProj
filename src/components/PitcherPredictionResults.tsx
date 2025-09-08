@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { PitcherPrediction } from '../lib/types'
 import { pitcherPredictionService } from '../lib/pitcherPredictionService'
+import { getPlayerHeadshot } from '../lib/mlbHeadshots'
 
 interface PitcherPredictionResultsProps {
   gamePk?: number
@@ -134,19 +135,42 @@ export const PitcherPredictionResults = ({ gamePk, pitcherId }: PitcherPredictio
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
-                  {prediction.user?.avatar_url ? (
-                    <img
-                      src={prediction.user.avatar_url}
-                      alt={prediction.user.username}
-                      className="w-8 h-8 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                      <span className="text-gray-300 text-sm font-medium">
-                        {prediction.user?.username?.charAt(0).toUpperCase() || '?'}
-                      </span>
+                  <div className="flex items-center space-x-2">
+                    {/* User Avatar */}
+                    {prediction.user?.avatar_url ? (
+                      <img
+                        src={prediction.user.avatar_url}
+                        alt={prediction.user.username}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
+                        <span className="text-gray-300 text-sm font-medium">
+                          {prediction.user?.username?.charAt(0).toUpperCase() || '?'}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Pitcher Headshot */}
+                    <div className="relative">
+                      <img
+                        src={getPlayerHeadshot(prediction.pitcherId, { resolution: 120 })}
+                        alt={prediction.pitcherName}
+                        className="w-8 h-8 rounded-full object-cover border border-gray-500"
+                        onError={(e) => {
+                          // Hide image and show fallback
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling!.style.display = 'flex'
+                        }}
+                      />
+                      <div 
+                        className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm hidden"
+                      >
+                        ⚾
+                      </div>
                     </div>
-                  )}
+                  </div>
+                  
                   <div>
                     <div className="text-white font-medium">{prediction.user?.username || 'Unknown User'}</div>
                     <div className="text-gray-400 text-sm">{prediction.pitcherName}</div>

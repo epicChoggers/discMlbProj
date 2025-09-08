@@ -701,6 +701,7 @@ export interface MLBPitcher {
     name: string
     type: string
   }
+  headshotUrl?: string // MLB player headshot URL from spots API
 }
 
 export interface MLBPitcherStats {

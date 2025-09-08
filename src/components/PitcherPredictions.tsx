@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
-import { MLBPitcher } from '../lib/types'
+import { MLBPitcher, MLBGame } from '../lib/types'
 import { pitcherPredictionService } from '../lib/pitcherPredictionService'
 import { PitcherPredictionForm } from './PitcherPredictionForm'
 import { PitcherPredictionResults } from './PitcherPredictionResults'
+import { getPlayerHeadshot } from '../lib/mlbHeadshots'
 
 interface PitcherPredictionsProps {
   gamePk?: number
+  game?: MLBGame
 }
 
-export const PitcherPredictions = ({ gamePk }: PitcherPredictionsProps) => {
+export const PitcherPredictions = ({ gamePk, game }: PitcherPredictionsProps) => {
   const [pitcher, setPitcher] = useState<MLBPitcher | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -81,7 +83,23 @@ export const PitcherPredictions = ({ gamePk }: PitcherPredictionsProps) => {
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-4">
-            <div className="text-3xl">⚾</div>
+            <div className="relative">
+              <img
+                src={getPlayerHeadshot(pitcher.id, { resolution: 240 })}
+                alt={pitcher.fullName}
+                className="w-16 h-16 rounded-full object-cover border-2 border-gray-600"
+                onError={(e) => {
+                  // Fallback to emoji if image fails to load
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextElementSibling!.style.display = 'flex'
+                }}
+              />
+              <div 
+                className="w-16 h-16 rounded-full bg-gray-600 flex items-center justify-center text-3xl hidden"
+              >
+                ⚾
+              </div>
+            </div>
             <div>
               <h2 className="text-white text-xl font-semibold">Pitcher Predictions</h2>
               <p className="text-gray-400 text-sm">Predict the starting pitcher's performance</p>
@@ -98,6 +116,7 @@ export const PitcherPredictions = ({ gamePk }: PitcherPredictionsProps) => {
       <PitcherPredictionForm
         gamePk={gamePk}
         pitcher={pitcher}
+        game={game}
         onPredictionSubmitted={handlePredictionSubmitted}
       />
 
