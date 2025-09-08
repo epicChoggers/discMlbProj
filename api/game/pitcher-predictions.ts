@@ -136,7 +136,9 @@ async function handleGetPitcherPredictions(req: VercelRequest, res: VercelRespon
 
     // If no gamePk provided, get today's Mariners game
     if (!gamePk) {
+      console.log('[handleGetPitcherPredictions] No gamePk provided, fetching today\'s Mariners game')
       const game = await gameDataService.getTodaysMarinersGameWithPitcher()
+      console.log('[handleGetPitcherPredictions] Game result:', game ? `Found game ${game.gamePk}` : 'No game found')
       if (!game) {
         res.status(404).json({ error: 'No Mariners game found for today' })
         return
@@ -144,16 +146,11 @@ async function handleGetPitcherPredictions(req: VercelRequest, res: VercelRespon
       actualGamePk = game.gamePk.toString()
     }
 
+    console.log('[handleGetPitcherPredictions] Query parameters:', { actualGamePk, pitcherId, userId })
+    
     let query = supabase
       .from('pitcher_predictions')
-      .select(`
-        *,
-        user_profiles!inner(
-          id,
-          username,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('game_pk', actualGamePk)
 
     if (pitcherId) {
@@ -164,38 +161,48 @@ async function handleGetPitcherPredictions(req: VercelRequest, res: VercelRespon
       query = query.eq('user_id', userId)
     }
 
+    console.log('[handleGetPitcherPredictions] Executing Supabase query...')
     const { data, error } = await query.order('created_at', { ascending: false })
+    console.log('[handleGetPitcherPredictions] Query result:', { dataCount: data?.length || 0, error: error?.message || 'none' })
 
     if (error) {
+      console.error('Supabase query error:', error)
       throw error
     }
 
     // Transform the data to match our TypeScript interface
-    const predictions = data?.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      gamePk: row.game_pk,
-      pitcherId: row.pitcher_id,
-      pitcherName: row.pitcher_name,
-      predictedIp: parseFloat(row.predicted_ip),
-      predictedHits: row.predicted_hits,
-      predictedEarnedRuns: row.predicted_earned_runs,
-      predictedWalks: row.predicted_walks,
-      predictedStrikeouts: row.predicted_strikeouts,
-      actualIp: row.actual_ip ? parseFloat(row.actual_ip) : undefined,
-      actualHits: row.actual_hits,
-      actualEarnedRuns: row.actual_earned_runs,
-      actualWalks: row.actual_walks,
-      actualStrikeouts: row.actual_strikeouts,
-      pointsEarned: row.points_earned,
-      createdAt: row.created_at,
-      resolvedAt: row.resolved_at,
-      user: {
-        id: row.user_profiles.id,
-        username: row.user_profiles.username,
-        avatar_url: row.user_profiles.avatar_url
+    const predictions = data?.map(row => {
+      try {
+        return {
+          id: row.id,
+          userId: row.user_id,
+          gamePk: row.game_pk,
+          pitcherId: row.pitcher_id,
+          pitcherName: row.pitcher_name,
+          predictedIp: parseFloat(row.predicted_ip),
+          predictedHits: row.predicted_hits,
+          predictedEarnedRuns: row.predicted_earned_runs,
+          predictedWalks: row.predicted_walks,
+          predictedStrikeouts: row.predicted_strikeouts,
+          actualIp: row.actual_ip ? parseFloat(row.actual_ip) : undefined,
+          actualHits: row.actual_hits,
+          actualEarnedRuns: row.actual_earned_runs,
+          actualWalks: row.actual_walks,
+          actualStrikeouts: row.actual_strikeouts,
+          pointsEarned: row.points_earned,
+          createdAt: row.created_at,
+          resolvedAt: row.resolved_at,
+          user: {
+            id: row.user_id || 'unknown',
+            username: 'User', // We'll get this from a separate query if needed
+            avatar_url: null
+          }
+        }
+      } catch (transformError) {
+        console.error('Error transforming prediction row:', transformError, row)
+        return null
       }
-    })) || []
+    }).filter(Boolean) || []
 
     res.status(200).json({
       success: true,
@@ -223,15 +230,26 @@ async function handleCreatePitcherPrediction(req: VercelRequest, res: VercelResp
     predictedStrikeouts 
   } = req.body
 
-  // Validate required fields
-  if (!gamePk || !pitcherId || !pitcherName || 
+  // Validate required fields (gamePk is now optional)
+  if (!pitcherId || !pitcherName || 
       predictedIp === undefined || predictedHits === undefined || 
       predictedEarnedRuns === undefined || predictedWalks === undefined || 
       predictedStrikeouts === undefined) {
     res.status(400).json({ 
-      error: 'Missing required fields: gamePk, pitcherId, pitcherName, predictedIp, predictedHits, predictedEarnedRuns, predictedWalks, predictedStrikeouts' 
+      error: 'Missing required fields: pitcherId, pitcherName, predictedIp, predictedHits, predictedEarnedRuns, predictedWalks, predictedStrikeouts' 
     })
     return
+  }
+
+  // If no gamePk provided, get today's Mariners game
+  let actualGamePk = gamePk
+  if (!actualGamePk) {
+    const game = await gameDataService.getTodaysMarinersGameWithPitcher()
+    if (!game) {
+      res.status(404).json({ error: 'No Mariners game found for today' })
+      return
+    }
+    actualGamePk = game.gamePk
   }
 
   // Validate numeric values
@@ -265,7 +283,7 @@ async function handleCreatePitcherPrediction(req: VercelRequest, res: VercelResp
       .from('pitcher_predictions')
       .select('id')
       .eq('user_id', user.id)
-      .eq('game_pk', gamePk)
+      .eq('game_pk', actualGamePk)
       .eq('pitcher_id', pitcherId)
       .single()
 
@@ -281,7 +299,7 @@ async function handleCreatePitcherPrediction(req: VercelRequest, res: VercelResp
       .from('pitcher_predictions')
       .insert({
         user_id: user.id,
-        game_pk: gamePk,
+        game_pk: actualGamePk,
         pitcher_id: pitcherId,
         pitcher_name: pitcherName,
         predicted_ip: predictedIp,

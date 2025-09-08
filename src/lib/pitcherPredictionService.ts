@@ -21,13 +21,11 @@ class PitcherPredictionService {
     console.log(`Pitcher Prediction Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
-  // Get pitcher predictions for a game (gamePk is optional - will get today's Mariners game if not provided)
+  // Get pitcher predictions for today's Mariners game (pitcherId is optional)
   async getPitcherPredictions(gamePk?: number, pitcherId?: number): Promise<PitcherPrediction[]> {
     try {
       const params = new URLSearchParams()
-      if (gamePk) {
-        params.append('gamePk', gamePk.toString())
-      }
+      // Don't include gamePk - the API will default to today's Mariners game
       if (pitcherId) {
         params.append('pitcherId', pitcherId.toString())
       }
@@ -51,13 +49,11 @@ class PitcherPredictionService {
     }
   }
 
-  // Get pitcher predictions for a specific user (gamePk is optional - will get today's Mariners game if not provided)
+  // Get pitcher predictions for a specific user for today's Mariners game
   async getUserPitcherPredictions(gamePk: number | undefined, userId: string): Promise<PitcherPrediction[]> {
     try {
       const params = new URLSearchParams({ userId: userId })
-      if (gamePk) {
-        params.append('gamePk', gamePk.toString())
-      }
+      // Don't include gamePk - the API will default to today's Mariners game
 
       const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions?${params}`)
       
@@ -78,9 +74,9 @@ class PitcherPredictionService {
     }
   }
 
-  // Submit a pitcher prediction
+  // Submit a pitcher prediction (gamePk is optional - will use today's Mariners game if not provided)
   async submitPitcherPrediction(
-    gamePk: number,
+    gamePk: number | undefined,
     pitcherId: number,
     pitcherName: string,
     predictedIp: number,
@@ -96,22 +92,28 @@ class PitcherPredictionService {
         throw new Error('User not authenticated')
       }
 
+      const requestBody: any = {
+        pitcherId,
+        pitcherName,
+        predictedIp,
+        predictedHits,
+        predictedEarnedRuns,
+        predictedWalks,
+        predictedStrikeouts
+      }
+
+      // Only include gamePk if it's provided
+      if (gamePk) {
+        requestBody.gamePk = gamePk
+      }
+
       const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.data.session.access_token}`
         },
-        body: JSON.stringify({
-          gamePk,
-          pitcherId,
-          pitcherName,
-          predictedIp,
-          predictedHits,
-          predictedEarnedRuns,
-          predictedWalks,
-          predictedStrikeouts
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
