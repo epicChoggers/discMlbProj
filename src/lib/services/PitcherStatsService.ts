@@ -1,4 +1,4 @@
-import { MLBPitcherStats } from '../types'
+// import { MLBPitcherStats } from '../types' // Not currently used
 
 export interface PitcherGameStats {
   pitcherId: number
@@ -32,8 +32,8 @@ export class PitcherStatsService {
     const { home, away } = gameData.liveData.boxscore.teams
     
     // Extract stats from both teams
-    this.extractTeamPitcherStats(home, pitcherStats, true)
-    this.extractTeamPitcherStats(away, pitcherStats, false)
+    this.extractTeamPitcherStats(home, pitcherStats)
+    this.extractTeamPitcherStats(away, pitcherStats)
     
     return pitcherStats
   }
@@ -41,7 +41,7 @@ export class PitcherStatsService {
   /**
    * Extract pitcher statistics for a specific team
    */
-  private extractTeamPitcherStats(team: any, pitcherStats: PitcherGameStats[], isHome: boolean): void {
+  private extractTeamPitcherStats(team: any, pitcherStats: PitcherGameStats[]): void {
     if (!team?.players) {
       return
     }
@@ -70,7 +70,7 @@ export class PitcherStatsService {
           walks: stats.baseOnBalls || 0,
           strikeouts: stats.strikeOuts || 0,
           isStartingPitcher: startingPitcher?.person?.id === player.person.id,
-          isFinished: this.isPitcherFinished(player, team)
+          isFinished: this.isPitcherFinished(player)
         }
 
         pitcherStats.push(pitcherStat)
@@ -106,7 +106,7 @@ export class PitcherStatsService {
   /**
    * Check if a pitcher has finished their outing
    */
-  private isPitcherFinished(player: any, team: any): boolean {
+  private isPitcherFinished(player: any): boolean {
     // A pitcher is considered finished if:
     // 1. They have stats but are no longer the current pitcher
     // 2. The game is final

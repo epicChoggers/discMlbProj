@@ -234,7 +234,7 @@ export class PitcherSubstitutionService {
 
     const player = Object.values(marinersTeam.players).find((p: any) => 
       p?.person?.id === pitcherId.toString()
-    )
+    ) as any
 
     if (!player?.stats?.pitching) {
       return null
