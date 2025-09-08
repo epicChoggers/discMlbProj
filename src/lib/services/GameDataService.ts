@@ -2,6 +2,7 @@ import { MLBGame, GameState } from '../types'
 
 export class GameDataService {
   private apiBaseUrl: string
+  private teamId: string
   // private isDevelopment: boolean
 
   constructor() {
@@ -9,6 +10,10 @@ export class GameDataService {
     this.apiBaseUrl = typeof process !== 'undefined' && process.env ? 
       process.env.VITE_MLB_API_BASE_URL || 'https://statsapi.mlb.com/api/v1' :
       import.meta.env.VITE_MLB_API_BASE_URL || 'https://statsapi.mlb.com/api/v1'
+    
+    this.teamId = typeof process !== 'undefined' && process.env ? 
+      process.env.VITE_TEAM_ID || '136' :
+      import.meta.env.VITE_TEAM_ID || '136'
     // this.isDevelopment = import.meta.env.DEV
   }
 
@@ -71,11 +76,16 @@ export class GameDataService {
     return game.status?.detailedState === 'In Progress'
   }
 
+  // Get team ID
+  getTeamId(): string {
+    return this.teamId
+  }
+
   // Get today's Mariners game
   async getTodaysMarinersGame(): Promise<MLBGame | null> {
     try {
       const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-      const response = await fetch(`${this.apiBaseUrl}/schedule?sportId=1&teamId=136&date=${today}`)
+      const response = await fetch(`${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&date=${today}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

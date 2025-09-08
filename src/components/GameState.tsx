@@ -64,7 +64,8 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
     )
   }
   
-  const isMarinersHome = homeTeamId === 136
+  const teamId = parseInt(import.meta.env.VITE_TEAM_ID || '136')
+  const isMarinersHome = homeTeamId === teamId
   const marinersTeam = isMarinersHome ? homeTeam : awayTeam
   const opponentTeam = isMarinersHome ? awayTeam : homeTeam
 

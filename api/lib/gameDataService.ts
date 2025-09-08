@@ -1,20 +1,26 @@
 // Server-side GameDataService for API functions
 export class GameDataService {
   private apiBaseUrl: string
+  private teamId: string
 
   constructor() {
     this.apiBaseUrl = process.env.VITE_MLB_API_BASE_URL || 'https://statsapi.mlb.com/api/v1'
+    this.teamId = process.env.VITE_TEAM_ID || '136'
   }
 
   getApiBaseUrl(): string {
     return this.apiBaseUrl
   }
 
+  getTeamId(): string {
+    return this.teamId
+  }
+
   // Get today's Mariners game
   async getTodaysMarinersGame(): Promise<any | null> {
     try {
       const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-      const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=136&date=${today}`
+      const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&date=${today}`
       console.log('[GameDataService] Requesting schedule URL:', url)
       const response = await fetch(url)
       
