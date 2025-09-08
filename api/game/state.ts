@@ -85,9 +85,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`[State API] Game is not live (isLive: ${isLive}, gamePk: ${game.gamePk})`)
     }
 
+    // Get all at-bats if we have detailed game data
+    let allAtBats = null
+    if (detailedGame && detailedGame.liveData) {
+      allAtBats = gameDataService.getAllAtBats(detailedGame)
+      console.log(`[State API] Found ${allAtBats.length} at-bats`)
+    }
+
     const gameState = {
       game: detailedGame,
       currentAtBat,
+      allAtBats: allAtBats ? {
+        count: allAtBats.length,
+        atBats: allAtBats.map(atBat => ({
+          atBatIndex: atBat.about?.atBatIndex,
+          batter: atBat.matchup?.batter?.fullName,
+          pitcher: atBat.matchup?.pitcher?.fullName,
+          isComplete: atBat.about?.isComplete,
+          result: atBat.result?.event,
+          inning: atBat.about?.inning,
+          halfInning: atBat.about?.halfInning
+        }))
+      } : null,
       isLoading: false,
       error: isLive ? undefined : 'Game is not currently live',
       lastUpdated: new Date().toISOString()
