@@ -27,6 +27,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(200).json({ ok: true, apiBase, fetchType: typeof fetch, now: new Date().toISOString() })
       return
     }
+    
+    // First get the basic game info from schedule
     const game = await gameDataService.getTodaysMarinersGame()
     
     if (!game) {
@@ -42,11 +44,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    const currentAtBat = gameDataService.getCurrentAtBat(game)
     const isLive = gameDataService.isGameLive(game)
+    let currentAtBat = null
+    let detailedGame = game
+
+    // If the game is live, fetch detailed game data to get current at-bat
+    if (isLive && game.gamePk) {
+      console.log(`Game is live (${game.gamePk}), fetching detailed game data for current at-bat`)
+      detailedGame = await gameDataService.getGameDetails(game.gamePk)
+      if (detailedGame) {
+        currentAtBat = gameDataService.getCurrentAtBat(detailedGame)
+        console.log('Current at-bat:', currentAtBat ? `At-bat ${currentAtBat.about?.atBatIndex}` : 'No current at-bat')
+      } else {
+        console.log('Failed to fetch detailed game data, using schedule data')
+        detailedGame = game
+      }
+    }
 
     const gameState = {
-      game,
+      game: detailedGame,
       currentAtBat,
       isLoading: false,
       error: isLive ? undefined : 'Game is not currently live',

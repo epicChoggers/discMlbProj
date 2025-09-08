@@ -62,7 +62,23 @@ export class GameDataService {
 
   // Get current at-bat from game
   getCurrentAtBat(game: any): any {
-    return game.liveData?.plays?.currentPlay || null
+    // Try different possible paths for current at-bat data
+    if (game.liveData?.plays?.currentPlay) {
+      return game.liveData.plays.currentPlay
+    }
+    
+    // If no current play, try to get the last play from allPlays
+    if (game.liveData?.plays?.allPlays && game.liveData.plays.allPlays.length > 0) {
+      const allPlays = game.liveData.plays.allPlays
+      const lastPlay = allPlays[allPlays.length - 1]
+      
+      // Check if the last play is still in progress (no result yet)
+      if (lastPlay && !lastPlay.result?.event) {
+        return lastPlay
+      }
+    }
+    
+    return null
   }
 
   // Get game details by gamePk
