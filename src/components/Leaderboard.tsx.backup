@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType } from '../lib/types'
-import { leaderboardServiceNew } from '../lib/leaderboardServiceNew'
+import { leaderboardService } from '../lib/leaderboardService'
 
 interface LeaderboardProps {
   gamePk?: number
@@ -17,7 +17,7 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
       setError(null)
 
       try {
-        const leaderboardData = await leaderboardServiceNew.getLeaderboard(gamePk, 10)
+        const leaderboardData = await leaderboardService.getLeaderboard(gamePk, 10)
         setLeaderboard(leaderboardData)
       } catch (err) {
         console.error('Error loading leaderboard:', err)
@@ -30,7 +30,7 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
     loadLeaderboard()
 
     // Subscribe to real-time updates
-    const subscription = leaderboardServiceNew.subscribeToLeaderboard(gamePk, (newLeaderboard) => {
+    const subscription = leaderboardService.subscribeToLeaderboard(gamePk, (newLeaderboard) => {
       setLeaderboard(newLeaderboard)
     })
 

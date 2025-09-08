@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { UserProfile as UserProfileType, PredictionStats } from '../lib/types'
 import { supabase } from '../supabaseClient'
-import { predictionServiceNew } from '../lib/predictionServiceNew'
+import { predictionService } from '../lib/predictionService'
 
 interface UserProfileProps {
   onSignOut: () => void
@@ -60,7 +60,7 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
         }
 
         // Load prediction stats
-        const userStats = await predictionServiceNew.getUserPredictionStats()
+        const userStats = await predictionService.getUserPredictionStats()
         setStats(userStats)
       } catch (error) {
         console.error('Error loading user profile:', error)

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { GameState } from './types'
-import { mlbService } from './mlbService'
-import { predictionService } from './predictionService'
+import { mlbServiceNew } from './mlbServiceNew'
+import { predictionServiceNew } from './predictionServiceNew'
 
-export const useGameState = () => {
+export const useGameStateNew = () => {
   const [gameState, setGameState] = useState<GameState>({
     game: null,
     currentAtBat: null,
@@ -25,14 +25,12 @@ export const useGameState = () => {
     }
   }, [])
 
-  const refreshGameState = useCallback(async () => {
+  const refreshGameState = async () => {
     setGameState(prev => ({ ...prev, isLoading: true }))
-    const newGameState = await mlbService.getGameState()
+    const newGameState = await mlbServiceNew.getGameState()
     
-    // Auto-resolve ALL completed at-bats
-    if (newGameState.game && newGameState.game.gamePk) {
-      await predictionService.autoResolveAllCompletedAtBats(newGameState.game.gamePk, newGameState.game)
-    }
+    // Note: Prediction resolution is now handled server-side by DataSyncService
+    // No need to call autoResolveAllCompletedAtBats here
     
     setGameState(newGameState)
     
@@ -52,10 +50,8 @@ export const useGameState = () => {
 
     // Set up real-time updates
     const handleGameUpdate = async (newGameState: GameState) => {
-      // Auto-resolve ALL completed at-bats on real-time updates too
-      if (newGameState.game && newGameState.game.gamePk) {
-        await predictionService.autoResolveAllCompletedAtBats(newGameState.game.gamePk, newGameState.game)
-      }
+      // Note: Prediction resolution is now handled server-side by DataSyncService
+      // No need to call autoResolveAllCompletedAtBats here
       
       setGameState(newGameState)
       
@@ -69,26 +65,25 @@ export const useGameState = () => {
       })
     }
 
-    mlbService.startLiveUpdates(handleGameUpdate)
+    mlbServiceNew.startLiveUpdates(handleGameUpdate)
 
     // Cleanup
     return () => {
-      mlbService.removeListener(handleGameUpdate)
+      mlbServiceNew.removeListener(handleGameUpdate)
     }
   }, [refreshGameState, gameStateUpdateCallbacks])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      mlbService.stopLiveUpdates()
+      mlbServiceNew.stopLiveUpdates()
     }
   }, [])
 
   return {
     gameState,
     refreshGameState,
-    isGameLive: gameState.game ? mlbService.isGameLive(gameState.game) : false,
+    isGameLive: gameState.game ? mlbServiceNew.isGameLive(gameState.game) : false,
     addGameStateUpdateCallback
   }
 }
-

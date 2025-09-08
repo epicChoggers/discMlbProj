@@ -29,36 +29,21 @@ export class CronService {
 
   // Initialize default cron jobs
   private initializeDefaultJobs(): void {
-    this.jobs.set('game_state_sync', {
-      name: 'Game State Sync',
-      schedule: '*/10 * * * * *', // Every 10 seconds
+    // Consolidated jobs to work within Vercel's 2 cron job limit
+    this.jobs.set('high_frequency_tasks', {
+      name: 'High Frequency Tasks (Game State + Predictions)',
+      schedule: '*/5 * * * *', // Every 5 minutes - handles both game state sync and prediction resolution
       enabled: true,
       timeout: 30000,
       retryAttempts: 3
     })
 
-    this.jobs.set('prediction_resolution', {
-      name: 'Prediction Resolution',
-      schedule: '*/5 * * * * *', // Every 5 seconds
-      enabled: true,
-      timeout: 15000,
-      retryAttempts: 2
-    })
-
-    this.jobs.set('cache_cleanup', {
-      name: 'Cache Cleanup',
-      schedule: '0 */10 * * * *', // Every 10 minutes
+    this.jobs.set('maintenance_tasks', {
+      name: 'Maintenance Tasks (Cache + Health)',
+      schedule: '*/10 * * * *', // Every 10 minutes - handles cache cleanup and health checks
       enabled: true,
       timeout: 60000,
-      retryAttempts: 1
-    })
-
-    this.jobs.set('health_check', {
-      name: 'Health Check',
-      schedule: '0 */5 * * * *', // Every 5 minutes
-      enabled: true,
-      timeout: 10000,
-      retryAttempts: 1
+      retryAttempts: 2
     })
   }
 
@@ -122,17 +107,23 @@ export class CronService {
       
       let result: any
       switch (jobId) {
-        case 'game_state_sync':
-          result = await this.executeGameStateSync()
+        case 'high_frequency_tasks':
+          // Execute both game state sync and prediction resolution
+          const gameStateResult = await this.executeGameStateSync()
+          const predictionResult = await this.executePredictionResolution()
+          result = {
+            game_state_sync: gameStateResult,
+            prediction_resolution: predictionResult
+          }
           break
-        case 'prediction_resolution':
-          result = await this.executePredictionResolution()
-          break
-        case 'cache_cleanup':
-          result = await this.executeCacheCleanup()
-          break
-        case 'health_check':
-          result = await this.executeHealthCheck()
+        case 'maintenance_tasks':
+          // Execute both cache cleanup and health check
+          const cacheResult = await this.executeCacheCleanup()
+          const healthResult = await this.executeHealthCheck()
+          result = {
+            cache_cleanup: cacheResult,
+            health_check: healthResult
+          }
           break
         default:
           throw new Error(`Unknown job: ${jobId}`)

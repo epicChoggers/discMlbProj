@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { predictionServiceNew } from '../lib/predictionServiceNew'
+import { predictionService } from '../lib/predictionService'
 
 interface DebugPredictionsProps {
   gamePk: number
@@ -61,7 +61,7 @@ export const DebugPredictions = ({ gamePk }: DebugPredictionsProps) => {
     setIsTesting(true)
     try {
       console.log('DEBUG: Testing prediction submission...')
-      const result = await predictionServiceNew.submitPrediction(
+      const result = await predictionService.submitPrediction(
         gamePk,
         999, // Use a test at-bat index
         'single',

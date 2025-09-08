@@ -1,15 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../supabaseClient'
 import { AtBatPrediction } from './types'
-import { predictionService } from './predictionService'
+import { predictionServiceNew } from './predictionServiceNew'
+import { supabase } from '../supabaseClient'
 
-interface UseRealtimePredictionsProps {
+interface UseRealtimePredictionsNewProps {
   gamePk: number
   atBatIndex?: number
-  onGameStateUpdate?: (callback: () => void) => () => void // Function to register for game state updates
+  onGameStateUpdate?: (callback: () => void) => () => void
 }
 
-export const useRealtimePredictions = ({ gamePk, atBatIndex, onGameStateUpdate }: UseRealtimePredictionsProps) => {
+export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdate }: UseRealtimePredictionsNewProps) => {
   const [predictions, setPredictions] = useState<AtBatPrediction[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -23,10 +23,10 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex, onGameStateUpdate }
       
       let predictionsData: AtBatPrediction[]
       if (atBatIndex !== undefined) {
-        predictionsData = await predictionService.getAtBatPredictions(gamePk, atBatIndex)
+        predictionsData = await predictionServiceNew.getAtBatPredictions(gamePk, atBatIndex)
       } else {
         // Get all predictions for the game, not just user's predictions
-        predictionsData = await predictionService.getAllGamePredictions(gamePk)
+        predictionsData = await predictionServiceNew.getAllGamePredictions(gamePk)
       }
       
       console.log('Loaded predictions:', predictionsData.length)
@@ -69,15 +69,13 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex, onGameStateUpdate }
 
     const setupRealtime = async () => {
       try {
-        console.log('Setting up prediction real-time subscription for game:', gamePk, 'atBat:', atBatIndex)
+        console.log('Setting up prediction real-time subscription for game:', gamePk)
         
-        // Load initial data
-        await loadPredictions()
+        const channelName = `predictions_${gamePk}_${atBatIndex || 'all'}`
+        console.log('Channel name:', channelName)
 
-        // Set up real-time subscription
-        const channelName = `predictions-${gamePk}-${atBatIndex !== undefined ? atBatIndex : 'all'}`
-        console.log('Creating channel:', channelName)
-        console.log('Subscription filter:', `game_pk=eq.${gamePk}`)
+        // Load initial predictions
+        await loadPredictions()
         
         channel = supabase
           .channel(channelName)
@@ -140,7 +138,7 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex, onGameStateUpdate }
 
     return () => {
       if (channel) {
-        console.log('Cleaning up prediction subscription')
+        console.log('Unsubscribing from prediction updates')
         supabase.removeChannel(channel)
       }
     }
@@ -151,6 +149,6 @@ export const useRealtimePredictions = ({ gamePk, atBatIndex, onGameStateUpdate }
     isLoading,
     isUpdating,
     error,
-    refetch: loadPredictions
+    refreshPredictions
   }
 }

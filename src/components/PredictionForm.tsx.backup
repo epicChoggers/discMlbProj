@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AtBatOutcome, MLBPlay, getOutcomeCategory } from '../lib/types'
-import { predictionServiceNew } from '../lib/predictionServiceNew'
+import { predictionService } from '../lib/predictionService'
 
 interface PredictionFormProps {
   gamePk: number
@@ -81,13 +81,13 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
     const checkExistingPrediction = async () => {
       try {
         setIsCheckingPrediction(true)
-        const hasPredicted = await predictionServiceNew.hasUserPredictedForAtBat(gamePk, currentAtBat.about.atBatIndex)
+        const hasPredicted = await predictionService.hasUserPredictedForAtBat(gamePk, currentAtBat.about.atBatIndex)
         setHasAlreadyPredicted(hasPredicted)
         
         // If user has predicted, check if the at-bat is resolved
         if (hasPredicted) {
-          const predictions = await predictionServiceNew.getAtBatPredictions(gamePk, currentAtBat.about.atBatIndex)
-          const userId = await predictionServiceNew.getCurrentUserId()
+          const predictions = await predictionService.getAtBatPredictions(gamePk, currentAtBat.about.atBatIndex)
+          const userId = await predictionService.getCurrentUserId()
           const userPrediction = predictions.find(p => p.userId === userId)
           const isResolved = userPrediction?.actualOutcome !== undefined
           setIsWaitingForResolution(!isResolved)
@@ -112,11 +112,11 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
       return
     }
 
-    const subscription = predictionServiceNew.subscribeToPredictions(
+    const subscription = predictionService.subscribeToPredictions(
       gamePk,
       async (predictions) => {
         // Check if our prediction has been resolved
-        const userId = await predictionServiceNew.getCurrentUserId()
+        const userId = await predictionService.getCurrentUserId()
         const userPrediction = predictions.find(p => p.userId === userId)
         if (userPrediction && userPrediction.actualOutcome !== undefined) {
           setIsWaitingForResolution(false)
@@ -159,7 +159,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
         category: predictionCategory
       })
 
-      const result = await predictionServiceNew.submitPrediction(
+      const result = await predictionService.submitPrediction(
         gamePk,
         currentAtBat.about.atBatIndex,
         selectedOutcome,

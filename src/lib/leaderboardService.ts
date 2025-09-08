@@ -1,145 +1,30 @@
-import { supabase } from '../supabaseClient'
 import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType } from './types'
 
-export class LeaderboardService {
-  // Get leaderboard data
+export class LeaderboardServiceNew {
+  // Get leaderboard data using the unified API
   async getLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
     try {
-      // Get predictions data
-      let predictionsQuery = supabase
-        .from('at_bat_predictions')
-        .select('user_id, prediction, prediction_category, actual_outcome, actual_category, is_correct, points_earned')
-        .not('is_correct', 'is', null)
-
+      let url = `/api/game/leaderboard?limit=${limit}`
       if (gamePk) {
-        predictionsQuery = predictionsQuery.eq('game_pk', gamePk)
+        url += `&gamePk=${gamePk}`
       }
 
-      const { data: predictionsData, error: predictionsError } = await predictionsQuery
+      console.log('Fetching leaderboard from unified API:', url)
 
-      if (predictionsError) {
-        throw predictionsError
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
 
-      if (!predictionsData || predictionsData.length === 0) {
-        return {
-          entries: [],
-          total_users: 0,
-          last_updated: new Date().toISOString()
-        }
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch leaderboard')
       }
 
-      // Process the data to calculate stats per user
-      const userStats = new Map<string, {
-        user_id: string
-        total_predictions: number
-        correct_predictions: number
-        total_outcomes: number
-        correct_outcomes: number
-        total_exact_outcomes: number
-        correct_exact_outcomes: number
-        total_points: number
-      }>()
-
-      predictionsData.forEach(prediction => {
-        const userId = prediction.user_id
-
-        if (!userStats.has(userId)) {
-          userStats.set(userId, {
-            user_id: userId,
-            total_predictions: 0,
-            correct_predictions: 0,
-            total_outcomes: 0,
-            correct_outcomes: 0,
-            total_exact_outcomes: 0,
-            correct_exact_outcomes: 0,
-            total_points: 0
-          })
-        }
-
-        const stats = userStats.get(userId)!
-        stats.total_predictions++
-        
-        // Count outcomes (category-based predictions)
-        if (prediction.prediction_category && prediction.actual_category) {
-          stats.total_outcomes++
-          if (prediction.prediction_category === prediction.actual_category) {
-            stats.correct_outcomes++
-          }
-        }
-        
-        // Count exact outcomes (specific prediction matches)
-        if (prediction.prediction && prediction.actual_outcome) {
-          stats.total_exact_outcomes++
-          if (prediction.prediction === prediction.actual_outcome) {
-            stats.correct_exact_outcomes++
-          }
-        }
-        
-        // Count correct predictions and points
-        if (prediction.is_correct) {
-          stats.correct_predictions++
-        }
-        
-        // Add points earned
-        if (prediction.points_earned) {
-          stats.total_points += prediction.points_earned
-        }
-      })
-
-      // Get user profiles for the users with predictions
-      const userIds = Array.from(userStats.keys())
-      const { data: profiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('id, username, avatar_url')
-        .in('id', userIds)
-
-      if (profilesError) {
-        console.error('Error fetching user profiles:', profilesError)
-      }
-
-      // Create a map of user profiles
-      const profileMap = new Map()
-      profiles?.forEach(profile => {
-        profileMap.set(profile.id, profile)
-      })
-
-      // Log missing profiles for debugging
-      const missingProfileIds = userIds.filter(id => !profileMap.has(id))
-      if (missingProfileIds.length > 0) {
-        console.log('Missing profiles for users:', missingProfileIds)
-        console.log('This indicates the Discord OAuth trigger may not be working properly.')
-      }
-
-      // Convert to leaderboard entries
-      const entries: LeaderboardEntryType[] = Array.from(userStats.values())
-        .map((stats, index) => {
-          const profile = profileMap.get(stats.user_id)
-          return {
-            user_id: stats.user_id,
-            username: profile?.username || 'Unknown User',
-            avatar_url: profile?.avatar_url || null,
-            total_predictions: stats.total_predictions,
-            correct_predictions: stats.correct_predictions,
-            accuracy: stats.total_predictions > 0 ? (stats.correct_predictions / stats.total_predictions) * 100 : 0,
-            streak: 0, // TODO: Calculate streak
-            best_streak: 0, // TODO: Calculate best streak
-            rank: index + 1,
-            total_outcomes: stats.total_outcomes,
-            correct_outcomes: stats.correct_outcomes,
-            total_exact_outcomes: stats.total_exact_outcomes,
-            correct_exact_outcomes: stats.correct_exact_outcomes,
-            total_points: stats.total_points
-          }
-        })
-        .sort((a, b) => b.total_points - a.total_points || b.accuracy - a.accuracy)
-        .slice(0, limit)
-
-      return {
-        entries,
-        total_users: entries.length,
-        last_updated: new Date().toISOString()
-      }
+      console.log('Successfully fetched leaderboard from unified API')
+      return data.leaderboard
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
       return {
@@ -150,7 +35,7 @@ export class LeaderboardService {
     }
   }
 
-  // Subscribe to leaderboard updates
+  // Subscribe to leaderboard updates using Supabase real-time
   subscribeToLeaderboard(
     gamePk: number | undefined,
     callback: (leaderboard: LeaderboardType) => void
@@ -183,6 +68,189 @@ export class LeaderboardService {
 
     return subscription
   }
+
+  // Get leaderboard for a specific game
+  async getGameLeaderboard(gamePk: number, limit: number = 10): Promise<LeaderboardType> {
+    return await this.getLeaderboard(gamePk, limit)
+  }
+
+  // Get overall leaderboard (all games)
+  async getOverallLeaderboard(limit: number = 10): Promise<LeaderboardType> {
+    return await this.getLeaderboard(undefined, limit)
+  }
+
+  // Get leaderboard with custom filters
+  async getLeaderboardWithFilters(filters: {
+    gamePk?: number
+    limit?: number
+    minPredictions?: number
+    minAccuracy?: number
+  }): Promise<LeaderboardType> {
+    try {
+      const params = new URLSearchParams()
+      
+      if (filters.gamePk) {
+        params.append('gamePk', filters.gamePk.toString())
+      }
+      
+      if (filters.limit) {
+        params.append('limit', filters.limit.toString())
+      }
+      
+      if (filters.minPredictions) {
+        params.append('minPredictions', filters.minPredictions.toString())
+      }
+      
+      if (filters.minAccuracy) {
+        params.append('minAccuracy', filters.minAccuracy.toString())
+      }
+
+      const url = `/api/game/leaderboard?${params.toString()}`
+      console.log('Fetching filtered leaderboard:', url)
+
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch filtered leaderboard')
+      }
+
+      return data.leaderboard
+    } catch (error) {
+      console.error('Error fetching filtered leaderboard:', error)
+      return {
+        entries: [],
+        total_users: 0,
+        last_updated: new Date().toISOString()
+      }
+    }
+  }
+
+  // Get user's rank in leaderboard
+  async getUserRank(userId: string, gamePk?: number): Promise<number> {
+    try {
+      const leaderboard = await this.getLeaderboard(gamePk, 1000) // Get more entries to find user
+      
+      const userEntry = leaderboard.entries.find(entry => entry.user_id === userId)
+      
+      return userEntry ? userEntry.rank : -1
+    } catch (error) {
+      console.error('Error getting user rank:', error)
+      return -1
+    }
+  }
+
+  // Get leaderboard statistics
+  async getLeaderboardStats(gamePk?: number): Promise<{
+    totalUsers: number
+    totalPredictions: number
+    averageAccuracy: number
+    topAccuracy: number
+    totalPoints: number
+  }> {
+    try {
+      const leaderboard = await this.getLeaderboard(gamePk, 1000)
+      
+      if (leaderboard.entries.length === 0) {
+        return {
+          totalUsers: 0,
+          totalPredictions: 0,
+          averageAccuracy: 0,
+          topAccuracy: 0,
+          totalPoints: 0
+        }
+      }
+
+      const totalUsers = leaderboard.entries.length
+      const totalPredictions = leaderboard.entries.reduce((sum, entry) => sum + entry.total_predictions, 0)
+      const totalPoints = leaderboard.entries.reduce((sum, entry) => sum + entry.total_points, 0)
+      const averageAccuracy = leaderboard.entries.reduce((sum, entry) => sum + entry.accuracy, 0) / totalUsers
+      const topAccuracy = Math.max(...leaderboard.entries.map(entry => entry.accuracy))
+
+      return {
+        totalUsers,
+        totalPredictions,
+        averageAccuracy,
+        topAccuracy,
+        totalPoints
+      }
+    } catch (error) {
+      console.error('Error getting leaderboard stats:', error)
+      return {
+        totalUsers: 0,
+        totalPredictions: 0,
+        averageAccuracy: 0,
+        topAccuracy: 0,
+        totalPoints: 0
+      }
+    }
+  }
+
+  // Get leaderboard trends (compare with previous period)
+  async getLeaderboardTrends(gamePk?: number, daysBack: number = 7): Promise<{
+    newUsers: number
+    activeUsers: number
+    accuracyTrend: number
+    pointsTrend: number
+  }> {
+    try {
+      // This would require additional API endpoints or database queries
+      // For now, return placeholder data
+      return {
+        newUsers: 0,
+        activeUsers: 0,
+        accuracyTrend: 0,
+        pointsTrend: 0
+      }
+    } catch (error) {
+      console.error('Error getting leaderboard trends:', error)
+      return {
+        newUsers: 0,
+        activeUsers: 0,
+        accuracyTrend: 0,
+        pointsTrend: 0
+      }
+    }
+  }
+
+  // Refresh leaderboard (force update)
+  async refreshLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
+    try {
+      let url = `/api/game/leaderboard?limit=${limit}&refresh=true`
+      if (gamePk) {
+        url += `&gamePk=${gamePk}`
+      }
+
+      console.log('Refreshing leaderboard:', url)
+
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to refresh leaderboard')
+      }
+
+      console.log('Successfully refreshed leaderboard')
+      return data.leaderboard
+    } catch (error) {
+      console.error('Error refreshing leaderboard:', error)
+      return {
+        entries: [],
+        total_users: 0,
+        last_updated: new Date().toISOString()
+      }
+    }
+  }
 }
 
-export const leaderboardService = new LeaderboardService()
+export const leaderboardServiceNew = new LeaderboardServiceNew()

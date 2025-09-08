@@ -2,10 +2,8 @@ import { MLBGame, MLBPlay, GameState } from './types'
 
 const MARINERS_TEAM_ID = 136 // Seattle Mariners team ID in MLB API
 
-class MLBService {
+class MLBServiceNew {
   private apiBaseUrl: string
-  private mlbDirectApiUrl = 'https://statsapi.mlb.com/api/v1'
-  private mlbGameFeedUrl = 'https://statsapi.mlb.com/api/v1.1'
   private isDevelopment: boolean
   private updateInterval: NodeJS.Timeout | null = null
   private listeners: ((gameState: GameState) => void)[] = []
@@ -21,50 +19,16 @@ class MLBService {
       console.log('🚀 Production mode forced locally for testing')
     }
     
-    this.apiBaseUrl = this.isDevelopment ? this.mlbDirectApiUrl : '/api/mlb'
-    console.log(`MLB Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode`)
+    this.apiBaseUrl = '/api/game'
+    console.log(`MLB Service (New) initialized in ${this.isDevelopment ? 'development' : 'production'} mode`)
   }
 
-  // Helper method to get Pacific Time date string to avoid timezone issues
-  private getPacificDateString(): string {
-    const now = new Date()
-    // Get Pacific Time components directly
-    const pacificYear = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
-    const pacificMonth = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
-    const pacificDay = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
-    
-    return `${pacificYear}-${pacificMonth}-${pacificDay}`
-  }
-
-  // Helper method to get Pacific Time date string for a specific date
-  private getPacificDateStringForDate(date: Date): string {
-    // Get Pacific Time components directly
-    const pacificYear = date.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
-    const pacificMonth = date.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
-    const pacificDay = date.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
-    
-    return `${pacificYear}-${pacificMonth}-${pacificDay}`
-  }
-
-  // Get current games using our backend API or direct MLB API
-  async getCurrentGames(): Promise<any[]> {
+  // Get game state from the unified API
+  async getGameState(): Promise<GameState> {
     try {
-      console.log('Fetching current games from MLB API...')
+      console.log('Fetching game state from unified API...')
       
-      let url: string
-      if (this.isDevelopment) {
-        // Direct MLB API call in development
-        // Use Pacific Time for Mariners games to avoid timezone issues
-        const today = this.getPacificDateString()
-        const utcToday = new Date().toISOString().split('T')[0]
-        console.log(`Using Pacific Time date: ${today} (UTC would be: ${utcToday})`)
-        url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${MARINERS_TEAM_ID}&startDate=${today}&endDate=${today}`
-      } else {
-        // Server rerouting in production
-        url = `${this.apiBaseUrl}/schedule`
-      }
-      
-      const response = await fetch(url)
+      const response = await fetch(`${this.apiBaseUrl}/state`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -72,206 +36,64 @@ class MLBService {
 
       const data = await response.json()
       
-      if (this.isDevelopment) {
-        // Direct API returns different structure
-        const games = data.dates?.flatMap((date: any) => date.games || []) || []
-        console.log(`Successfully fetched ${games.length} games`)
-        if (games.length > 0) {
-          games.forEach((game: any, index: number) => {
-            console.log(`Game ${index + 1}: ${game.teams?.away?.team?.name} @ ${game.teams?.home?.team?.name} on ${game.gameDate}`)
-          })
-        }
-        return games
-      } else {
-        // Server API returns wrapped response
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch games')
-        }
-        console.log(`Successfully fetched ${data.totalGames} games`)
-        return data.games
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch game state')
+      }
+
+      console.log('Successfully fetched game state from unified API')
+      return {
+        game: data.game,
+        currentAtBat: data.currentAtBat,
+        isLoading: false,
+        error: data.error,
+        lastUpdated: data.lastUpdated
       }
     } catch (error) {
-      console.error('Error fetching current games:', error)
-      // Return empty array on error to prevent app crashes
-      return []
+      console.error('Error fetching game state:', error)
+      return {
+        game: null,
+        currentAtBat: null,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch game state',
+        lastUpdated: new Date().toISOString()
+      }
     }
   }
 
-  // Get today's Mariners game or most recent game
+  // Get today's Mariners game (backward compatibility)
   async getTodaysMarinersGame(): Promise<MLBGame | null> {
     try {
-      console.log('Fetching current games...')
-      const currentGames = await this.getCurrentGames()
-      console.log('Total games found:', currentGames.length)
-      
-      // Find Mariners games with proper null checks
-      const marinersGames = currentGames.filter((game: any) => 
-        (game.teams?.away?.team?.id === MARINERS_TEAM_ID) || 
-        (game.teams?.home?.team?.id === MARINERS_TEAM_ID)
-      )
-
-      console.log('Mariners games found:', marinersGames.length)
-      marinersGames.forEach((game: any, index: number) => {
-        console.log(`Game ${index + 1}:`, {
-          gamePk: game.gamePk,
-          date: game.gameDate,
-          status: game.status?.abstractGameState,
-          home: game.teams?.home?.team?.name || 'Unknown',
-          away: game.teams?.away?.team?.name || 'Unknown'
-        })
-      })
-
-      if (marinersGames.length === 0) {
-        console.log('No Mariners games found')
-        return null
-      }
-
-      // Sort by date (most recent first)
-      marinersGames.sort((a: any, b: any) => 
-        new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime()
-      )
-
-      const marinersGame = marinersGames[0]
-      console.log('Selected game:', {
-        gamePk: marinersGame.gamePk,
-        status: marinersGame.status.abstractGameState,
-        date: marinersGame.gameDate
-      })
-
-      // Get detailed game data if game is live or completed
-      if (marinersGame.status.abstractGameState === 'Live' || 
-          marinersGame.status.abstractGameState === 'Final') {
-        console.log('Fetching detailed game data...')
-        const detailedGame = await this.getGameDetails(marinersGame.gamePk)
-        console.log('Detailed game data:', detailedGame ? 'Success' : 'Failed')
-        return detailedGame
-      }
-
-      return marinersGame
+      const gameState = await this.getGameState()
+      return gameState.game
     } catch (error) {
-      console.error('Error fetching Mariners game:', error)
+      console.error('Error fetching today\'s Mariners game:', error)
       return null
     }
   }
 
-  // Get the most recent Mariners game
+  // Get the most recent Mariners game (backward compatibility)
   async getMostRecentMarinersGame(): Promise<MLBGame | null> {
     try {
-      // Get games from the last 7 days
-      const endDate = new Date()
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - 7)
-
-      let startDateStr: string
-      let endDateStr: string
-      
-      if (this.isDevelopment) {
-        // Use Pacific Time for direct API calls
-        startDateStr = this.getPacificDateStringForDate(startDate)
-        endDateStr = this.getPacificDateStringForDate(endDate)
-      } else {
-        // Use UTC for server API calls
-        startDateStr = startDate.toISOString().split('T')[0]
-        endDateStr = endDate.toISOString().split('T')[0]
-      }
-
-      let url: string
-      if (this.isDevelopment) {
-        // Direct MLB API call in development
-        url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${MARINERS_TEAM_ID}&startDate=${startDateStr}&endDate=${endDateStr}`
-      } else {
-        // Server rerouting in production
-        url = `${this.apiBaseUrl}/schedule?teamId=${MARINERS_TEAM_ID}&startDate=${startDateStr}&endDate=${endDateStr}`
-      }
-
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      
-      let allGames: any[]
-      if (this.isDevelopment) {
-        // Direct API returns different structure
-        allGames = data.dates?.flatMap((date: any) => date.games || []) || []
-      } else {
-        // Server API returns wrapped response
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch games')
-        }
-        allGames = data.games || []
-      }
-      
-      // Find Mariners games and sort by date (most recent first)
-      const marinersGames = allGames
-        .filter((game: any) => 
-          (game.teams?.away?.team?.id === MARINERS_TEAM_ID) || 
-          (game.teams?.home?.team?.id === MARINERS_TEAM_ID)
-        )
-        .sort((a: any, b: any) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime())
-
-      return marinersGames.length > 0 ? marinersGames[0] : null
+      const gameState = await this.getGameState()
+      return gameState.game
     } catch (error) {
       console.error('Error fetching most recent Mariners game:', error)
       return null
     }
   }
 
-  // Get detailed game data including live data
+  // Get detailed game data (backward compatibility)
   async getGameDetails(gamePk: number): Promise<MLBGame | null> {
     try {
-      console.log(`Fetching detailed game data for game ${gamePk}...`)
-      
-      let url: string
-      if (this.isDevelopment) {
-        // Direct MLB API call in development - use GUMBO v1.1 endpoint
-        url = `${this.mlbGameFeedUrl}/game/${gamePk}/feed/live`
-      } else {
-        // Server rerouting in production
-        url = `${this.apiBaseUrl}/game?gamePk=${gamePk}`
-      }
-      
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      
-      let gameData: any
-      if (this.isDevelopment) {
-        // Direct API returns the full MLB API response
-        gameData = {
-          ...data.gameData,
-          gamePk: gamePk,
-          liveData: data.liveData
-        }
-      } else {
-        // Server API returns wrapped response
-        if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch game details')
-        }
-        // The game details API returns gameData, so we need to structure it properly
-        // data.game is actually data.gameData from the MLB API
-        gameData = {
-          ...data.game,
-          gamePk: data.gamePk, // Add the gamePk from the API response
-          liveData: data.liveData
-        }
-      }
-
-      console.log('Successfully fetched detailed game data')
-      return gameData
+      const gameState = await this.getGameState()
+      return gameState.game
     } catch (error) {
       console.error('Error fetching game details:', error)
       return null
     }
   }
 
-  // Get current at-bat from game data
+  // Get current at-bat from game data (backward compatibility)
   getCurrentAtBat(game: MLBGame): MLBPlay | null {
     if (!game.liveData?.plays) {
       return null
@@ -292,7 +114,7 @@ class MLBService {
     return completedPlays.length > 0 ? completedPlays[completedPlays.length - 1] : null
   }
 
-  // Get the most recent completed at-bat that should be resolved
+  // Get the most recent completed at-bat (backward compatibility)
   getMostRecentCompletedAtBat(game: MLBGame): MLBPlay | null {
     if (!game.liveData?.plays) {
       return null
@@ -313,83 +135,14 @@ class MLBService {
     return completedPlays[completedPlays.length - 1]
   }
 
-  // Check if game is currently live
+  // Check if game is currently live (backward compatibility)
   isGameLive(game: MLBGame): boolean {
     return game.status?.abstractGameState === 'Live'
   }
 
-  // Get game state from cached server endpoint (production only)
+  // Get cached game state (backward compatibility)
   async getCachedGameState(): Promise<GameState> {
-    try {
-      console.log('Fetching cached game state from server...')
-      
-      const response = await fetch(`${this.apiBaseUrl}/game-state`)
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch cached game state')
-      }
-
-      console.log('Successfully fetched cached game state')
-      return data
-    } catch (error) {
-      console.error('Error fetching cached game state:', error)
-      return {
-        game: null,
-        currentAtBat: null,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch cached game state',
-        lastUpdated: new Date().toISOString()
-      }
-    }
-  }
-
-  // Get game state for the current Mariners game
-  async getGameState(): Promise<GameState> {
-    // In production, use the cached endpoint
-    if (!this.isDevelopment) {
-      return this.getCachedGameState()
-    }
-
-    // In development, use the original method
-    try {
-      const game = await this.getTodaysMarinersGame()
-      
-      if (!game) {
-        return {
-          game: null,
-          currentAtBat: null,
-          isLoading: false,
-          error: 'No Mariners game found for today',
-          lastUpdated: new Date().toISOString()
-        }
-      }
-
-
-      const currentAtBat = this.getCurrentAtBat(game)
-      const isLive = this.isGameLive(game)
-
-      return {
-        game,
-        currentAtBat,
-        isLoading: false,
-        error: isLive ? undefined : 'Game is not currently live',
-        lastUpdated: new Date().toISOString()
-      }
-    } catch (error) {
-      return {
-        game: null,
-        currentAtBat: null,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch game data',
-        lastUpdated: new Date().toISOString()
-      }
-    }
+    return await this.getGameState()
   }
 
   // Start real-time updates for live games
@@ -431,6 +184,84 @@ class MLBService {
   removeListener(callback: (gameState: GameState) => void) {
     this.listeners = this.listeners.filter(listener => listener !== callback)
   }
+
+  // Force refresh game state (useful for testing)
+  async forceRefresh(): Promise<GameState> {
+    try {
+      console.log('Force refreshing game state...')
+      
+      const response = await fetch(`${this.apiBaseUrl}/state?forceRefresh=true`)
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to refresh game state')
+      }
+
+      console.log('Successfully force refreshed game state')
+      return {
+        game: data.game,
+        currentAtBat: data.currentAtBat,
+        isLoading: false,
+        error: data.error,
+        lastUpdated: data.lastUpdated
+      }
+    } catch (error) {
+      console.error('Error force refreshing game state:', error)
+      return {
+        game: null,
+        currentAtBat: null,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to refresh game state',
+        lastUpdated: new Date().toISOString()
+      }
+    }
+  }
+
+  // Get API health status
+  async getHealthStatus(): Promise<any> {
+    try {
+      const response = await fetch('/api/system/health')
+      
+      if (!response.ok) {
+        throw new Error(`Health check failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error checking health status:', error)
+      return {
+        success: false,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Health check failed'
+      }
+    }
+  }
+
+  // Get system statistics
+  async getSystemStats(timeframe: string = '24h'): Promise<any> {
+    try {
+      const response = await fetch(`/api/system/stats?timeframe=${timeframe}`)
+      
+      if (!response.ok) {
+        throw new Error(`Stats request failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error getting system stats:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to get stats'
+      }
+    }
+  }
 }
 
-export const mlbService = new MLBService()
+export const mlbServiceNew = new MLBServiceNew()

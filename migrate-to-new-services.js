@@ -7,8 +7,12 @@
  * Run this script to update your codebase to use the new services.
  */
 
-const fs = require('fs')
-const path = require('path')
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Files to update
 const filesToUpdate = [
@@ -125,8 +129,6 @@ function main() {
 }
 
 // Run the migration
-if (require.main === module) {
-  main()
-}
+main()
 
-module.exports = { updateFile, serviceMappings, importMappings }
+export { updateFile, serviceMappings, importMappings }
