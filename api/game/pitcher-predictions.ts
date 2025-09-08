@@ -41,14 +41,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleGetPitcherInfo(req: VercelRequest, res: VercelResponse) {
   const { gamePk } = req.query
 
-  if (!gamePk) {
-    res.status(400).json({ error: 'gamePk is required' })
-    return
-  }
-
   try {
-    // Get the game data with probable pitcher information using the schedule endpoint
-    const game = await gameDataService.getGameWithProbablePitcher(parseInt(gamePk as string))
+    let game: any = null
+
+    if (gamePk) {
+      // If gamePk is provided, get that specific game
+      game = await gameDataService.getGameWithProbablePitcher(parseInt(gamePk as string))
+    } else {
+      // If no gamePk provided, get today's Mariners game
+      game = await gameDataService.getTodaysMarinersGameWithPitcher()
+    }
     
     if (!game) {
       res.status(404).json({ error: 'Game not found' })
@@ -129,12 +131,19 @@ async function handleGetPitcherInfo(req: VercelRequest, res: VercelResponse) {
 async function handleGetPitcherPredictions(req: VercelRequest, res: VercelResponse) {
   const { gamePk, pitcherId, userId } = req.query
 
-  if (!gamePk) {
-    res.status(400).json({ error: 'gamePk is required' })
-    return
-  }
-
   try {
+    let actualGamePk = gamePk
+
+    // If no gamePk provided, get today's Mariners game
+    if (!gamePk) {
+      const game = await gameDataService.getTodaysMarinersGameWithPitcher()
+      if (!game) {
+        res.status(404).json({ error: 'No Mariners game found for today' })
+        return
+      }
+      actualGamePk = game.gamePk.toString()
+    }
+
     let query = supabase
       .from('pitcher_predictions')
       .select(`
@@ -145,7 +154,7 @@ async function handleGetPitcherPredictions(req: VercelRequest, res: VercelRespon
           avatar_url
         )
       `)
-      .eq('game_pk', gamePk)
+      .eq('game_pk', actualGamePk)
 
     if (pitcherId) {
       query = query.eq('pitcher_id', pitcherId)

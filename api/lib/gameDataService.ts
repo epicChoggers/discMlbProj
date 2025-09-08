@@ -16,12 +16,12 @@ export class GameDataService {
     return this.teamId
   }
 
-  // Get today's Mariners game
-  async getTodaysMarinersGame(): Promise<any | null> {
+  // Get today's Mariners game with probable pitcher
+  async getTodaysMarinersGameWithPitcher(): Promise<any | null> {
     try {
       const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-      const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&date=${today}`
-      console.log('[GameDataService] Requesting schedule URL:', url)
+      const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&hydrate=probablePitcher&date=${today}`
+      console.log('[GameDataService] Requesting schedule URL with probable pitcher:', url)
       const response = await fetch(url)
       
       if (!response.ok) {
@@ -45,9 +45,14 @@ export class GameDataService {
       
       return null
     } catch (error) {
-      console.error("[GameDataService] Error fetching today's Mariners game:", error)
+      console.error("[GameDataService] Error fetching today's Mariners game with pitcher:", error)
       return null
     }
+  }
+
+  // Get today's Mariners game (legacy method for backward compatibility)
+  async getTodaysMarinersGame(): Promise<any | null> {
+    return this.getTodaysMarinersGameWithPitcher()
   }
 
   // Check if game is live
