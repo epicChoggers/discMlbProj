@@ -44,7 +44,7 @@ export function getPlayerHeadshot(
   personId: number, 
   options: HeadshotOptions = {}
 ): string {
-  const { resolution = 120, fallbackUrl } = options
+  const { resolution = 120 } = options
   
   // Validate resolution
   const validResolutions = [120, 240, 360, 720]

@@ -159,8 +159,12 @@ export const PitcherPredictionResults = ({ gamePk, pitcherId }: PitcherPredictio
                         className="w-8 h-8 rounded-full object-cover border border-gray-500"
                         onError={(e) => {
                           // Hide image and show fallback
-                          e.currentTarget.style.display = 'none'
-                          e.currentTarget.nextElementSibling!.style.display = 'flex'
+                          const target = e.currentTarget as HTMLImageElement
+                          target.style.display = 'none'
+                          const nextElement = target.nextElementSibling as HTMLElement
+                          if (nextElement) {
+                            nextElement.style.display = 'flex'
+                          }
                         }}
                       />
                       <div 

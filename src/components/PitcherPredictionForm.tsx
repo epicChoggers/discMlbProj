@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { MLBPitcher, MLBGame } from '../lib/types'
 import { pitcherPredictionService } from '../lib/pitcherPredictionService'
-import { getPlayerHeadshot } from '../lib/mlbHeadshots'
 
 interface PitcherPredictionFormProps {
   gamePk?: number
@@ -177,8 +176,12 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, game, onPredictionSubmi
                   className="w-12 h-12 rounded-full object-cover border-2 border-gray-600"
                   onError={(e) => {
                     // Fallback to emoji if image fails to load
-                    e.currentTarget.style.display = 'none'
-                    e.currentTarget.nextElementSibling!.style.display = 'flex'
+                    const target = e.currentTarget as HTMLImageElement
+                    target.style.display = 'none'
+                    const nextElement = target.nextElementSibling as HTMLElement
+                    if (nextElement) {
+                      nextElement.style.display = 'flex'
+                    }
                   }}
                 />
               ) : null}

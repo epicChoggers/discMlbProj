@@ -90,8 +90,12 @@ export const PitcherPredictions = ({ gamePk, game }: PitcherPredictionsProps) =>
                 className="w-16 h-16 rounded-full object-cover border-2 border-gray-600"
                 onError={(e) => {
                   // Fallback to emoji if image fails to load
-                  e.currentTarget.style.display = 'none'
-                  e.currentTarget.nextElementSibling!.style.display = 'flex'
+                  const target = e.currentTarget as HTMLImageElement
+                  target.style.display = 'none'
+                  const nextElement = target.nextElementSibling as HTMLElement
+                  if (nextElement) {
+                    nextElement.style.display = 'flex'
+                  }
                 }}
               />
               <div 
