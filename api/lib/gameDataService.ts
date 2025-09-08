@@ -107,7 +107,7 @@ export class GameDataService {
   async getGameDetails(gamePk: number): Promise<any | null> {
     try {
       console.log(`[GameDataService] Fetching detailed game data for game ${gamePk}`)
-      const response = await fetch(`${this.apiBaseUrl}/game/${gamePk}/feed/live`)
+      const response = await fetch(`${this.apiBaseUrl.replace('/v1', '/v1.1')}/game/${gamePk}/feed/live`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -136,7 +136,7 @@ export class GameDataService {
   async getGameWithProbablePitcher(gamePk: number): Promise<any | null> {
     try {
       // First get the game date from the game feed
-      const gameResponse = await fetch(`${this.apiBaseUrl}/game/${gamePk}/feed/live`)
+      const gameResponse = await fetch(`${this.apiBaseUrl.replace('/v1', '/v1.1')}/game/${gamePk}/feed/live`)
       if (!gameResponse.ok) {
         throw new Error(`HTTP error! status: ${gameResponse.status}`)
       }
