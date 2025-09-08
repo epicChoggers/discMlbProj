@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { gumboGameDataService } from '../lib/gumboGameDataService'
+import { gumboGameDataService } from '../lib/gumboGameDataService.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
