@@ -3,6 +3,7 @@ import { useGameStateNew } from '../lib/useGameState'
 import { GameState } from './GameState'
 import { PredictionForm } from './PredictionForm'
 import { PredictionResults } from './PredictionResults'
+import { PitcherPredictions } from './PitcherPredictions'
 import { Leaderboard } from './Leaderboard'
 import { UserProfile } from './UserProfile'
 import { ScoringSystem } from './ScoringSystem'
@@ -17,7 +18,7 @@ interface TextWallProps {
 
 export const TextWall = ({ onSignOut }: TextWallProps) => {
   const { gameState, isGameLive, addGameStateUpdateCallback } = useGameStateNew()
-  const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard' | 'scoring'>('predictions')
+  const [activeTab, setActiveTab] = useState<'predictions' | 'pitcher-predictions' | 'leaderboard' | 'scoring'>('predictions')
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [toasts, setToasts] = useState<Array<{
     id: string
@@ -124,21 +125,32 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           <div className="flex-1 lg:flex-none lg:w-2/3 flex flex-col">
             {/* Tab Navigation */}
             <div className="border-b border-gray-700">
-              <nav className="flex space-x-2 sm:space-x-4 lg:space-x-8 px-2 sm:px-4">
+              <nav className="flex space-x-1 sm:space-x-2 lg:space-x-4 px-2 sm:px-4 overflow-x-auto">
                 <button
                   onClick={() => setActiveTab('predictions')}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 ${
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 whitespace-nowrap ${
                     activeTab === 'predictions'
                       ? 'border-blue-500 text-blue-400'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >
-                  <span className="hidden sm:inline">⚾ Predictions</span>
+                  <span className="hidden sm:inline">⚾ At-Bat Predictions</span>
                   <span className="sm:hidden">⚾</span>
                 </button>
                 <button
+                  onClick={() => setActiveTab('pitcher-predictions')}
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 whitespace-nowrap ${
+                    activeTab === 'pitcher-predictions'
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-gray-400 hover:text-gray-300'
+                  }`}
+                >
+                  <span className="hidden sm:inline">🎯 Pitcher Predictions</span>
+                  <span className="sm:hidden">🎯</span>
+                </button>
+                <button
                   onClick={() => setActiveTab('leaderboard')}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 ${
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 whitespace-nowrap ${
                     activeTab === 'leaderboard'
                       ? 'border-blue-500 text-blue-400'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
@@ -149,14 +161,14 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                 </button>
                 <button
                   onClick={() => setActiveTab('scoring')}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 ${
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 whitespace-nowrap ${
                     activeTab === 'scoring'
                       ? 'border-blue-500 text-blue-400'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >
-                  <span className="hidden sm:inline">🎯 Scoring</span>
-                  <span className="sm:hidden">🎯</span>
+                  <span className="hidden sm:inline">📊 Scoring</span>
+                  <span className="sm:hidden">📊</span>
                 </button>
               </nav>
             </div>
@@ -222,6 +234,20 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                         </div>
                       )}
                     </div>
+                  ) : (
+                    <div className="text-center text-gray-400 mt-8">
+                      <div className="text-4xl mb-2">⚾</div>
+                      <p className="text-lg">No game data available</p>
+                      <p className="text-sm">Check back later for Mariners games</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'pitcher-predictions' && (
+                <div className="h-full overflow-y-auto p-2 sm:p-4">
+                  {gameState.game ? (
+                    <PitcherPredictions gamePk={gameState.game.gamePk} />
                   ) : (
                     <div className="text-center text-gray-400 mt-8">
                       <div className="text-4xl mb-2">⚾</div>

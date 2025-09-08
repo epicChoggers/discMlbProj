@@ -640,3 +640,77 @@ export interface Leaderboard {
   total_users: number
   last_updated: string
 }
+
+// Pitcher Prediction Types
+export interface PitcherPrediction {
+  id: string
+  userId: string
+  gamePk: number
+  pitcherId: number
+  pitcherName: string
+  predictedIp: number // e.g., 7.1, 6.2
+  predictedHits: number
+  predictedEarnedRuns: number
+  predictedWalks: number
+  predictedStrikeouts: number
+  actualIp?: number
+  actualHits?: number
+  actualEarnedRuns?: number
+  actualWalks?: number
+  actualStrikeouts?: number
+  pointsEarned?: number
+  createdAt: string
+  resolvedAt?: string
+  user?: {
+    id: string
+    username: string
+    avatar_url?: string
+  }
+}
+
+export interface PitcherPredictionLeaderboardEntry {
+  user_id: string
+  username: string
+  avatar_url: string | null
+  total_predictions: number
+  resolved_predictions: number
+  total_points: number
+  avg_points_per_prediction: number
+  rank: number
+}
+
+export interface PitcherPredictionLeaderboard {
+  entries: PitcherPredictionLeaderboardEntry[]
+  total_users: number
+  last_updated: string
+}
+
+// MLB Pitcher Data Types
+export interface MLBPitcher {
+  id: number
+  fullName: string
+  firstName: string
+  lastName: string
+  primaryNumber: string
+  currentTeam: {
+    id: number
+    name: string
+  }
+  primaryPosition: {
+    code: string
+    name: string
+    type: string
+  }
+}
+
+export interface MLBPitcherStats {
+  pitcherId: number
+  pitcherName: string
+  ip: number
+  hits: number
+  earnedRuns: number
+  walks: number
+  strikeouts: number
+  era?: number
+  whip?: number
+}
