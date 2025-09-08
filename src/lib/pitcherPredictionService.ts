@@ -21,11 +21,13 @@ class PitcherPredictionService {
     console.log(`Pitcher Prediction Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
-  // Get pitcher predictions for today's Mariners game (pitcherId is optional)
+  // Get pitcher predictions for a game (gamePk is optional - will get today's Mariners game if not provided)
   async getPitcherPredictions(gamePk?: number, pitcherId?: number): Promise<PitcherPrediction[]> {
     try {
       const params = new URLSearchParams()
-      // Don't include gamePk - the API will default to today's Mariners game
+      if (gamePk) {
+        params.append('gamePk', gamePk.toString())
+      }
       if (pitcherId) {
         params.append('pitcherId', pitcherId.toString())
       }
@@ -49,11 +51,13 @@ class PitcherPredictionService {
     }
   }
 
-  // Get pitcher predictions for a specific user for today's Mariners game
+  // Get pitcher predictions for a specific user (gamePk is optional - will get today's Mariners game if not provided)
   async getUserPitcherPredictions(gamePk: number | undefined, userId: string): Promise<PitcherPrediction[]> {
     try {
       const params = new URLSearchParams({ userId: userId })
-      // Don't include gamePk - the API will default to today's Mariners game
+      if (gamePk) {
+        params.append('gamePk', gamePk.toString())
+      }
 
       const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions?${params}`)
       
@@ -92,19 +96,11 @@ class PitcherPredictionService {
         throw new Error('User not authenticated')
       }
 
-      const requestBody: any = {
-        pitcherId,
-        pitcherName,
-        predictedIp,
-        predictedHits,
-        predictedEarnedRuns,
-        predictedWalks,
-        predictedStrikeouts
-      }
-
-      // Only include gamePk if it's provided
-      if (gamePk) {
-        requestBody.gamePk = gamePk
+      // If no gamePk provided, get today's Mariners game
+      let actualGamePk = gamePk
+      if (!actualGamePk) {
+        const { game } = await this.getPitcherInfoWithGame()
+        actualGamePk = game.gamePk
       }
 
       const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions`, {
@@ -113,7 +109,16 @@ class PitcherPredictionService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.data.session.access_token}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          gamePk: actualGamePk,
+          pitcherId,
+          pitcherName,
+          predictedIp,
+          predictedHits,
+          predictedEarnedRuns,
+          predictedWalks,
+          predictedStrikeouts
+        })
       })
 
       if (!response.ok) {
