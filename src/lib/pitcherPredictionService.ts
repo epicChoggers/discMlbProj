@@ -188,7 +188,7 @@ class PitcherPredictionService {
   // Get pitcher information for a game
   async getPitcherInfo(gamePk: number): Promise<any> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/pitcher-info?gamePk=${gamePk}`)
+      const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions?action=info&gamePk=${gamePk}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

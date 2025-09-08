@@ -91,7 +91,7 @@ async function checkDatabaseHealth(): Promise<any> {
   
   try {
     // Test basic database connectivity
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('system_health')
       .select('id')
       .limit(1)

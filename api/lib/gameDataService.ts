@@ -60,6 +60,21 @@ export class GameDataService {
     return game.liveData?.plays?.currentPlay || null
   }
 
+  // Get game details by gamePk
+  async getGameDetails(gamePk: number): Promise<any | null> {
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/game/${gamePk}/feed/live`)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data = await response.json()
+      return data.gameData || null
+    } catch (error) {
+      console.error('Error fetching game details:', error)
+      return null
+    }
+  }
+
   // Get cache statistics (placeholder)
   getCacheStats(): any {
     return {
