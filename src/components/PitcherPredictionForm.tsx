@@ -57,8 +57,20 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, onPredictionSubmitted }
     setError(null)
 
     try {
+      // If gamePk is not provided, we need to get it from the pitcher info
+      let actualGamePk = gamePk
+      if (!actualGamePk) {
+        // Get today's game info to get the gamePk
+        const { game } = await pitcherPredictionService.getPitcherInfoWithGame()
+        actualGamePk = game.gamePk
+      }
+
+      if (!actualGamePk) {
+        throw new Error('Unable to determine game ID for prediction')
+      }
+
       const result = await pitcherPredictionService.submitPitcherPrediction(
-        gamePk,
+        actualGamePk,
         pitcher.id,
         pitcher.fullName,
         formData.predictedIp,

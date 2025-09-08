@@ -227,6 +227,35 @@ class PitcherPredictionService {
     }
   }
 
+  // Get pitcher info with game data (includes gamePk)
+  async getPitcherInfoWithGame(gamePk?: number): Promise<{ pitcher: any; game: any }> {
+    try {
+      const url = gamePk 
+        ? `${this.apiBaseUrl}/pitcher-predictions?action=info&gamePk=${gamePk}`
+        : `${this.apiBaseUrl}/pitcher-predictions?action=info`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch pitcher information')
+      }
+
+      return {
+        pitcher: data.pitcher,
+        game: data.game
+      }
+    } catch (error) {
+      console.error('Error fetching pitcher info with game:', error)
+      throw error
+    }
+  }
+
   // Get pitcher prediction leaderboard
   async getPitcherPredictionLeaderboard(): Promise<PitcherPredictionLeaderboard> {
     try {
