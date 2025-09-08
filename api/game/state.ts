@@ -1,4 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
+import { gameDataService } from '../lib/gameDataService.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -19,23 +20,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const debug = req.query?.debug === 'true'
     const ping = req.query?.ping === 'true'
-    // dynamic import to catch import-time errors explicitly
-    let gameDataService: any
-    try {
-      const mod = await import('../lib/gameDataService')
-      gameDataService = mod.gameDataService
-    } catch (importErr) {
-      console.error('Failed to import gameDataService:', importErr)
-      res.status(500).json({
-        success: false,
-        error: 'ImportError: gameDataService',
-        details: String(importErr),
-        message: (importErr as any)?.message,
-        stack: (importErr as any)?.stack
-      })
-      return
-    }
-
     const apiBase = gameDataService.getApiBaseUrl()
     console.log('Fetching fresh game state from MLB API', { fetchType: typeof fetch, apiBase })
 

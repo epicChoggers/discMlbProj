@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { supabase } from '../../src/supabaseClient'
+import { supabase } from '../lib/supabase.js'
 import { AtBatPrediction } from '../../src/lib/types'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { supabase } from '../lib/supabase'
-import { gameDataService } from '../lib/gameDataService'
-import { gameCacheService } from '../lib/gameCacheService'
+import { supabase } from '../lib/supabase.js'
+import { gameDataService } from '../lib/gameDataService.js'
+import { gameCacheService } from '../lib/gameCacheService.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
