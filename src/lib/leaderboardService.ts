@@ -2,10 +2,29 @@ import { Leaderboard as LeaderboardType } from './types'
 import { supabase } from '../supabaseClient'
 
 export class LeaderboardServiceNew {
+  private apiBaseUrl: string
+  private isDevelopment: boolean
+
+  constructor() {
+    // Check if we're in development mode
+    this.isDevelopment = import.meta.env.DEV
+    // Allow forcing production mode locally for testing
+    const forceProduction = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true'
+    
+    if (forceProduction) {
+      this.isDevelopment = false
+      console.log('🚀 Production mode forced locally for testing')
+    }
+    
+    // Use full URL in production, relative URL in development
+    this.apiBaseUrl = this.isDevelopment ? '/api/game' : `${window.location.origin}/api/game`
+    console.log(`Leaderboard Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
+  }
+
   // Get leaderboard data using the unified API
   async getLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
     try {
-      let url = `/api/game/leaderboard?limit=${limit}`
+      let url = `${this.apiBaseUrl}/leaderboard?limit=${limit}`
       if (gamePk) {
         url += `&gamePk=${gamePk}`
       }
@@ -106,7 +125,7 @@ export class LeaderboardServiceNew {
         params.append('minAccuracy', filters.minAccuracy.toString())
       }
 
-      const url = `/api/game/leaderboard?${params.toString()}`
+      const url = `${this.apiBaseUrl}/leaderboard?${params.toString()}`
       console.log('Fetching filtered leaderboard:', url)
 
       const response = await fetch(url)
@@ -222,7 +241,7 @@ export class LeaderboardServiceNew {
   // Refresh leaderboard (force update)
   async refreshLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
     try {
-      let url = `/api/game/leaderboard?limit=${limit}&refresh=true`
+      let url = `${this.apiBaseUrl}/leaderboard?limit=${limit}&refresh=true`
       if (gamePk) {
         url += `&gamePk=${gamePk}`
       }

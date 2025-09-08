@@ -19,8 +19,9 @@ class MLBServiceNew {
       console.log('🚀 Production mode forced locally for testing')
     }
     
-    this.apiBaseUrl = '/api/game'
-    console.log(`MLB Service (New) initialized in ${this.isDevelopment ? 'development' : 'production'} mode`)
+    // Use full URL in production, relative URL in development
+    this.apiBaseUrl = this.isDevelopment ? '/api/game' : `${window.location.origin}/api/game`
+    console.log(`MLB Service (New) initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
   // Get game state from the unified API

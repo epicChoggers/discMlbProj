@@ -3,9 +3,22 @@ import { PitcherPrediction, PitcherPredictionLeaderboard } from './types'
 
 class PitcherPredictionService {
   private apiBaseUrl: string
+  private isDevelopment: boolean
 
   constructor() {
-    this.apiBaseUrl = '/api/game'
+    // Check if we're in development mode
+    this.isDevelopment = import.meta.env.DEV
+    // Allow forcing production mode locally for testing
+    const forceProduction = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true'
+    
+    if (forceProduction) {
+      this.isDevelopment = false
+      console.log('🚀 Production mode forced locally for testing')
+    }
+    
+    // Use full URL in production, relative URL in development
+    this.apiBaseUrl = this.isDevelopment ? '/api/game' : `${window.location.origin}/api/game`
+    console.log(`Pitcher Prediction Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
   // Get pitcher predictions for a game

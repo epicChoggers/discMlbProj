@@ -2,6 +2,25 @@ import { supabase } from '../supabaseClient'
 import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory, getOutcomePoints } from './types'
 
 export class PredictionServiceNew {
+  private apiBaseUrl: string
+  private isDevelopment: boolean
+
+  constructor() {
+    // Check if we're in development mode
+    this.isDevelopment = import.meta.env.DEV
+    // Allow forcing production mode locally for testing
+    const forceProduction = import.meta.env.VITE_FORCE_PRODUCTION_MODE === 'true'
+    
+    if (forceProduction) {
+      this.isDevelopment = false
+      console.log('🚀 Production mode forced locally for testing')
+    }
+    
+    // Use full URL in production, relative URL in development
+    this.apiBaseUrl = this.isDevelopment ? '/api/game' : `${window.location.origin}/api/game`
+    console.log(`Prediction Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
+  }
+
   // Get current user ID
   async getCurrentUserId(): Promise<string | null> {
     try {
@@ -22,7 +41,7 @@ export class PredictionServiceNew {
         return false
       }
 
-      const response = await fetch(`/api/game/predictions?gamePk=${gamePk}&atBatIndex=${atBatIndex}&userId=${user.id}`)
+      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}&atBatIndex=${atBatIndex}&userId=${user.id}`)
       
       if (!response.ok) {
         console.error('Error checking existing prediction:', response.statusText)
@@ -73,7 +92,7 @@ export class PredictionServiceNew {
         throw new Error('No valid session found')
       }
 
-      const response = await fetch('/api/game/predictions', {
+      const response = await fetch(`${this.apiBaseUrl}/predictions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +123,7 @@ export class PredictionServiceNew {
   // Get predictions for a specific at-bat using the unified API
   async getAtBatPredictions(gamePk: number, atBatIndex: number): Promise<AtBatPrediction[]> {
     try {
-      const response = await fetch(`/api/game/predictions?gamePk=${gamePk}&atBatIndex=${atBatIndex}`)
+      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}&atBatIndex=${atBatIndex}`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -127,7 +146,7 @@ export class PredictionServiceNew {
         return []
       }
 
-      const response = await fetch(`/api/game/predictions?gamePk=${gamePk}&userId=${user.id}`)
+      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}&userId=${user.id}`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -144,7 +163,7 @@ export class PredictionServiceNew {
   // Get all predictions for a game using the unified API
   async getAllGamePredictions(gamePk: number): Promise<AtBatPrediction[]> {
     try {
-      const response = await fetch(`/api/game/predictions?gamePk=${gamePk}`)
+      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
