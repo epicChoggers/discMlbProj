@@ -19,7 +19,7 @@ export const PitcherPredictions = ({ gamePk }: PitcherPredictionsProps) => {
       try {
         setIsLoading(true)
         setError(null)
-        const pitcherData = await pitcherPredictionService.getPitcherInfo(gamePk)
+        const pitcherData = await pitcherPredictionService.getPitcherInfo()
         setPitcher(pitcherData)
       } catch (err) {
         console.error('Error fetching pitcher info:', err)
