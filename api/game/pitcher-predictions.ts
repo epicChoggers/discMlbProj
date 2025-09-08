@@ -151,14 +151,7 @@ async function handleGetPitcherPredictions(req: VercelRequest, res: VercelRespon
 
     let query = supabase
       .from('pitcher_predictions')
-      .select(`
-        *,
-        user_profiles(
-          id,
-          username,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('game_pk', actualGamePk)
 
     if (pitcherId) {
@@ -177,6 +170,27 @@ async function handleGetPitcherPredictions(req: VercelRequest, res: VercelRespon
     }
 
     console.log('Query result:', { dataCount: data?.length || 0, actualGamePk, pitcherId, userId })
+
+    // Get user profiles for all unique user IDs
+    const userIds = [...new Set(data?.map(row => row.user_id) || [])]
+    let userProfiles: any = {}
+    
+    if (userIds.length > 0) {
+      const { data: profiles, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds)
+      
+      if (profileError) {
+        console.error('Error fetching user profiles:', profileError)
+        // Continue without user profiles rather than failing
+      } else {
+        userProfiles = profiles?.reduce((acc, profile) => {
+          acc[profile.id] = profile
+          return acc
+        }, {} as any) || {}
+      }
+    }
 
     // Transform the data to match our TypeScript interface
     const predictions = data?.map(row => ({
@@ -198,10 +212,10 @@ async function handleGetPitcherPredictions(req: VercelRequest, res: VercelRespon
       pointsEarned: row.points_earned,
       createdAt: row.created_at,
       resolvedAt: row.resolved_at,
-      user: row.user_profiles ? {
-        id: row.user_profiles.id,
-        username: row.user_profiles.username,
-        avatar_url: row.user_profiles.avatar_url
+      user: userProfiles[row.user_id] ? {
+        id: userProfiles[row.user_id].id,
+        username: userProfiles[row.user_id].username,
+        avatar_url: userProfiles[row.user_id].avatar_url
       } : {
         id: row.user_id,
         username: 'Unknown User',
