@@ -60,24 +60,39 @@ export class GameDataService {
     return game.status?.detailedState === 'In Progress'
   }
 
-  // Get current at-bat from game
+  // Get current at-bat from game (following GUMBO specification)
   getCurrentAtBat(game: any): any {
-    // Try different possible paths for current at-bat data
+    console.log(`[GameDataService] Getting current at-bat from game data`)
+    console.log(`[GameDataService] Game has liveData:`, !!game.liveData)
+    console.log(`[GameDataService] Game has plays:`, !!game.liveData?.plays)
+    
+    // According to GUMBO spec, currentPlay should be in liveData.plays.currentPlay
     if (game.liveData?.plays?.currentPlay) {
+      console.log(`[GameDataService] Found currentPlay in liveData.plays.currentPlay`)
+      console.log(`[GameDataService] Current play atBatIndex:`, game.liveData.plays.currentPlay.about?.atBatIndex)
       return game.liveData.plays.currentPlay
     }
     
-    // If no current play, try to get the last play from allPlays
+    console.log(`[GameDataService] No currentPlay found in liveData.plays.currentPlay`)
+    
+    // Fallback: Check if there are any plays and if the last one is still in progress
     if (game.liveData?.plays?.allPlays && game.liveData.plays.allPlays.length > 0) {
       const allPlays = game.liveData.plays.allPlays
       const lastPlay = allPlays[allPlays.length - 1]
       
-      // Check if the last play is still in progress (no result yet)
-      if (lastPlay && !lastPlay.result?.event) {
+      console.log(`[GameDataService] Checking last play from allPlays (count: ${allPlays.length})`)
+      console.log(`[GameDataService] Last play atBatIndex:`, lastPlay?.about?.atBatIndex)
+      console.log(`[GameDataService] Last play isComplete:`, lastPlay?.about?.isComplete)
+      console.log(`[GameDataService] Last play has result:`, !!lastPlay?.result?.event)
+      
+      // Check if the last play is still in progress (not complete and no result)
+      if (lastPlay && !lastPlay.about?.isComplete && !lastPlay.result?.event) {
+        console.log(`[GameDataService] Using last play as current at-bat (still in progress)`)
         return lastPlay
       }
     }
     
+    console.log(`[GameDataService] No current at-bat found`)
     return null
   }
 

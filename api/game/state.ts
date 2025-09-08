@@ -45,6 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const isLive = gameDataService.isGameLive(game)
+    console.log(`[State API] Game status check:`, {
+      status: game.status,
+      detailedState: game.status?.detailedState,
+      abstractGameState: game.status?.abstractGameState,
+      isLive: isLive
+    })
+    
     let currentAtBat = null
     let detailedGame = game
 
