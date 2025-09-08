@@ -111,6 +111,7 @@ Visit `http://localhost:3000` and enter your shared password to access the text 
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
    - `VITE_SHARED_EMAIL`
+   - `VITE_TEAM_ID` (optional, defaults to 136 for Seattle Mariners)
 4. Deploy
 
 ### Netlify
@@ -225,11 +226,15 @@ To upgrade to individual user accounts:
 
 ### Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `VITE_SUPABASE_URL` | Your Supabase project URL | Yes |
-| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key | Yes |
-| `VITE_SHARED_EMAIL` | Shared email for authentication | Yes |
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `VITE_SUPABASE_URL` | Your Supabase project URL | Yes | - |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon key | Yes | - |
+| `VITE_SHARED_EMAIL` | Shared email for authentication | Yes | - |
+| `VITE_TEAM_ID` | MLB team ID to track | No | 136 (Seattle Mariners) |
+| `VITE_LOCAL_BYPASS_AUTH` | Bypass login for local development | No | false |
+| `VITE_ADMIN_EMAIL` | Admin email for local development | No | - |
+| `VITE_FORCE_PRODUCTION_MODE` | Force production mode locally | No | false |
 
 ## Contributing
 

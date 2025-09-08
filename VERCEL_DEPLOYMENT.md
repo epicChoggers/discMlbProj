@@ -24,6 +24,11 @@ You need to set these environment variables in your Vercel project:
    - The shared email for authentication
    - Format: `site@yourdomain.com`
 
+4. **VITE_TEAM_ID** (optional)
+   - The MLB team ID to track (defaults to 136 for Seattle Mariners)
+   - Find team IDs at: https://statsapi.mlb.com/api/v1/teams
+   - Examples: 136 (Seattle Mariners), 147 (New York Yankees), 119 (Los Angeles Dodgers)
+
 ### How to Set Environment Variables in Vercel
 
 1. Go to your Vercel dashboard
@@ -62,10 +67,35 @@ You need to set these environment variables in your Vercel project:
 2. Vercel will automatically deploy on every push to your main branch
 3. Set up environment variables in the Vercel dashboard
 
+## Team Configuration
+
+### Changing the Team ID
+
+To track a different MLB team:
+
+1. **Find the Team ID**:
+   - Visit: https://statsapi.mlb.com/api/v1/teams
+   - Look for your team's `id` field
+   - Common team IDs:
+     - 136: Seattle Mariners (default)
+     - 147: New York Yankees
+     - 119: Los Angeles Dodgers
+     - 121: New York Mets
+     - 111: Boston Red Sox
+
+2. **Set the Environment Variable**:
+   - In Vercel: Set `VITE_TEAM_ID` to your desired team ID
+   - For local development: Create `.env.local` with `VITE_TEAM_ID=your_team_id`
+
+3. **Redeploy**:
+   - If using Git integration: Push your changes
+   - If using CLI: Run `vercel --prod`
+
 ## Post-Deployment Checklist
 
 - [ ] Environment variables are set correctly
 - [ ] Supabase URL and keys are valid
+- [ ] Team ID is configured (if different from default)
 - [ ] Authentication flow works
 - [ ] All features are functional
 - [ ] Custom domain is configured (if needed)

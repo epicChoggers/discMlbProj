@@ -110,8 +110,8 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
         <div className="max-w-6xl mx-auto h-full flex">
-          {/* Left Sidebar - Game State */}
-          <div className="w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
+          {/* Left Sidebar - Game State - Hidden on mobile */}
+          <div className="hidden lg:block w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
             <GameState 
               gameState={gameState} 
               onToggleLiveMode={handleToggleLiveMode}
@@ -120,40 +120,43 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
             <Leaderboard gamePk={gameState.game?.gamePk} />
           </div>
 
-          {/* Right Side - Predictions */}
-          <div className="flex-1 flex flex-col">
+          {/* Right Side - Predictions - Full width on mobile */}
+          <div className="flex-1 lg:flex-none lg:w-2/3 flex flex-col">
             {/* Tab Navigation */}
             <div className="border-b border-gray-700">
-              <nav className="flex space-x-8 px-4">
+              <nav className="flex space-x-2 sm:space-x-4 lg:space-x-8 px-2 sm:px-4">
                 <button
                   onClick={() => setActiveTab('predictions')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 ${
                     activeTab === 'predictions'
                       ? 'border-blue-500 text-blue-400'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >
-                  ⚾ Predictions
+                  <span className="hidden sm:inline">⚾ Predictions</span>
+                  <span className="sm:hidden">⚾</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('leaderboard')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 ${
                     activeTab === 'leaderboard'
                       ? 'border-blue-500 text-blue-400'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >
-                  🏆 Leaderboard
+                  <span className="hidden sm:inline">🏆 Leaderboard</span>
+                  <span className="sm:hidden">🏆</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('scoring')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors duration-200 ${
                     activeTab === 'scoring'
                       ? 'border-blue-500 text-blue-400'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >
-                  🎯 Scoring
+                  <span className="hidden sm:inline">🎯 Scoring</span>
+                  <span className="sm:hidden">🎯</span>
                 </button>
               </nav>
             </div>
@@ -161,7 +164,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
             {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
               {activeTab === 'predictions' && (
-                <div className="h-full overflow-y-auto p-4">
+                <div className="h-full overflow-y-auto p-2 sm:p-4">
                   {gameState.game ? (
                     <div className="space-y-4">
                       {shouldShowLiveFeatures && (gameState.currentAtBat || isLiveMode) ? (
@@ -230,13 +233,13 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
               )}
 
               {activeTab === 'leaderboard' && (
-                <div className="h-full overflow-y-auto p-4">
+                <div className="h-full overflow-y-auto p-2 sm:p-4">
                   <Leaderboard gamePk={gameState.game?.gamePk} />
                 </div>
               )}
 
               {activeTab === 'scoring' && (
-                <div className="h-full overflow-y-auto p-4">
+                <div className="h-full overflow-y-auto p-2 sm:p-4">
                   <ScoringSystem />
                 </div>
               )}
