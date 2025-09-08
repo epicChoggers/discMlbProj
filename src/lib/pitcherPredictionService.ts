@@ -204,9 +204,8 @@ class PitcherPredictionService {
   // Get pitcher information for a game (gamePk is optional - will get today's Mariners game if not provided)
   async getPitcherInfo(gamePk?: number): Promise<any> {
     try {
-      const url = gamePk 
-        ? `${this.apiBaseUrl}/pitcher-predictions?action=info&gamePk=${gamePk}`
-        : `${this.apiBaseUrl}/pitcher-predictions?action=info`
+      // Use the updated endpoint that doesn't require gamePk parameter
+      const url = `${this.apiBaseUrl}/pitcher-predictions?action=info`
       
       const response = await fetch(url)
       
@@ -230,9 +229,8 @@ class PitcherPredictionService {
   // Get pitcher info with game data (includes gamePk)
   async getPitcherInfoWithGame(gamePk?: number): Promise<{ pitcher: any; game: any }> {
     try {
-      const url = gamePk 
-        ? `${this.apiBaseUrl}/pitcher-predictions?action=info&gamePk=${gamePk}`
-        : `${this.apiBaseUrl}/pitcher-predictions?action=info`
+      // Use the updated endpoint that doesn't require gamePk parameter
+      const url = `${this.apiBaseUrl}/pitcher-predictions?action=info`
       
       const response = await fetch(url)
       
