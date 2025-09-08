@@ -68,9 +68,56 @@ export class GameDataService {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data = await response.json()
-      return data.gameData || null
+      return data || null
     } catch (error) {
       console.error('Error fetching game details:', error)
+      return null
+    }
+  }
+
+  // Get game with probable pitcher info using schedule endpoint
+  async getGameWithProbablePitcher(gamePk: number): Promise<any | null> {
+    try {
+      // First get the game date from the game feed
+      const gameResponse = await fetch(`${this.apiBaseUrl}/game/${gamePk}/feed/live`)
+      if (!gameResponse.ok) {
+        throw new Error(`HTTP error! status: ${gameResponse.status}`)
+      }
+      const gameData = await gameResponse.json()
+      
+      if (!gameData.gameData?.datetime?.originalDate) {
+        throw new Error('Game date not found')
+      }
+
+      // Extract the date from the game
+      const gameDate = gameData.gameData.datetime.originalDate.split('T')[0] // YYYY-MM-DD format
+      
+      // Now get the schedule with probable pitcher hydration
+      const scheduleUrl = `${this.apiBaseUrl}/schedule?sportId=1&hydrate=probablePitcher&startDate=${gameDate}&endDate=${gameDate}`
+      console.log('[GameDataService] Requesting schedule with probable pitcher:', scheduleUrl)
+      
+      const scheduleResponse = await fetch(scheduleUrl)
+      if (!scheduleResponse.ok) {
+        throw new Error(`HTTP error! status: ${scheduleResponse.status}`)
+      }
+      
+      const scheduleData = await scheduleResponse.json()
+      
+      // Find the specific game in the schedule
+      if (scheduleData.dates && scheduleData.dates.length > 0) {
+        for (const date of scheduleData.dates) {
+          if (date.games) {
+            const game = date.games.find((g: any) => g.gamePk === gamePk)
+            if (game) {
+              return game
+            }
+          }
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Error fetching game with probable pitcher:', error)
       return null
     }
   }

@@ -47,8 +47,8 @@ async function handleGetPitcherInfo(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Get the game data to find the projected starting pitcher
-    const game = await gameDataService.getGameDetails(parseInt(gamePk as string))
+    // Get the game data with probable pitcher information using the schedule endpoint
+    const game = await gameDataService.getGameWithProbablePitcher(parseInt(gamePk as string))
     
     if (!game) {
       res.status(404).json({ error: 'Game not found' })
@@ -76,64 +76,29 @@ async function handleGetPitcherInfo(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    // Get the projected starting pitcher
-    let projectedPitcher = null
-    
-    // Try to get pitcher from gameData.players
-    if (game.gameData?.players) {
-      // Look for pitchers in the Mariners roster
-      const players = Object.values(game.gameData.players) as any[]
-      const marinersPitchers = players.filter(player => 
-        player.currentTeam?.id === marinersTeamId && 
-        player.primaryPosition?.type === 'Pitcher'
-      )
-      
-      if (marinersPitchers.length > 0) {
-        // For now, just return the first pitcher found
-        // In a real implementation, you'd want to determine the starting pitcher
-        projectedPitcher = marinersPitchers[0]
-      }
-    }
+    // Get the probable pitcher from the schedule data
+    const probablePitcher = marinersTeam.probablePitcher
 
-    // If no pitcher found in gameData, try to get from liveData
-    if (!projectedPitcher && game.liveData?.boxscore?.teams) {
-      const marinersBoxscore = isMarinersHome ? 
-        game.liveData.boxscore.teams.home : 
-        game.liveData.boxscore.teams.away
-      
-      // Look for pitchers in the boxscore
-      if (marinersBoxscore?.players) {
-        const players = Object.values(marinersBoxscore.players) as any[]
-        const pitchers = players.filter(player => 
-          player.person?.primaryPosition?.type === 'Pitcher'
-        )
-        
-        if (pitchers.length > 0) {
-          projectedPitcher = pitchers[0].person
-        }
-      }
-    }
-
-    if (!projectedPitcher) {
-      res.status(404).json({ error: 'No Mariners pitcher found for this game' })
+    if (!probablePitcher) {
+      res.status(404).json({ error: 'No probable pitcher found for Mariners in this game' })
       return
     }
 
     // Format the pitcher data
     const pitcherInfo = {
-      id: projectedPitcher.id,
-      fullName: projectedPitcher.fullName,
-      firstName: projectedPitcher.firstName,
-      lastName: projectedPitcher.lastName,
-      primaryNumber: projectedPitcher.primaryNumber,
+      id: probablePitcher.id,
+      fullName: probablePitcher.fullName,
+      firstName: probablePitcher.firstName,
+      lastName: probablePitcher.lastName,
+      primaryNumber: probablePitcher.primaryNumber,
       currentTeam: {
-        id: projectedPitcher.currentTeam?.id || marinersTeamId,
-        name: projectedPitcher.currentTeam?.name || 'Seattle Mariners'
+        id: marinersTeamId,
+        name: marinersTeam.team?.name || 'Seattle Mariners'
       },
       primaryPosition: {
-        code: projectedPitcher.primaryPosition?.code || 'P',
-        name: projectedPitcher.primaryPosition?.name || 'Pitcher',
-        type: projectedPitcher.primaryPosition?.type || 'Pitcher'
+        code: 'P',
+        name: 'Pitcher',
+        type: 'Pitcher'
       }
     }
 
