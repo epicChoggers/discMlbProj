@@ -21,10 +21,13 @@ class PitcherPredictionService {
     console.log(`Pitcher Prediction Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
-  // Get pitcher predictions for a game
-  async getPitcherPredictions(gamePk: number, pitcherId?: number): Promise<PitcherPrediction[]> {
+  // Get pitcher predictions for a game (gamePk is optional - will get today's Mariners game if not provided)
+  async getPitcherPredictions(gamePk?: number, pitcherId?: number): Promise<PitcherPrediction[]> {
     try {
-      const params = new URLSearchParams({ gamePk: gamePk.toString() })
+      const params = new URLSearchParams()
+      if (gamePk) {
+        params.append('gamePk', gamePk.toString())
+      }
       if (pitcherId) {
         params.append('pitcherId', pitcherId.toString())
       }
@@ -48,13 +51,13 @@ class PitcherPredictionService {
     }
   }
 
-  // Get pitcher predictions for a specific user
-  async getUserPitcherPredictions(gamePk: number, userId: string): Promise<PitcherPrediction[]> {
+  // Get pitcher predictions for a specific user (gamePk is optional - will get today's Mariners game if not provided)
+  async getUserPitcherPredictions(gamePk: number | undefined, userId: string): Promise<PitcherPrediction[]> {
     try {
-      const params = new URLSearchParams({ 
-        gamePk: gamePk.toString(),
-        userId: userId
-      })
+      const params = new URLSearchParams({ userId: userId })
+      if (gamePk) {
+        params.append('gamePk', gamePk.toString())
+      }
 
       const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions?${params}`)
       
@@ -181,8 +184,8 @@ class PitcherPredictionService {
     }
   }
 
-  // Check if user has already predicted for a pitcher in a game
-  async hasUserPredictedForPitcher(gamePk: number, pitcherId: number): Promise<boolean> {
+  // Check if user has already predicted for a pitcher in a game (gamePk is optional - will check today's Mariners game if not provided)
+  async hasUserPredictedForPitcher(gamePk: number | undefined, pitcherId: number): Promise<boolean> {
     try {
       const session = await supabase.auth.getSession()
       
@@ -198,10 +201,14 @@ class PitcherPredictionService {
     }
   }
 
-  // Get pitcher information for a game
-  async getPitcherInfo(gamePk: number): Promise<any> {
+  // Get pitcher information for a game (gamePk is optional - will get today's Mariners game if not provided)
+  async getPitcherInfo(gamePk?: number): Promise<any> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions?action=info&gamePk=${gamePk}`)
+      const url = gamePk 
+        ? `${this.apiBaseUrl}/pitcher-predictions?action=info&gamePk=${gamePk}`
+        : `${this.apiBaseUrl}/pitcher-predictions?action=info`
+      
+      const response = await fetch(url)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -307,21 +314,27 @@ class PitcherPredictionService {
     return points
   }
 
-  // Subscribe to real-time updates for pitcher predictions
+  // Subscribe to real-time updates for pitcher predictions (gamePk is optional - will subscribe to today's Mariners game if not provided)
   subscribeToPitcherPredictions(
-    gamePk: number,
+    gamePk: number | undefined,
     callback: (predictions: PitcherPrediction[]) => void,
     pitcherId?: number
   ) {
+    const channelName = gamePk 
+      ? `pitcher-predictions-${gamePk}${pitcherId ? `-${pitcherId}` : ''}`
+      : `pitcher-predictions-today${pitcherId ? `-${pitcherId}` : ''}`
+    
     const channel = supabase
-      .channel(`pitcher-predictions-${gamePk}${pitcherId ? `-${pitcherId}` : ''}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'pitcher_predictions',
-          filter: `game_pk=eq.${gamePk}${pitcherId ? `,pitcher_id=eq.${pitcherId}` : ''}`
+          filter: gamePk 
+            ? `game_pk=eq.${gamePk}${pitcherId ? `,pitcher_id=eq.${pitcherId}` : ''}`
+            : pitcherId ? `pitcher_id=eq.${pitcherId}` : ''
         },
         async () => {
           try {

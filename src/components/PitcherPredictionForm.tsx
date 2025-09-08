@@ -3,7 +3,7 @@ import { MLBPitcher } from '../lib/types'
 import { pitcherPredictionService } from '../lib/pitcherPredictionService'
 
 interface PitcherPredictionFormProps {
-  gamePk: number
+  gamePk?: number
   pitcher: MLBPitcher
   onPredictionSubmitted: () => void
 }

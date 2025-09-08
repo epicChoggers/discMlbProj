@@ -5,7 +5,7 @@ import { PitcherPredictionForm } from './PitcherPredictionForm'
 import { PitcherPredictionResults } from './PitcherPredictionResults'
 
 interface PitcherPredictionsProps {
-  gamePk: number
+  gamePk?: number
 }
 
 export const PitcherPredictions = ({ gamePk }: PitcherPredictionsProps) => {

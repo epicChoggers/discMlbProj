@@ -3,7 +3,7 @@ import { PitcherPrediction } from '../lib/types'
 import { pitcherPredictionService } from '../lib/pitcherPredictionService'
 
 interface PitcherPredictionResultsProps {
-  gamePk: number
+  gamePk?: number
   pitcherId?: number
 }
 
