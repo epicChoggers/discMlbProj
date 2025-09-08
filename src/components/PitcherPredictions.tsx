@@ -15,6 +15,7 @@ export const PitcherPredictions = ({ gamePk, game }: PitcherPredictionsProps) =>
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
 
   useEffect(() => {
     const fetchPitcherInfo = async () => {
@@ -34,12 +35,20 @@ export const PitcherPredictions = ({ gamePk, game }: PitcherPredictionsProps) =>
     fetchPitcherInfo()
   }, [gamePk])
 
+  // Track when we've initially loaded data
+  useEffect(() => {
+    if (!isLoading && !hasInitiallyLoaded) {
+      setHasInitiallyLoaded(true)
+    }
+  }, [isLoading, hasInitiallyLoaded])
+
   const handlePredictionSubmitted = () => {
     // Trigger a refresh of the results
     setRefreshKey(prev => prev + 1)
   }
 
-  if (isLoading) {
+  // Only show full loading state on initial load
+  if (isLoading && !hasInitiallyLoaded) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="text-center">
@@ -78,7 +87,16 @@ export const PitcherPredictions = ({ gamePk, game }: PitcherPredictionsProps) =>
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${isLoading ? 'opacity-75' : ''} transition-opacity duration-200`}>
+      {/* Subtle updating indicator */}
+      {isLoading && hasInitiallyLoaded && (
+        <div className="flex items-center justify-center py-2">
+          <div className="flex items-center space-x-2 text-blue-400 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+            <span>Updating pitcher information...</span>
+          </div>
+        </div>
+      )}
       {/* Pitcher Info Header */}
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">

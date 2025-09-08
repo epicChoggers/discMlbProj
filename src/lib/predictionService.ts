@@ -4,6 +4,8 @@ import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory, get
 export class PredictionServiceNew {
   private apiBaseUrl: string
   private isDevelopment: boolean
+  // Cache for tracking resolved at-bats to avoid redundant processing
+  private resolvedAtBatsCache = new Map<number, Set<number>>()
 
   constructor() {
     // Check if we're in development mode
@@ -452,18 +454,470 @@ export class PredictionServiceNew {
     return subscription
   }
 
-  // Auto-resolve predictions when an at-bat is completed (backward compatibility)
-  async autoResolveCompletedAtBats(_gamePk: number, _completedAtBat: any): Promise<void> {
-    // This is now handled server-side by the DataSyncService
-    // This method is kept for backward compatibility
-    console.log('Auto-resolve is now handled server-side by DataSyncService')
+  // Initialize cache for resolved at-bats
+  private async initializeResolvedAtBatsCache(gamePk: number): Promise<void> {
+    try {
+      const { data } = await supabase
+        .from('at_bat_predictions')
+        .select('at_bat_index')
+        .eq('game_pk', gamePk)
+        .not('resolved_at', 'is', null)
+
+      const resolvedAtBats = new Set<number>()
+      data?.forEach(prediction => {
+        resolvedAtBats.add(prediction.at_bat_index)
+      })
+
+      this.resolvedAtBatsCache.set(gamePk, resolvedAtBats)
+      console.log(`Initialized cache for game ${gamePk} with ${resolvedAtBats.size} resolved at-bats`)
+    } catch (error) {
+      console.error('Error initializing resolved at-bats cache:', error)
+      this.resolvedAtBatsCache.set(gamePk, new Set())
+    }
   }
 
-  // Auto-resolve ALL completed at-bats for a game (backward compatibility)
-  async autoResolveAllCompletedAtBats(_gamePk: number, _game: any): Promise<void> {
-    // This is now handled server-side by the DataSyncService
-    // This method is kept for backward compatibility
-    console.log('Auto-resolve is now handled server-side by DataSyncService')
+  // Check if an at-bat is already resolved
+  private isAtBatResolved(gamePk: number, atBatIndex: number): boolean {
+    const gameCache = this.resolvedAtBatsCache.get(gamePk)
+    return gameCache ? gameCache.has(atBatIndex) : false
+  }
+
+  // Mark an at-bat as resolved in cache
+  private markAtBatResolved(gamePk: number, atBatIndex: number): void {
+    if (!this.resolvedAtBatsCache.has(gamePk)) {
+      this.resolvedAtBatsCache.set(gamePk, new Set())
+    }
+    this.resolvedAtBatsCache.get(gamePk)!.add(atBatIndex)
+  }
+
+  // Auto-resolve predictions when an at-bat is completed
+  async autoResolveCompletedAtBats(gamePk: number, completedAtBat: any): Promise<void> {
+    try {
+      if (!completedAtBat || !completedAtBat.about) {
+        console.log('No completed at-bat data to resolve:', completedAtBat)
+        return
+      }
+
+      const atBatIndex = completedAtBat.about?.atBatIndex
+      if (atBatIndex === undefined) {
+        console.log('No at-bat index found:', completedAtBat.about)
+        return
+      }
+
+      // Check cache first to avoid redundant database queries
+      if (this.isAtBatResolved(gamePk, atBatIndex)) {
+        return // Already resolved, skip
+      }
+
+      console.log(`Attempting to resolve predictions for at-bat ${atBatIndex}`)
+      console.log(`Completed at-bat data:`, {
+        atBatIndex: completedAtBat.about.atBatIndex,
+        result: completedAtBat.result,
+        description: completedAtBat.result?.description
+      })
+
+      // Check if this at-bat's predictions are already resolved
+      const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+      const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
+      
+      if (unresolvedPredictions.length === 0) {
+        // Mark as resolved in cache to avoid future checks
+        this.markAtBatResolved(gamePk, atBatIndex)
+        return // Already resolved
+      }
+
+      console.log(`Found ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
+
+      // Extract outcome from the completed play
+      const actualOutcome = this.extractOutcomeFromPlay(completedAtBat)
+      console.log(`Extracted outcome "${actualOutcome}" from at-bat ${atBatIndex}`)
+
+      if (!actualOutcome) {
+        console.warn(`Could not extract outcome from at-bat ${atBatIndex}, skipping resolution`)
+        return
+      }
+
+      // Resolve the predictions
+      await this.resolveAtBatPredictions(gamePk, atBatIndex, actualOutcome)
+      
+      // Mark as resolved in cache
+      this.markAtBatResolved(gamePk, atBatIndex)
+      console.log(`Successfully resolved predictions for at-bat ${atBatIndex}`)
+    } catch (error) {
+      console.error('Error auto-resolving at-bat predictions:', error)
+    }
+  }
+
+  // Auto-resolve ALL completed at-bats for a game
+  async autoResolveAllCompletedAtBats(gamePk: number, game: any): Promise<void> {
+    try {
+      if (!game?.liveData?.plays?.allPlays) {
+        console.log('No game plays data available')
+        return
+      }
+
+      // Initialize cache if not already done for this game
+      if (!this.resolvedAtBatsCache.has(gamePk)) {
+        await this.initializeResolvedAtBatsCache(gamePk)
+      }
+
+      const { allPlays } = game.liveData.plays
+      
+      // Find all completed plays (those with a result type other than 'at_bat')
+      const completedPlays = allPlays.filter((play: any) => 
+        play.result.type && play.result.type !== 'at_bat'
+      )
+      
+      // Filter out already resolved at-bats using cache
+      const unresolvedPlays = completedPlays.filter((play: any) => {
+        const atBatIndex = play.about?.atBatIndex
+        return atBatIndex !== undefined && !this.isAtBatResolved(gamePk, atBatIndex)
+      })
+      
+      console.log(`Found ${completedPlays.length} completed plays, ${unresolvedPlays.length} need resolution`)
+
+      // Process only unresolved plays
+      for (const play of unresolvedPlays) {
+        const atBatIndex = play.about?.atBatIndex
+        if (atBatIndex === undefined) {
+          continue
+        }
+
+        // Double-check with database (cache might be stale)
+        const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+        const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
+        
+        if (unresolvedPredictions.length === 0) {
+          // Mark as resolved in cache to avoid future checks
+          this.markAtBatResolved(gamePk, atBatIndex)
+          continue // Already resolved
+        }
+
+        console.log(`Resolving ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
+
+        // Extract outcome from the completed play
+        const actualOutcome = this.extractOutcomeFromPlay(play)
+        console.log(`Extracted outcome "${actualOutcome}" from at-bat ${atBatIndex}`)
+
+        if (!actualOutcome) {
+          console.warn(`Could not extract outcome from at-bat ${atBatIndex}, skipping`)
+          continue
+        }
+
+        // Resolve the predictions
+        await this.resolveAtBatPredictions(gamePk, atBatIndex, actualOutcome)
+        
+        // Mark as resolved in cache
+        this.markAtBatResolved(gamePk, atBatIndex)
+        console.log(`Successfully resolved predictions for at-bat ${atBatIndex}`)
+      }
+    } catch (error) {
+      console.error('Error auto-resolving all completed at-bat predictions:', error)
+    }
+  }
+
+  // Resolve predictions for a completed at-bat
+  async resolveAtBatPredictions(
+    gamePk: number,
+    atBatIndex: number,
+    actualOutcome: AtBatOutcome
+  ): Promise<void> {
+    try {
+      console.log(`Starting resolution for at-bat ${atBatIndex} with outcome: ${actualOutcome}`)
+      
+      // Get all predictions for this at-bat
+      const predictions = await this.getAtBatPredictions(gamePk, atBatIndex)
+      console.log(`Found ${predictions.length} predictions to resolve for at-bat ${atBatIndex}`)
+      
+      // Update each prediction with the actual outcome and points
+      for (const prediction of predictions) {
+        console.log(`Resolving prediction ${prediction.id} for user ${prediction.userId}`)
+        console.log(`Prediction: ${prediction.prediction}, Category: ${prediction.predictionCategory}`)
+        
+        // Get current streak before this prediction
+        const currentStreak = await this.getUserCurrentStreak(prediction.userId)
+        console.log(`Current streak for user ${prediction.userId}: ${currentStreak}`)
+        
+        const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
+          prediction.prediction,
+          prediction.predictionCategory,
+          actualOutcome,
+          currentStreak
+        )
+        
+        console.log(`Points calculation: ${points} base, ${streakBonus} streak bonus, exact: ${isExact}, category: ${isCategoryCorrect}`)
+        
+        // Calculate new streak count
+        const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
+        
+        const updateData = {
+          actual_outcome: actualOutcome,
+          actual_category: getOutcomeCategory(actualOutcome),
+          is_correct: isExact || isCategoryCorrect,
+          points_earned: points + streakBonus,
+          streak_count: newStreakCount,
+          streak_bonus: streakBonus,
+          resolved_at: new Date().toISOString()
+        }
+        
+        console.log(`Updating prediction ${prediction.id} with:`, updateData)
+        
+        const { error, data } = await supabase
+          .from('at_bat_predictions')
+          .update(updateData)
+          .eq('id', prediction.id)
+          .select()
+        
+        if (error) {
+          console.error('❌ ERROR resolving prediction:', error)
+          console.error('Update data:', updateData)
+          console.error('Prediction ID:', prediction.id)
+          console.error('Full error details:', JSON.stringify(error, null, 2))
+        } else {
+          console.log(`✅ Successfully resolved prediction ${prediction.id}`)
+          console.log('Updated prediction data:', data)
+        }
+      }
+      
+      console.log(`Completed resolution for at-bat ${atBatIndex}`)
+    } catch (error) {
+      console.error('Error resolving at-bat predictions:', error)
+    }
+  }
+
+  // Extract outcome from completed play data
+  private extractOutcomeFromPlay(play: any): AtBatOutcome | null {
+    try {
+      console.log('Extracting outcome from play:', {
+        result: play.result,
+        description: play.result?.description,
+        event: play.result?.event,
+        eventType: play.result?.eventType
+      })
+
+      if (!play.result) {
+        console.warn('No result data in play')
+        return null
+      }
+
+      const { type, event, eventType, description } = play.result
+      
+      // Use the eventType field first, as it's the most reliable standardized value
+      if (eventType) {
+        console.log(`Using eventType field: "${eventType}"`)
+        return this.mapEventTypeToOutcome(eventType, description)
+      }
+      
+      // Fall back to event field
+      if (event) {
+        console.log(`Using event field: "${event}"`)
+        return this.mapEventToOutcome(event)
+      }
+      
+      // Fall back to type field
+      if (type) {
+        console.log(`Using type field: "${type}"`)
+        return this.mapTypeToOutcome(type)
+      }
+      
+      // Try to parse from description
+      if (description) {
+        console.log(`Parsing from description: "${description}"`)
+        return this.parseDescriptionToOutcome(description)
+      }
+      
+      console.warn('Could not extract outcome from play data')
+      return null
+    } catch (error) {
+      console.error('Error extracting outcome from play:', error)
+      return null
+    }
+  }
+
+  // Map eventType field to our outcome types (most reliable)
+  private mapEventTypeToOutcome(eventType: string, description?: string): AtBatOutcome {
+    // Direct mapping from MLB API event types to our AtBatOutcome types
+    const eventTypeMap: Record<string, AtBatOutcome> = {
+      // Hits (plateAppearance: true, hit: true)
+      'single': 'single',
+      'double': 'double',
+      'triple': 'triple',
+      'home_run': 'home_run',
+      
+      // Walks and Hit by Pitch (plateAppearance: true, hit: false)
+      'walk': 'walk',
+      'intent_walk': 'intent_walk',
+      'hit_by_pitch': 'hit_by_pitch',
+      
+      // Strikeouts (plateAppearance: true, hit: false)
+      'strikeout': 'strikeout',
+      'strike_out': 'strike_out',
+      'strikeout_double_play': 'strikeout_double_play',
+      'strikeout_triple_play': 'strikeout_triple_play',
+      
+      // Field Outs (plateAppearance: true, hit: false)
+      'field_out': 'field_out',
+      'fielders_choice': 'fielders_choice',
+      'fielders_choice_out': 'fielders_choice_out',
+      'force_out': 'force_out',
+      'grounded_into_double_play': 'grounded_into_double_play',
+      'grounded_into_triple_play': 'grounded_into_triple_play',
+      'triple_play': 'triple_play',
+      'double_play': 'double_play',
+      
+      // Sacrifice Plays (plateAppearance: true, hit: false)
+      'sac_fly': 'sac_fly',
+      'sac_bunt': 'sac_bunt',
+      'sac_fly_double_play': 'sac_fly_double_play',
+      'sac_bunt_double_play': 'sac_bunt_double_play',
+      
+      // Errors and Interference (plateAppearance: true, hit: false)
+      'field_error': 'field_error',
+      'catcher_interf': 'catcher_interf',
+      'batter_interference': 'batter_interference',
+      'fan_interference': 'fan_interference',
+      
+      // Non-plate appearance events (plateAppearance: false) - these should not be at-bat outcomes
+      'pickoff_1b': 'pickoff_1b',
+      'pickoff_2b': 'pickoff_2b',
+      'pickoff_3b': 'pickoff_3b',
+      'caught_stealing_2b': 'caught_stealing_2b',
+      'caught_stealing_3b': 'caught_stealing_3b',
+      'caught_stealing_home': 'caught_stealing_home',
+      'stolen_base_2b': 'stolen_base_2b',
+      'stolen_base_3b': 'stolen_base_3b',
+      'stolen_base_home': 'stolen_base_home',
+      'wild_pitch': 'wild_pitch',
+      'passed_ball': 'passed_ball',
+      'balk': 'balk',
+      'other_advance': 'other_advance',
+      'defensive_indiff': 'defensive_indiff',
+      'ejection': 'ejection',
+      'game_advisory': 'game_advisory',
+      'no_event': 'field_out' // Map no_event to field_out as fallback
+    }
+
+    const mappedOutcome = eventTypeMap[eventType]
+    if (mappedOutcome) {
+      return mappedOutcome
+    }
+
+    // If not found in direct mapping, try to infer from description
+    if (description) {
+      return this.parseDescriptionToOutcome(description)
+    }
+
+    console.warn(`Unknown eventType: ${eventType}`)
+    return 'field_out' // Default fallback for unknown event types
+  }
+
+  // Map event field to our outcome types
+  private mapEventToOutcome(event: string): AtBatOutcome {
+    const eventMap: Record<string, AtBatOutcome> = {
+      'Single': 'single',
+      'Double': 'double',
+      'Triple': 'triple',
+      'Home Run': 'home_run',
+      'Walk': 'walk',
+      'Intentional Walk': 'intent_walk',
+      'Hit By Pitch': 'hit_by_pitch',
+      'Strikeout': 'strikeout',
+      'Strikeout (Swinging)': 'strikeout',
+      'Strikeout (Looking)': 'strikeout',
+      'Field Out': 'field_out',
+      'Groundout': 'field_out',
+      'Flyout': 'field_out',
+      'Lineout': 'field_out',
+      'Pop Out': 'field_out',
+      'Sacrifice Fly': 'sac_fly',
+      'Sacrifice Bunt': 'sac_bunt',
+      'Error': 'field_error',
+      'Fielders Choice': 'fielders_choice',
+      'Forceout': 'force_out',
+      'Grounded Into DP': 'grounded_into_double_play',
+      'Sacrifice Fly DP': 'sac_fly_double_play',
+      'Sacrifice Bunt DP': 'sac_bunt_double_play',
+      'Strikeout DP': 'strikeout_double_play',
+      'Triple Play': 'triple_play',
+      'Double Play': 'double_play'
+    }
+
+    return eventMap[event] || 'field_out' // Default fallback for unknown events
+  }
+
+  // Map type field to our outcome types
+  private mapTypeToOutcome(type: string): AtBatOutcome {
+    const typeMap: Record<string, AtBatOutcome> = {
+      'single': 'single',
+      'double': 'double',
+      'triple': 'triple',
+      'home_run': 'home_run',
+      'walk': 'walk',
+      'intent_walk': 'intent_walk',
+      'hit_by_pitch': 'hit_by_pitch',
+      'strikeout': 'strikeout',
+      'field_out': 'field_out',
+      'fielders_choice': 'fielders_choice',
+      'force_out': 'force_out',
+      'grounded_into_double_play': 'grounded_into_double_play',
+      'sac_fly': 'sac_fly',
+      'sac_bunt': 'sac_bunt',
+      'field_error': 'field_error'
+    }
+
+    return typeMap[type] || 'field_out' // Default fallback for unknown types
+  }
+
+  // Parse description to extract outcome
+  private parseDescriptionToOutcome(description: string): AtBatOutcome {
+    const desc = description.toLowerCase()
+    
+    // Hits
+    if (desc.includes('home run') || desc.includes('homer')) return 'home_run'
+    if (desc.includes('triple')) return 'triple'
+    if (desc.includes('double')) return 'double'
+    if (desc.includes('single')) return 'single'
+    
+    // Walks and HBP
+    if (desc.includes('intentional walk')) return 'intent_walk'
+    if (desc.includes('hit by pitch') || desc.includes('hbp')) return 'hit_by_pitch'
+    if (desc.includes('walk') || desc.includes('base on balls')) return 'walk'
+    
+    // Strikeouts
+    if (desc.includes('strikeout') || desc.includes('strikes out')) return 'strikeout'
+    
+    // Sacrifice plays
+    if (desc.includes('sacrifice fly') || desc.includes('sac fly')) return 'sac_fly'
+    if (desc.includes('sacrifice bunt') || desc.includes('sac bunt')) return 'sac_bunt'
+    
+    // Field outs
+    if (desc.includes('ground out') || desc.includes('groundout')) return 'field_out'
+    if (desc.includes('fly out') || desc.includes('flyout')) return 'field_out'
+    if (desc.includes('line out') || desc.includes('lineout')) return 'field_out'
+    if (desc.includes('pop out') || desc.includes('popout')) return 'field_out'
+    if (desc.includes('field out') || desc.includes('fieldout')) return 'field_out'
+    
+    // Errors
+    if (desc.includes('error') || desc.includes('e')) return 'field_error'
+    
+    // Fielders choice
+    if (desc.includes('fielders choice') || desc.includes('fielder\'s choice')) return 'fielders_choice'
+    
+    // Force outs
+    if (desc.includes('force out') || desc.includes('forceout')) return 'force_out'
+    
+    // Double plays
+    if (desc.includes('grounded into double play')) return 'grounded_into_double_play'
+    if (desc.includes('strikeout double play')) return 'strikeout_double_play'
+    if (desc.includes('sacrifice fly double play')) return 'sac_fly_double_play'
+    if (desc.includes('sacrifice bunt double play')) return 'sac_bunt_double_play'
+    
+    // Triple plays
+    if (desc.includes('triple play')) return 'triple_play'
+    if (desc.includes('strikeout triple play')) return 'strikeout_triple_play'
+    
+    console.warn(`Could not parse outcome from description: "${description}"`)
+    return 'field_out' // Default fallback for unparseable descriptions
   }
 }
 

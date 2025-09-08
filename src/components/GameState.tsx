@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
 import { getPlayerHeadshot } from '../lib/mlbHeadshots'
 
@@ -12,10 +13,17 @@ interface GameStateWithToggleProps extends GameStateProps {
 
 export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) => {
   const { game, currentAtBat, isLoading, error } = gameState
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
 
+  // Track when we've initially loaded data
+  useEffect(() => {
+    if (!isLoading && !hasInitiallyLoaded) {
+      setHasInitiallyLoaded(true)
+    }
+  }, [isLoading, hasInitiallyLoaded])
 
-
-  if (isLoading) {
+  // Only show full loading state on initial load
+  if (isLoading && !hasInitiallyLoaded) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="animate-pulse">
@@ -71,7 +79,16 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
   const opponentTeam = isMarinersHome ? awayTeam : homeTeam
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 mb-4">
+    <div className={`bg-gray-800 rounded-lg p-6 mb-4 ${isLoading ? 'opacity-75' : ''} transition-opacity duration-200`}>
+      {/* Subtle updating indicator */}
+      {isLoading && hasInitiallyLoaded && (
+        <div className="flex items-center justify-center py-2 mb-4">
+          <div className="flex items-center space-x-2 text-blue-400 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+            <span>Updating game data...</span>
+          </div>
+        </div>
+      )}
       {/* Game Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">

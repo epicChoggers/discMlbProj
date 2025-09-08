@@ -11,6 +11,7 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null)
   const [stats, setStats] = useState<PredictionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -72,6 +73,13 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
     loadUserProfile()
   }, [])
 
+  // Track when we've initially loaded data
+  useEffect(() => {
+    if (!isLoading && !hasInitiallyLoaded) {
+      setHasInitiallyLoaded(true)
+    }
+  }, [isLoading, hasInitiallyLoaded])
+
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut()
@@ -81,7 +89,8 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
     }
   }
 
-  if (isLoading) {
+  // Only show full loading state on initial load
+  if (isLoading && !hasInitiallyLoaded) {
     return (
       <div className="flex items-center space-x-3">
         <div className="animate-pulse">
@@ -107,7 +116,13 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
   }
 
   return (
-    <div className="flex items-center space-x-3">
+    <div className={`relative flex items-center space-x-3 ${isLoading ? 'opacity-75' : ''} transition-opacity duration-200`}>
+      {/* Subtle updating indicator */}
+      {isLoading && hasInitiallyLoaded && (
+        <div className="absolute top-0 right-0 -mt-2 -mr-2">
+          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-400"></div>
+        </div>
+      )}
       {/* Avatar */}
       <div className="flex-shrink-0">
         {userProfile.avatar_url ? (

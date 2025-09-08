@@ -185,6 +185,7 @@ const getOutcomeLabel = (outcome: string) => {
 
 export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResultsProps) => {
   const [stats, setStats] = useState<PredictionStats | null>(null)
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
   
   // Use the new real-time predictions hook to get ALL predictions for the game
   const { predictions, isLoading, isUpdating, error } = useRealtimePredictionsNew({
@@ -207,7 +208,15 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
     loadAdditionalData()
   }, [gamePk])
 
-  if (isLoading) {
+  // Track when we've initially loaded data
+  useEffect(() => {
+    if (!isLoading && !hasInitiallyLoaded) {
+      setHasInitiallyLoaded(true)
+    }
+  }, [isLoading, hasInitiallyLoaded])
+
+  // Only show full loading state on initial load
+  if (isLoading && !hasInitiallyLoaded) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="animate-pulse">
@@ -235,7 +244,16 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${isUpdating ? 'opacity-75' : ''} transition-opacity duration-200`}>
+      {/* Subtle updating indicator */}
+      {isUpdating && (
+        <div className="flex items-center justify-center py-2">
+          <div className="flex items-center space-x-2 text-blue-400 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+            <span>Updating predictions...</span>
+          </div>
+        </div>
+      )}
       {/* User Stats */}
       {stats && (
         <div className="bg-gray-800 rounded-lg p-6">
