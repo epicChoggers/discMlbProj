@@ -6,6 +6,10 @@ export class GameDataService {
     this.apiBaseUrl = process.env.VITE_MLB_API_BASE_URL || 'https://statsapi.mlb.com/api/v1'
   }
 
+  getApiBaseUrl(): string {
+    return this.apiBaseUrl
+  }
+
   // Get today's Mariners game
   async getTodaysMarinersGame(): Promise<any | null> {
     try {

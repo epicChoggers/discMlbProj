@@ -19,7 +19,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const debug = req.query?.debug === 'true'
-    console.log('Fetching fresh game state from MLB API', { fetchType: typeof fetch })
+    const ping = req.query?.ping === 'true'
+    const apiBase = gameDataService.getApiBaseUrl()
+    console.log('Fetching fresh game state from MLB API', { fetchType: typeof fetch, apiBase })
+
+    if (ping) {
+      res.status(200).json({ ok: true, apiBase, fetchType: typeof fetch, now: new Date().toISOString() })
+      return
+    }
     const game = await gameDataService.getTodaysMarinersGame()
     
     if (!game) {
