@@ -1,7 +1,7 @@
 import { supabase } from '../../supabaseClient'
 import { gameDataService } from './GameDataService'
 import { gameCacheService } from './GameCacheService'
-import { predictionService } from '../predictionService'
+import { predictionServiceNew } from '../predictionService'
 
 export interface SyncResult {
   success: boolean
@@ -264,7 +264,7 @@ export class DataSyncService {
       }
 
       // Auto-resolve all completed at-bats
-      await predictionService.autoResolveAllCompletedAtBats(gamePk, game)
+      await predictionServiceNew.autoResolveAllCompletedAtBats(gamePk, game)
 
       // Get statistics about resolved predictions
       const { data: resolvedPredictions } = await supabase

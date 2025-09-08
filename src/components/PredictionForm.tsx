@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AtBatOutcome, MLBPlay, getOutcomeCategory } from '../lib/types'
-import { predictionServiceNew } from '../lib/predictionServiceNew'
+import { predictionServiceNew } from '../lib/predictionService'
 
 interface PredictionFormProps {
   gamePk: number

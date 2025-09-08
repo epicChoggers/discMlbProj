@@ -1,6 +1,6 @@
 import { MLBGame, MLBPlay, GameState } from './types'
 
-const MARINERS_TEAM_ID = 136 // Seattle Mariners team ID in MLB API
+// const MARINERS_TEAM_ID = 136 // Seattle Mariners team ID in MLB API
 
 class MLBServiceNew {
   private apiBaseUrl: string
@@ -83,7 +83,7 @@ class MLBServiceNew {
   }
 
   // Get detailed game data (backward compatibility)
-  async getGameDetails(gamePk: number): Promise<MLBGame | null> {
+  async getGameDetails(_gamePk: number): Promise<MLBGame | null> {
     try {
       const gameState = await this.getGameState()
       return gameState.game

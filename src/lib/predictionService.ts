@@ -434,14 +434,14 @@ export class PredictionServiceNew {
   }
 
   // Auto-resolve predictions when an at-bat is completed (backward compatibility)
-  async autoResolveCompletedAtBats(gamePk: number, completedAtBat: any): Promise<void> {
+  async autoResolveCompletedAtBats(_gamePk: number, _completedAtBat: any): Promise<void> {
     // This is now handled server-side by the DataSyncService
     // This method is kept for backward compatibility
     console.log('Auto-resolve is now handled server-side by DataSyncService')
   }
 
   // Auto-resolve ALL completed at-bats for a game (backward compatibility)
-  async autoResolveAllCompletedAtBats(gamePk: number, game: any): Promise<void> {
+  async autoResolveAllCompletedAtBats(_gamePk: number, _game: any): Promise<void> {
     // This is now handled server-side by the DataSyncService
     // This method is kept for backward compatibility
     console.log('Auto-resolve is now handled server-side by DataSyncService')

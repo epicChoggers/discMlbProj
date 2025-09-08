@@ -1,7 +1,7 @@
 import { supabase } from '../../supabaseClient'
 import { gameDataService } from './GameDataService'
 import { gameCacheService } from './GameCacheService'
-import { predictionService } from '../predictionService'
+// import { predictionServiceNew } from '../predictionService'
 import { dataSyncService } from './DataSyncService'
 
 export interface CronJobConfig {
@@ -122,23 +122,7 @@ export class CronService {
     console.log('Interval-based service stopped')
   }
 
-  // Start a specific job
-  private startJob(jobId: string, config: CronJobConfig): void {
-    const interval = this.parseSchedule(config.schedule)
-    
-    setInterval(async () => {
-      if (!this.isRunning) return
-
-      try {
-        await this.executeJob(jobId, config)
-      } catch (error) {
-        console.error(`Error executing job ${jobId}:`, error)
-        await this.logJobError(jobId, error as Error)
-      }
-    }, interval)
-
-    console.log(`Started job: ${config.name} (${config.schedule})`)
-  }
+  // Start a specific job (removed - using interval-based approach instead)
 
   // Execute a specific job
   private async executeJob(jobId: string, config: CronJobConfig): Promise<CronJobResult> {
@@ -316,7 +300,7 @@ export class CronService {
   private async checkDatabaseHealth(): Promise<any> {
     try {
       const startTime = Date.now()
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('system_health')
         .select('id')
         .limit(1)
@@ -391,48 +375,9 @@ export class CronService {
     }
   }
 
-  // Log sync event
-  private async logSyncEvent(
-    gamePk: number,
-    syncType: string,
-    status: string,
-    errorMessage?: string,
-    dataSize?: number,
-    duration?: number
-  ): Promise<void> {
-    try {
-      await supabase
-        .from('game_sync_log')
-        .insert([{
-          game_pk: gamePk,
-          sync_type: syncType,
-          status,
-          error_message: errorMessage,
-          data_size: dataSize,
-          sync_duration_ms: duration
-        }])
-    } catch (error) {
-      console.error('Error logging sync event:', error)
-    }
-  }
+  // Log sync event (removed - not used in current implementation)
 
-  // Parse cron schedule to milliseconds
-  private parseSchedule(schedule: string): number {
-    // Simple parser for common schedules
-    // Format: "*/10 * * * * *" (seconds minutes hours days months weekdays)
-    const parts = schedule.split(' ')
-    
-    if (parts.length === 6) {
-      const seconds = parts[0]
-      if (seconds.startsWith('*/')) {
-        const interval = parseInt(seconds.substring(2))
-        return interval * 1000 // Convert to milliseconds
-      }
-    }
-    
-    // Default to 10 seconds if parsing fails
-    return 10000
-  }
+  // Parse cron schedule to milliseconds (removed - not used in interval-based approach)
 
   // Get job status
   getJobStatus(): Record<string, any> {

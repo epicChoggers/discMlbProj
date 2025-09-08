@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AtBatPrediction, PredictionStats } from '../lib/types'
-import { predictionServiceNew } from '../lib/predictionServiceNew'
-import { useRealtimePredictionsNew } from '../lib/useRealtimePredictionsNew'
+import { predictionServiceNew } from '../lib/predictionService'
+import { useRealtimePredictionsNew } from '../lib/useRealtimePredictions'
 
 interface PredictionResultsProps {
   gamePk: number
@@ -277,8 +277,8 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
             <button
               onClick={async () => {
                 try {
-                  const { mlbServiceNew } = await import('../lib/mlbServiceNew')
-                  const { predictionServiceNew } = await import('../lib/predictionServiceNew')
+                  const { mlbServiceNew } = await import('../lib/mlbService')
+                  const { predictionServiceNew } = await import('../lib/predictionService')
                   
                   // Get current game state
                   const currentGameState = await mlbServiceNew.getGameState()

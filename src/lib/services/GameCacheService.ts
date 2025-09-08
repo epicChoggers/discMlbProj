@@ -1,5 +1,5 @@
 import { supabase } from '../../supabaseClient'
-import { MLBGame, MLBPlay, GameState } from '../types'
+import { MLBPlay, GameState } from '../types'
 
 export interface CachedGameState {
   id: string
@@ -134,7 +134,7 @@ export class GameCacheService {
         game_pk: gamePk,
         at_bat_index: atBatIndex,
         at_bat_data: atBatData,
-        outcome: atBatData.result?.eventType || null,
+        outcome: atBatData.result?.type || null,
         is_resolved: !!(atBatData.result?.type && atBatData.result.type !== 'at_bat')
       }
 
@@ -252,7 +252,7 @@ export class GameCacheService {
   // Clean up stale cache entries
   async cleanupStaleCache(): Promise<void> {
     try {
-      const now = new Date().toISOString()
+      // const now = new Date().toISOString()
 
       // Clean up stale game states
       await supabase

@@ -1,4 +1,5 @@
-import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType } from './types'
+import { Leaderboard as LeaderboardType } from './types'
+import { supabase } from '../supabaseClient'
 
 export class LeaderboardServiceNew {
   // Get leaderboard data using the unified API
@@ -192,7 +193,7 @@ export class LeaderboardServiceNew {
   }
 
   // Get leaderboard trends (compare with previous period)
-  async getLeaderboardTrends(gamePk?: number, daysBack: number = 7): Promise<{
+  async getLeaderboardTrends(_gamePk?: number, _daysBack: number = 7): Promise<{
     newUsers: number
     activeUsers: number
     accuracyTrend: number

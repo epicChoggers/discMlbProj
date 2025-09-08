@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useGameState } from '../lib/useGameState'
+import { useGameStateNew } from '../lib/useGameState'
 import { GameState } from './GameState'
 import { PredictionForm } from './PredictionForm'
 import { PredictionResults } from './PredictionResults'
@@ -16,7 +16,7 @@ interface TextWallProps {
 }
 
 export const TextWall = ({ onSignOut }: TextWallProps) => {
-  const { gameState, isGameLive, addGameStateUpdateCallback } = useGameState()
+  const { gameState, isGameLive, addGameStateUpdateCallback } = useGameStateNew()
   const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard' | 'scoring'>('predictions')
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [toasts, setToasts] = useState<Array<{

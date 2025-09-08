@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { GameState } from './types'
-import { mlbServiceNew } from './mlbServiceNew'
-import { predictionServiceNew } from './predictionServiceNew'
+import { mlbServiceNew } from './mlbService'
 
 export const useGameStateNew = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -25,7 +24,7 @@ export const useGameStateNew = () => {
     }
   }, [])
 
-  const refreshGameState = async () => {
+  const refreshGameState = useCallback(async () => {
     setGameState(prev => ({ ...prev, isLoading: true }))
     const newGameState = await mlbServiceNew.getGameState()
     

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType } from '../lib/types'
-import { leaderboardServiceNew } from '../lib/leaderboardServiceNew'
+import { leaderboardServiceNew } from '../lib/leaderboardService'
 
 interface LeaderboardProps {
   gamePk?: number

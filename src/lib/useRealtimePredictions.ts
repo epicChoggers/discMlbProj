@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AtBatPrediction } from './types'
-import { predictionServiceNew } from './predictionServiceNew'
+import { predictionServiceNew } from './predictionService'
 import { supabase } from '../supabaseClient'
 
 interface UseRealtimePredictionsNewProps {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
-import { predictionServiceNew } from '../lib/predictionServiceNew'
+import { predictionServiceNew } from '../lib/predictionService'
 
 interface DebugPredictionsProps {
   gamePk: number
