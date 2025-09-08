@@ -1,7 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Use process.env for server-side, import.meta.env for client-side
+const supabaseUrl = typeof process !== 'undefined' && process.env ? 
+  process.env.VITE_SUPABASE_URL : 
+  import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = typeof process !== 'undefined' && process.env ? 
+  process.env.VITE_SUPABASE_ANON_KEY : 
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
