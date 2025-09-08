@@ -29,7 +29,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.status(500).json({
         success: false,
         error: 'ImportError: gameDataService',
-        details: process.env.NODE_ENV !== 'production' ? String(importErr) : undefined
+        details: String(importErr),
+        message: (importErr as any)?.message,
+        stack: (importErr as any)?.stack
       })
       return
     }
