@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { supabase } from '../../src/supabaseClient'
+import { supabase } from '../lib/supabase'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers

@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { gameCacheService } from '../../src/lib/services/GameCacheService'
-import { gameDataService } from '../../src/lib/services/GameDataService'
+import { gameCacheService } from '../lib/gameCacheService'
+import { gameDataService } from '../lib/gameDataService'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
