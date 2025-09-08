@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { AtBatPrediction, PredictionStats } from '../lib/types'
-import { predictionServiceNew } from '../lib/predictionService'
+import { AtBatPrediction } from '../lib/types'
 import { useRealtimePredictionsNew } from '../lib/useRealtimePredictions'
 
 interface PredictionResultsProps {
@@ -184,7 +183,6 @@ const getOutcomeLabel = (outcome: string) => {
 }
 
 export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResultsProps) => {
-  const [stats, setStats] = useState<PredictionStats | null>(null)
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
   
   // Use the new real-time predictions hook to get ALL predictions for the game
@@ -194,19 +192,6 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
     onGameStateUpdate // Register for game state updates
   })
 
-  useEffect(() => {
-    const loadAdditionalData = async () => {
-      try {
-        // Load user stats
-        const statsData = await predictionServiceNew.getUserPredictionStats()
-        setStats(statsData)
-      } catch (error) {
-        console.error('Error loading additional prediction data:', error)
-      }
-    }
-
-    loadAdditionalData()
-  }, [gamePk])
 
   // Track when we've initially loaded data
   useEffect(() => {
@@ -251,30 +236,6 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
           <div className="flex items-center space-x-2 text-blue-400 text-sm">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
             <span>Updating predictions...</span>
-          </div>
-        </div>
-      )}
-      {/* User Stats */}
-      {stats && (
-        <div className="bg-gray-800 rounded-lg p-6">
-          <h3 className="text-white text-lg font-semibold mb-4">Your Stats</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400">{stats.totalPoints}</div>
-              <div className="text-gray-400 text-sm">Points</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">{stats.exactPredictions}</div>
-              <div className="text-gray-400 text-sm">Exact (3pts)</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">{stats.categoryPredictions}</div>
-              <div className="text-gray-400 text-sm">Category (1pt)</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">{stats.streak}</div>
-              <div className="text-gray-400 text-sm">Streak</div>
-            </div>
           </div>
         </div>
       )}

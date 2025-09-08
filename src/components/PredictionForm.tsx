@@ -97,6 +97,9 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
           const userId = await predictionServiceNew.getCurrentUserId()
           const userPrediction = predictions.find(p => p.userId === userId)
           const isResolved = userPrediction?.actualOutcome !== undefined
+          
+          // Only show waiting for resolution if the at-bat is not yet resolved
+          // If it's resolved, allow the user to make predictions for the next at-bat
           setIsWaitingForResolution(!isResolved)
         } else {
           setIsWaitingForResolution(false)
@@ -236,33 +239,40 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
     )
   }
 
-  if (hasAlreadyPredicted) {
-    if (isWaitingForResolution) {
-      return (
-        <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-4 mb-4">
+  // Show a subtle indicator if user has already predicted for this at-bat
+  if (hasAlreadyPredicted && isWaitingForResolution) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white text-lg font-semibold">Make Your Prediction</h3>
+          <div className="flex items-center space-x-2 text-blue-400 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+            <span>Waiting for resolution...</span>
+          </div>
+        </div>
+        
+        <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
           <div className="text-center">
             <div className="text-blue-300 text-lg mb-2">⏳</div>
-            <h3 className="text-blue-300 font-semibold mb-1">Waiting for Resolution</h3>
-            <p className="text-blue-400 text-sm">Your prediction has been submitted! Waiting for this at-bat to complete...</p>
+            <h4 className="text-blue-300 font-semibold mb-1">Prediction Submitted!</h4>
+            <p className="text-blue-400 text-sm">Your prediction has been submitted for this at-bat. Waiting for the outcome...</p>
           </div>
         </div>
-      )
-    } else {
-      return (
-        <div className="bg-yellow-900/50 border border-yellow-700 rounded-lg p-4 mb-4">
-          <div className="text-center">
-            <div className="text-yellow-300 text-lg mb-2">✅</div>
-            <h3 className="text-yellow-300 font-semibold mb-1">At-Bat Resolved!</h3>
-            <p className="text-yellow-400 text-sm">This at-bat has been completed. Check the results below!</p>
-          </div>
-        </div>
-      )
-    }
+      </div>
+    )
   }
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 mb-4">
-      <h3 className="text-white text-lg font-semibold mb-4">Make Your Prediction</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-white text-lg font-semibold">Make Your Prediction</h3>
+        {hasAlreadyPredicted && !isWaitingForResolution && (
+          <div className="flex items-center space-x-2 text-green-400 text-sm">
+            <div className="text-green-400">✅</div>
+            <span>Previous at-bat resolved</span>
+          </div>
+        )}
+      </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Step 1: Main Category Selection */}

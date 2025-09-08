@@ -107,12 +107,46 @@ class MLBServiceNew {
       return currentPlay
     }
 
-    // Otherwise, find the most recent at-bat
+    // If no current play, we need to determine the next at-bat
+    // Find all completed plays (those with a result type other than 'at_bat')
     const completedPlays = allPlays.filter(play => 
       play.result.type && play.result.type !== 'at_bat'
     )
     
-    return completedPlays.length > 0 ? completedPlays[completedPlays.length - 1] : null
+    if (completedPlays.length === 0) {
+      return null
+    }
+
+    // Get the most recent completed at-bat
+    const mostRecentCompleted = completedPlays[completedPlays.length - 1]
+    
+    // Check if the game is still live and we should advance to the next at-bat
+    if (game.status?.abstractGameState === 'Live') {
+      // Create a simulated next at-bat based on the most recent completed at-bat
+      const nextAtBatIndex = mostRecentCompleted.about.atBatIndex + 1
+      
+      // Create a simulated at-bat for the next at-bat
+      const simulatedAtBat: MLBPlay = {
+        ...mostRecentCompleted,
+        about: {
+          ...mostRecentCompleted.about,
+          atBatIndex: nextAtBatIndex
+        },
+        result: {
+          type: 'at_bat', // This indicates it's an ongoing at-bat
+          event: 'at_bat',
+          description: 'At-bat in progress',
+          rbi: 0,
+          awayScore: mostRecentCompleted.result.awayScore,
+          homeScore: mostRecentCompleted.result.homeScore
+        }
+      }
+      
+      return simulatedAtBat
+    }
+    
+    // For non-live games, return the most recent completed at-bat
+    return mostRecentCompleted
   }
 
   // Get the most recent completed at-bat (backward compatibility)

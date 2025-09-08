@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType } from '../lib/types'
+import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType, PredictionStats } from '../lib/types'
 import { leaderboardServiceNew } from '../lib/leaderboardService'
+import { predictionServiceNew } from '../lib/predictionService'
 
 interface LeaderboardProps {
   gamePk?: number
@@ -8,6 +9,7 @@ interface LeaderboardProps {
 
 export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardType | null>(null)
+  const [stats, setStats] = useState<PredictionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,7 +29,17 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
       }
     }
 
+    const loadStats = async () => {
+      try {
+        const statsData = await predictionServiceNew.getUserPredictionStats()
+        setStats(statsData)
+      } catch (err) {
+        console.error('Error loading stats:', err)
+      }
+    }
+
     loadLeaderboard()
+    loadStats()
 
     // Subscribe to real-time updates
     const subscription = leaderboardServiceNew.subscribeToLeaderboard(gamePk, (newLeaderboard) => {
@@ -86,24 +98,52 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-white text-lg font-semibold">🏆 Leaderboard</h3>
-        <div className="text-gray-400 text-sm">
-          {gamePk ? 'This Game' : 'All Time'}
+    <div className="space-y-4">
+      {/* User Stats */}
+      {stats && (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <h3 className="text-white text-lg font-semibold mb-4">Your Stats</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-400">{stats.totalPoints}</div>
+              <div className="text-gray-400 text-sm">Points</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-400">{stats.exactPredictions}</div>
+              <div className="text-gray-400 text-sm">Exact (3pts)</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-400">{stats.categoryPredictions}</div>
+              <div className="text-gray-400 text-sm">Category (1pt)</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-400">{stats.streak}</div>
+              <div className="text-gray-400 text-sm">Streak</div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-3">
-        {leaderboard.entries.map((entry, index) => (
-          <LeaderboardEntryComponent key={entry.user_id} entry={entry} rank={index + 1} />
-        ))}
-      </div>
+      {/* Leaderboard */}
+      <div className="bg-gray-800 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white text-lg font-semibold">🏆 Leaderboard</h3>
+          <div className="text-gray-400 text-sm">
+            {gamePk ? 'This Game' : 'All Time'}
+          </div>
+        </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-700 text-center">
-        <p className="text-gray-400 text-sm">
-          {leaderboard.total_users} total players
-        </p>
+        <div className="space-y-3">
+          {leaderboard.entries.map((entry, index) => (
+            <LeaderboardEntryComponent key={entry.user_id} entry={entry} rank={index + 1} />
+          ))}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-700 text-center">
+          <p className="text-gray-400 text-sm">
+            {leaderboard.total_users} total players
+          </p>
+        </div>
       </div>
     </div>
   )
