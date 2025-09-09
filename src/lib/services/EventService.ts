@@ -1,5 +1,4 @@
 import { supabase } from '../../supabaseClient'
-import { gameDataService } from './GameDataService'
 import { gameCacheService } from './GameCacheService'
 import { dataSyncService } from './DataSyncService'
 
