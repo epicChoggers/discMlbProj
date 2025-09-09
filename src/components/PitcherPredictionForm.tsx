@@ -24,6 +24,7 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, game, onPredictionSubmi
   const [isCheckingPrediction, setIsCheckingPrediction] = useState(true)
   
   // Check if game has started (no longer accepting predictions)
+  // Allow predictions during warmup, but not once the game is live, final, or postponed
   const isGameStarted = game?.status?.abstractGameState === 'Live' || 
                        game?.status?.abstractGameState === 'Final' ||
                        game?.status?.abstractGameState === 'Postponed'

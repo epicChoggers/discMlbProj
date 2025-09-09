@@ -295,6 +295,7 @@ async function handleCreatePitcherPrediction(req: VercelRequest, res: VercelResp
     }
 
     // Check if game has started (no longer accepting predictions)
+    // Allow predictions during warmup, but not once the game is live, final, or postponed
     const gameStatus = game.status?.abstractGameState
     if (gameStatus === 'Live' || gameStatus === 'Final' || gameStatus === 'Postponed') {
       res.status(400).json({ 
