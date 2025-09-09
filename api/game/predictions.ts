@@ -116,8 +116,8 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
     const { gamePk, atBatIndex, prediction, predictionCategory } = req.body
 
     // Validate required fields
-    if (!gamePk || atBatIndex === null || atBatIndex === undefined || atBatIndex < 1 || !prediction) {
-      res.status(400).json({ error: 'gamePk, atBatIndex (must be positive), and prediction are required' })
+    if (!gamePk || atBatIndex === null || atBatIndex === undefined || atBatIndex < 0 || !prediction) {
+      res.status(400).json({ error: 'gamePk, atBatIndex (must be non-negative), and prediction are required' })
       return
     }
 

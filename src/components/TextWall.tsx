@@ -89,7 +89,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
       // Create a simulated first at-bat for warmup
       return {
         about: {
-          atBatIndex: 1, // First at-bat
+          atBatIndex: 0, // First at-bat
           inning: 1,
           halfInning: 'Top',
           isComplete: false,
