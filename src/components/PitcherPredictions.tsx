@@ -47,21 +47,7 @@ export const PitcherPredictions = ({ gamePk, game }: PitcherPredictionsProps) =>
     setRefreshKey(prev => prev + 1)
   }
 
-  const handleManualResolution = async () => {
-    if (!gamePk) return
-    
-    try {
-      console.log('Manually triggering pitcher prediction resolution...')
-      const { dataSyncService } = await import('../lib/services/DataSyncService')
-      await dataSyncService.resolvePredictions(gamePk)
-      
-      // Trigger a refresh of the results
-      setRefreshKey(prev => prev + 1)
-      console.log('Pitcher prediction resolution completed')
-    } catch (error) {
-      console.error('Error manually resolving pitcher predictions:', error)
-    }
-  }
+  // Manual resolution removed - now handled automatically by backend
 
   // Only show full loading state on initial load
   if (isLoading && !hasInitiallyLoaded) {
@@ -146,14 +132,7 @@ export const PitcherPredictions = ({ gamePk, game }: PitcherPredictionsProps) =>
           <div className="text-right">
             <div className="text-white font-medium">{pitcher.fullName}</div>
             <div className="text-gray-400 text-sm">#{pitcher.primaryNumber}</div>
-            {gamePk && (
-              <button
-                onClick={handleManualResolution}
-                className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
-              >
-                Resolve Predictions
-              </button>
-            )}
+            {/* Manual resolution button removed - now handled automatically by backend */}
           </div>
         </div>
       </div>

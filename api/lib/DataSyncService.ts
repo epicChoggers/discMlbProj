@@ -1,10 +1,6 @@
-import { supabase } from '../../supabaseClient'
-import { gameDataService } from './GameDataService'
-import { gameCacheService } from './GameCacheService'
-import { predictionServiceNew } from '../predictionService'
-import { pitcherStatsService } from './PitcherStatsService'
-import { pitcherSubstitutionService } from './PitcherSubstitutionService'
-import { pitcherPredictionService } from '../pitcherPredictionService'
+import { supabase } from './supabase.js'
+import { gameDataService } from './gameDataService.js'
+import { gameCacheService } from './gameCacheService.js'
 
 export interface SyncResult {
   success: boolean
@@ -24,29 +20,29 @@ export class DataSyncService {
   // Start the data synchronization service
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.log('Data sync service is already running')
+      console.log('Backend data sync service is already running')
       return
     }
 
     this.isRunning = true
-    console.log('Starting frontend data sync service (prediction resolution now handled by backend)...')
+    console.log('Starting backend data sync service...')
 
     // Initial sync
     await this.performFullSync()
 
-    // Set up periodic sync (every 10 seconds)
+    // Set up periodic sync (every 10 seconds to match frontend)
     this.syncInterval = setInterval(async () => {
       if (!this.isRunning) return
       
       try {
         await this.performIncrementalSync()
       } catch (error) {
-        console.error('Error in periodic sync:', error)
+        console.error('Error in backend periodic sync:', error)
         await this.logSyncError(0, 'incremental', error as Error)
       }
     }, 10000)
 
-    console.log('Frontend data sync service started successfully')
+    console.log('Backend data sync service started successfully')
   }
 
   // Stop the data synchronization service
@@ -58,7 +54,7 @@ export class DataSyncService {
       this.syncInterval = null
     }
     
-    console.log('Data sync service stopped')
+    console.log('Backend data sync service stopped')
   }
 
   // Perform a full synchronization
@@ -67,27 +63,27 @@ export class DataSyncService {
     const startTime = Date.now()
 
     try {
-      console.log('Starting full sync...')
+      console.log('Starting backend full sync...')
 
       // 1. Sync game state
       const gameStateResult = await this.syncGameState()
       results.push(gameStateResult)
 
-      // 2. If we have a live game, sync at-bats (prediction resolution handled by backend)
+      // 2. If we have a live game, sync at-bats and resolve predictions
       if (gameStateResult.success && gameStateResult.gamePk) {
         const atBatResult = await this.syncAtBats(gameStateResult.gamePk)
         results.push(atBatResult)
 
-        // Note: Prediction resolution is now handled by backend DataSyncService
-        // No need to call resolvePredictions here
+        const predictionResult = await this.resolvePredictions(gameStateResult.gamePk)
+        results.push(predictionResult)
       }
 
       const totalDuration = Date.now() - startTime
-      console.log(`Full sync completed in ${totalDuration}ms`)
+      console.log(`Backend full sync completed in ${totalDuration}ms`)
 
       return results
     } catch (error) {
-      console.error('Error in full sync:', error)
+      console.error('Error in backend full sync:', error)
       await this.logSyncError(0, 'full_sync', error as Error)
       throw error
     }
@@ -99,7 +95,7 @@ export class DataSyncService {
 
     try {
       // Check if we have a live game
-      const cachedGame = await gameCacheService.getMostRecentCachedGame()
+      const cachedGame = await gameCacheService.getCachedGameState()
       
       if (!cachedGame || !cachedGame.is_live) {
         // No live game, just sync game state
@@ -108,10 +104,10 @@ export class DataSyncService {
         return results
       }
 
-      // We have a live game, perform full sync (prediction resolution handled by backend)
+      // We have a live game, perform full sync
       return await this.performFullSync()
     } catch (error) {
-      console.error('Error in incremental sync:', error)
+      console.error('Error in backend incremental sync:', error)
       await this.logSyncError(0, 'incremental', error as Error)
       return results
     }
@@ -186,13 +182,8 @@ export class DataSyncService {
     try {
       console.log(`Syncing at-bats for game ${gamePk}...`)
 
-      // Get fresh game data through our API endpoint
-      const gameStateResponse = await fetch('/api/game/state')
-      if (!gameStateResponse.ok) {
-        throw new Error(`Failed to fetch game state: ${gameStateResponse.status}`)
-      }
-      const gameStateData = await gameStateResponse.json()
-      const game = gameStateData.game
+      // Get fresh game data
+      const game = await gameDataService.getTodaysMarinersGame()
       
       if (!game || !game.liveData?.plays?.allPlays) {
         const result: SyncResult = {
@@ -247,13 +238,8 @@ export class DataSyncService {
     try {
       console.log(`Resolving predictions for game ${gamePk}...`)
 
-      // Get fresh game data through our API endpoint
-      const gameStateResponse = await fetch('/api/game/state')
-      if (!gameStateResponse.ok) {
-        throw new Error(`Failed to fetch game state: ${gameStateResponse.status}`)
-      }
-      const gameStateData = await gameStateResponse.json()
-      const game = gameStateData.game
+      // Get fresh game data
+      const game = await gameDataService.getTodaysMarinersGame()
       
       if (!game) {
         const result: SyncResult = {
@@ -270,6 +256,9 @@ export class DataSyncService {
         return result
       }
 
+      // Import and use the prediction service for resolution
+      const { predictionServiceNew } = await import('./predictionService.js')
+      
       // Auto-resolve all completed at-bats
       await predictionServiceNew.autoResolveAllCompletedAtBats(gamePk, game)
 
@@ -377,113 +366,15 @@ export class DataSyncService {
     }
   }
 
-  // Get sync statistics
-  async getSyncStats(timeframe: string = '24h'): Promise<any> {
-    try {
-      const timeFilter = this.getTimeFilter(timeframe)
-      
-      const { data: syncLogs, error } = await supabase
-        .from('game_sync_log')
-        .select('sync_type, status, sync_duration_ms, data_size')
-        .gte('created_at', timeFilter)
-
-      if (error) {
-        throw error
-      }
-
-      const totalSyncs = syncLogs.length
-      const successfulSyncs = syncLogs.filter(s => s.status === 'success').length
-      const averageDuration = syncLogs.length > 0 
-        ? syncLogs.reduce((sum, s) => sum + (s.sync_duration_ms || 0), 0) / syncLogs.length 
-        : 0
-      const totalDataSize = syncLogs.reduce((sum, s) => sum + (s.data_size || 0), 0)
-
-      return {
-        totalSyncs,
-        successfulSyncs,
-        successRate: totalSyncs > 0 ? (successfulSyncs / totalSyncs) * 100 : 0,
-        averageDuration,
-        totalDataSize,
-        syncsByType: this.groupSyncsByType(syncLogs)
-      }
-    } catch (error) {
-      console.error('Error getting sync stats:', error)
-      return {
-        totalSyncs: 0,
-        successfulSyncs: 0,
-        successRate: 0,
-        averageDuration: 0,
-        totalDataSize: 0,
-        syncsByType: {}
-      }
-    }
-  }
-
-  // Group syncs by type
-  private groupSyncsByType(syncLogs: any[]): Record<string, any> {
-    const grouped: Record<string, any> = {}
-    
-    syncLogs.forEach(sync => {
-      if (!grouped[sync.sync_type]) {
-        grouped[sync.sync_type] = {
-          total: 0,
-          successful: 0,
-          averageDuration: 0
-        }
-      }
-      
-      grouped[sync.sync_type].total++
-      if (sync.status === 'success') {
-        grouped[sync.sync_type].successful++
-      }
-    })
-
-    // Calculate averages
-    Object.keys(grouped).forEach(type => {
-      const typeSyncs = syncLogs.filter(s => s.sync_type === type)
-      grouped[type].averageDuration = typeSyncs.length > 0
-        ? typeSyncs.reduce((sum, s) => sum + (s.sync_duration_ms || 0), 0) / typeSyncs.length
-        : 0
-    })
-
-    return grouped
-  }
-
-  // Get time filter for queries
-  private getTimeFilter(timeframe: string): string {
-    const now = new Date()
-    let hoursBack = 24 // Default to 24 hours
-
-    switch (timeframe) {
-      case '1h': hoursBack = 1; break
-      case '6h': hoursBack = 6; break
-      case '12h': hoursBack = 12; break
-      case '24h': hoursBack = 24; break
-      case '7d': hoursBack = 24 * 7; break
-      case '30d': hoursBack = 24 * 30; break
-    }
-
-    const filterDate = new Date(now.getTime() - (hoursBack * 60 * 60 * 1000))
-    return filterDate.toISOString()
-  }
-
-  // Check if service is running
-  isServiceRunning(): boolean {
-    return this.isRunning
-  }
-
-  // Force a sync (useful for testing or manual triggers)
-  async forceSync(): Promise<SyncResult[]> {
-    console.log('Force sync triggered')
-    return await this.performFullSync()
-  }
-
   // Resolve pitcher predictions for a specific game
   private async resolvePitcherPredictions(gamePk: number, gameData: any): Promise<void> {
     try {
       console.log(`Checking pitcher predictions for game ${gamePk}...`)
-      console.log('Game status:', gameData?.status?.abstractGameState || gameData?.gameData?.status?.abstractGameState)
-      console.log('Game detailed status:', gameData?.status?.detailedState || gameData?.gameData?.status?.detailedState)
+      
+      // Import pitcher services
+      const { pitcherStatsService } = await import('./pitcherStatsService.js')
+      const { pitcherSubstitutionService } = await import('./pitcherSubstitutionService.js')
+      const { pitcherPredictionService } = await import('./pitcherPredictionService.js')
 
       // Check if we should resolve pitcher predictions
       const shouldResolve = pitcherSubstitutionService.shouldResolveStartingPitcherPredictions(gameData)
@@ -610,6 +501,17 @@ export class DataSyncService {
     } catch (error) {
       console.error('Error logging pitcher prediction resolution:', error)
     }
+  }
+
+  // Check if service is running
+  isServiceRunning(): boolean {
+    return this.isRunning
+  }
+
+  // Force a sync (useful for testing or manual triggers)
+  async forceSync(): Promise<SyncResult[]> {
+    console.log('Force sync triggered')
+    return await this.performFullSync()
   }
 }
 

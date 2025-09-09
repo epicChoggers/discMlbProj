@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js'
 import { gameCacheService } from './gameCacheService.js'
 import { gameDataService } from './gameDataService.js'
+import { dataSyncService } from './DataSyncService'
 
 export interface EventJobConfig {
   name: string
@@ -43,10 +44,16 @@ export class EventService {
   async start(): Promise<void> {
     if (this.isRunning) return
     this.isRunning = true
+    
+    // Start the data sync service for automatic prediction resolution
+    await dataSyncService.start()
   }
 
   stop(): void {
     this.isRunning = false
+    
+    // Stop the data sync service
+    dataSyncService.stop()
   }
 
   getJobStatus(): Record<string, any> {
@@ -96,8 +103,7 @@ export class EventService {
         }
       }
 
-      // Import and use the data sync service for resolution
-      const { dataSyncService } = await import('./DataSyncService.js')
+      // Use the data sync service for resolution
       const result = await dataSyncService.resolvePredictions(gameState.game.gamePk)
       
       console.log(`Server-side resolution completed: ${result.predictionsResolved} predictions resolved, ${result.pointsAwarded} points awarded`)

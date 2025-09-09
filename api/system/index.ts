@@ -54,8 +54,9 @@ async function handleStartup(req: VercelRequest, res: VercelResponse) {
 
   console.log('Starting sync service on startup...')
   try {
-    const { eventService } = await import('../lib/EventService.ts')
+    const { eventService } = await import('../lib/EventService.js')
     await eventService.start()
+    console.log('EventService started with automatic prediction resolution')
   } catch (e) {
     res.status(500).json({ success: false, error: 'ImportError: EventService', message: (e as any)?.message, stack: (e as any)?.stack })
     return

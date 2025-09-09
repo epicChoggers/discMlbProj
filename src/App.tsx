@@ -15,7 +15,7 @@ function App() {
         const isLocalDev = import.meta.env.DEV && import.meta.env.VITE_LOCAL_BYPASS_AUTH === 'true'
         
         if (isLocalDev) {
-          console.log('Local development mode detected - bypassing authentication')
+          // console.log('Local development mode detected - bypassing authentication')
           
           // Try to sign in with admin credentials for local development
           const adminEmail = import.meta.env.VITE_ADMIN_EMAIL
@@ -29,24 +29,24 @@ function App() {
               })
               
               if (error) {
-                console.warn('Admin login failed, falling back to normal auth:', error.message)
+                // console.warn('Admin login failed, falling back to normal auth:', error.message)
               } else if (data.session) {
-                console.log('Successfully authenticated as admin:', data.session.user?.email)
+                // console.log('Successfully authenticated as admin:', data.session.user?.email)
                 setIsAuthenticated(true)
                 setIsLoading(false)
                 return
               }
             } catch (err) {
-              console.warn('Admin authentication error, falling back to normal auth:', err)
+              // console.warn('Admin authentication error, falling back to normal auth:', err)
             }
           } else {
-            console.warn('Admin credentials not configured, falling back to normal auth')
+            // console.warn('Admin credentials not configured, falling back to normal auth')
           }
         }
 
         // Check if we have auth tokens in the URL hash
         if (window.location.hash.includes('access_token')) {
-          console.log('Found auth tokens in URL hash, processing...')
+          // console.log('Found auth tokens in URL hash, processing...')
           
           // Parse the URL hash manually to extract tokens
           const hashParams = new URLSearchParams(window.location.hash.substring(1))
@@ -54,16 +54,16 @@ function App() {
           const refreshToken = hashParams.get('refresh_token')
           
           if (accessToken && refreshToken) {
-            console.log('Setting session with tokens...')
+            // console.log('Setting session with tokens...')
             const { data, error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
             })
             
             if (error) {
-              console.error('Error setting session:', error)
+              // console.error('Error setting session:', error)
             } else if (data.session) {
-              console.log('Successfully set session:', data.session.user?.email)
+              // console.log('Successfully set session:', data.session.user?.email)
               setIsAuthenticated(true)
               setIsLoading(false)
               // Clear the URL hash after successful authentication
@@ -74,10 +74,10 @@ function App() {
         }
 
         const session = await getCurrentSession()
-        console.log('Initial session check:', session?.user?.email)
+        // console.log('Initial session check:', session?.user?.email)
         setIsAuthenticated(!!session)
       } catch (error) {
-        console.error('Error checking authentication:', error)
+        // console.error('Error checking authentication:', error)
         setIsAuthenticated(false)
       } finally {
         setIsLoading(false)
@@ -89,7 +89,7 @@ function App() {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email)
+        // console.log('Auth state changed:', event, session?.user?.email)
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setIsAuthenticated(true)
         } else if (event === 'SIGNED_OUT') {
