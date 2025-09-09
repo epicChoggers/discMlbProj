@@ -210,14 +210,8 @@ export class DataSyncService {
       const { allPlays } = game.liveData.plays
       let syncedCount = 0
 
-      // Cache each at-bat
-      for (const play of allPlays) {
-        const atBatIndex = play.about?.atBatIndex
-        if (atBatIndex !== undefined) {
-          await gameCacheService.cacheAtBat(gamePk, atBatIndex, play)
-          syncedCount++
-        }
-      }
+      // Count plays for logging
+      syncedCount = allPlays.length
 
       const result: SyncResult = {
         success: true,
