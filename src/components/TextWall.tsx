@@ -112,7 +112,8 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
             },
             primaryPosition: {
               code: 'UN',
-              name: 'Unknown'
+              name: 'Unknown',
+              type: 'Unknown'
             }
           },
           pitcher: {
@@ -127,7 +128,8 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
             },
             primaryPosition: {
               code: 'P',
-              name: 'Pitcher'
+              name: 'Pitcher',
+              type: 'Pitcher'
             }
           },
           batSide: {
@@ -146,7 +148,8 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           rbi: 0,
           awayScore: 0,
           homeScore: 0
-        }
+        },
+        playEvents: []
       }
     }
 
