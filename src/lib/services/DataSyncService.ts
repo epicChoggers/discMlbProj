@@ -24,12 +24,12 @@ export class DataSyncService {
   // Start the data synchronization service
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.log('Data sync service is already running')
+      // console.log('Data sync service is already running')
       return
     }
 
     this.isRunning = true
-    console.log('Starting frontend data sync service (prediction resolution now handled by backend)...')
+    // console.log('Starting frontend data sync service (prediction resolution now handled by backend)...')
 
     // Initial sync
     await this.performFullSync()
@@ -41,12 +41,12 @@ export class DataSyncService {
       try {
         await this.performIncrementalSync()
       } catch (error) {
-        console.error('Error in periodic sync:', error)
+        // console.error('Error in periodic sync:', error)
         await this.logSyncError(0, 'incremental', error as Error)
       }
     }, 10000)
 
-    console.log('Frontend data sync service started successfully')
+    // console.log('Frontend data sync service started successfully')
   }
 
   // Stop the data synchronization service
@@ -58,7 +58,7 @@ export class DataSyncService {
       this.syncInterval = null
     }
     
-    console.log('Data sync service stopped')
+    // console.log('Data sync service stopped')
   }
 
   // Perform a full synchronization
@@ -67,7 +67,7 @@ export class DataSyncService {
     const startTime = Date.now()
 
     try {
-      console.log('Starting full sync...')
+      // console.log('Starting full sync...')
 
       // 1. Sync game state
       const gameStateResult = await this.syncGameState()
@@ -83,11 +83,11 @@ export class DataSyncService {
       }
 
       const totalDuration = Date.now() - startTime
-      console.log(`Full sync completed in ${totalDuration}ms`)
+      // console.log(`Full sync completed in ${totalDuration}ms`)
 
       return results
     } catch (error) {
-      console.error('Error in full sync:', error)
+      // console.error('Error in full sync:', error)
       await this.logSyncError(0, 'full_sync', error as Error)
       throw error
     }
@@ -111,7 +111,7 @@ export class DataSyncService {
       // We have a live game, perform full sync (prediction resolution handled by backend)
       return await this.performFullSync()
     } catch (error) {
-      console.error('Error in incremental sync:', error)
+      // console.error('Error in incremental sync:', error)
       await this.logSyncError(0, 'incremental', error as Error)
       return results
     }
@@ -122,7 +122,7 @@ export class DataSyncService {
     const startTime = Date.now()
     
     try {
-      console.log('Syncing game state...')
+      // console.log('Syncing game state...')
 
       // Get fresh game data from MLB API
       const game = await gameDataService.getTodaysMarinersGame()
@@ -161,7 +161,7 @@ export class DataSyncService {
       }
 
       await this.logSyncSuccess(game.gamePk, 'game_state', result)
-      console.log(`Game state synced for game ${game.gamePk}`)
+      // console.log(`Game state synced for game ${game.gamePk}`)
       
       return result
     } catch (error) {
@@ -184,7 +184,7 @@ export class DataSyncService {
     const startTime = Date.now()
     
     try {
-      console.log(`Syncing at-bats for game ${gamePk}...`)
+      // console.log(`Syncing at-bats for game ${gamePk}...`)
 
       // Get fresh game data through our API endpoint
       const gameStateResponse = await fetch('/api/game/state')
@@ -222,7 +222,7 @@ export class DataSyncService {
       }
 
       await this.logSyncSuccess(gamePk, 'at_bats', result)
-      console.log(`Synced ${syncedCount} at-bats for game ${gamePk}`)
+      // console.log(`Synced ${syncedCount} at-bats for game ${gamePk}`)
       
       return result
     } catch (error) {
@@ -245,7 +245,7 @@ export class DataSyncService {
     const startTime = Date.now()
     
     try {
-      console.log(`Resolving predictions for game ${gamePk}...`)
+      // console.log(`Resolving predictions for game ${gamePk}...`)
 
       // Get fresh game data through our API endpoint
       const gameStateResponse = await fetch('/api/game/state')
@@ -298,7 +298,7 @@ export class DataSyncService {
       }
 
       await this.logPredictionResolution(gamePk, 0, 'batch', predictionsResolved, pointsAwarded, Date.now() - startTime)
-      console.log(`Resolved ${predictionsResolved} predictions for game ${gamePk}`)
+      // console.log(`Resolved ${predictionsResolved} predictions for game ${gamePk}`)
       
       return result
     } catch (error) {
@@ -331,7 +331,7 @@ export class DataSyncService {
           sync_duration_ms: result.duration
         }])
     } catch (error) {
-      console.error('Error logging sync success:', error)
+      // console.error('Error logging sync success:', error)
     }
   }
 
@@ -348,7 +348,7 @@ export class DataSyncService {
           sync_duration_ms: 0
         }])
     } catch (logError) {
-      console.error('Error logging sync error:', logError)
+      // console.error('Error logging sync error:', logError)
     }
   }
 
@@ -373,7 +373,7 @@ export class DataSyncService {
           resolution_duration_ms: duration
         }])
     } catch (error) {
-      console.error('Error logging prediction resolution:', error)
+      // console.error('Error logging prediction resolution:', error)
     }
   }
 
@@ -407,7 +407,7 @@ export class DataSyncService {
         syncsByType: this.groupSyncsByType(syncLogs)
       }
     } catch (error) {
-      console.error('Error getting sync stats:', error)
+      // console.error('Error getting sync stats:', error)
       return {
         totalSyncs: 0,
         successfulSyncs: 0,
@@ -474,7 +474,7 @@ export class DataSyncService {
 
   // Force a sync (useful for testing or manual triggers)
   async forceSync(): Promise<SyncResult[]> {
-    console.log('Force sync triggered')
+    // console.log('Force sync triggered')
     return await this.performFullSync()
   }
 
