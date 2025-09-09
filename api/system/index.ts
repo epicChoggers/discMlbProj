@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { eventService } from '../../src/lib/services/EventService'
+import { eventService } from '../lib/EventService.js'
 import { supabase } from '../lib/supabase.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -43,7 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 // Startup handler
 async function handleStartup(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
+  // Accept POST for production; allow GET for quick health/debug
+  if (req.method !== 'POST' && req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' })
     return
   }
@@ -285,7 +286,7 @@ async function handleStats(req: VercelRequest, res: VercelResponse) {
     console.log('Stats request:', { includeDetails })
 
     // Get basic stats
-    const stats = {
+    const stats: any = {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
