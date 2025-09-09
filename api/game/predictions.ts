@@ -43,6 +43,7 @@ async function handleGetPredictions(req: VercelRequest, res: VercelResponse) {
       .eq('game_pk', targetGamePk)
 
     if (targetAtBatIndex !== undefined) {
+      console.log(`Filtering by at_bat_index = ${targetAtBatIndex}`)
       query = query.eq('at_bat_index', targetAtBatIndex)
     }
 
@@ -56,6 +57,16 @@ async function handleGetPredictions(req: VercelRequest, res: VercelResponse) {
 
     if (error) {
       throw error
+    }
+
+    console.log(`Found ${data?.length || 0} predictions for gamePk=${targetGamePk}, atBatIndex=${targetAtBatIndex}`)
+    if (data && data.length > 0) {
+      console.log('Prediction details:', data.map(p => ({
+        id: p.id,
+        at_bat_index: p.at_bat_index,
+        prediction: p.prediction,
+        user_id: p.user_id
+      })))
     }
 
     // Transform the data to match our AtBatPrediction interface

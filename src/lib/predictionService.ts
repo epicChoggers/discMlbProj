@@ -567,6 +567,13 @@ export class PredictionServiceNew {
         play.result.type && play.result.type !== 'at_bat'
       )
       
+      // Sort completed plays by atBatIndex to ensure chronological order
+      completedPlays.sort((a: any, b: any) => {
+        const aIndex = a.about?.atBatIndex ?? 0
+        const bIndex = b.about?.atBatIndex ?? 0
+        return aIndex - bIndex
+      })
+      
       // Filter out already resolved at-bats using cache
       const unresolvedPlays = completedPlays.filter((play: any) => {
         const atBatIndex = play.about?.atBatIndex
@@ -574,6 +581,13 @@ export class PredictionServiceNew {
       })
       
       console.log(`Found ${completedPlays.length} completed plays, ${unresolvedPlays.length} need resolution`)
+      
+      // Log the order of plays being processed
+      console.log('Plays to be processed in order:', unresolvedPlays.map((play: any) => ({
+        atBatIndex: play.about?.atBatIndex,
+        description: play.result?.description,
+        event: play.result?.event
+      })))
 
       // Process only unresolved plays
       for (const play of unresolvedPlays) {
@@ -581,6 +595,14 @@ export class PredictionServiceNew {
         if (atBatIndex === undefined) {
           continue
         }
+        
+        console.log(`\n=== Processing at-bat ${atBatIndex} ===`)
+        console.log(`Play data:`, {
+          atBatIndex: play.about?.atBatIndex,
+          result: play.result,
+          description: play.result?.description,
+          event: play.result?.event
+        })
 
         // Double-check with database (cache might be stale)
         const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
@@ -593,6 +615,12 @@ export class PredictionServiceNew {
         }
 
         console.log(`Resolving ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
+        console.log(`Predictions to resolve:`, unresolvedPredictions.map(p => ({
+          id: p.id,
+          userId: p.userId,
+          prediction: p.prediction,
+          category: p.predictionCategory
+        })))
 
         // Extract outcome from the completed play
         const actualOutcome = this.extractOutcomeFromPlay(play)
