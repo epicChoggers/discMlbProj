@@ -101,11 +101,21 @@ export class DataSyncService {
         // No live game, just sync game state
         const gameStateResult = await this.syncGameState()
         results.push(gameStateResult)
+        
+        // Still call resolve-predictions even when no live game
+        // in case there are predictions from previous games to resolve
+        await this.callResolvePredictionsAPI()
+        
         return results
       }
 
       // We have a live game, perform full sync
-      return await this.performFullSync()
+      const fullSyncResults = await this.performFullSync()
+      
+      // Also call the resolve-predictions API endpoint
+      await this.callResolvePredictionsAPI()
+      
+      return fullSyncResults
     } catch (error) {
       // console.error('Error in backend incremental sync:', error)
       await this.logSyncError(0, 'incremental', error as Error)
@@ -512,6 +522,34 @@ export class DataSyncService {
   async forceSync(): Promise<SyncResult[]> {
     // console.log('Force sync triggered')
     return await this.performFullSync()
+  }
+
+  // Call the resolve-predictions API endpoint
+  private async callResolvePredictionsAPI(): Promise<void> {
+    try {
+      // console.log('Calling resolve-predictions API...')
+      
+      const response = await fetch('https://www.choggers.com/api/resolve-predictions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        console.error(`Resolve-predictions API call failed: ${response.status} ${response.statusText}`)
+        return
+      }
+
+      const result = await response.json()
+      // console.log('Resolve-predictions API response:', result)
+      
+      if (result.success && result.resolved > 0) {
+        console.log(`Resolved ${result.resolved} predictions via API, ${result.pointsAwarded || 0} points awarded`)
+      }
+    } catch (error) {
+      console.error('Error calling resolve-predictions API:', error)
+    }
   }
 }
 

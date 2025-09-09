@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js'
 import { gameCacheService } from './gameCacheService.js'
 import { gameDataService } from './gameDataService.js'
-// import { dataSyncService } from './DataSyncService.js'
+import { dataSyncService } from './DataSyncService.js'
 
 export interface EventJobConfig {
   name: string
@@ -46,14 +46,14 @@ export class EventService {
     this.isRunning = true
     
     // Start the data sync service for automatic prediction resolution
-    // await dataSyncService.start()
+    await dataSyncService.start()
   }
 
   stop(): void {
     this.isRunning = false
     
     // Stop the data sync service
-    // dataSyncService.stop()
+    dataSyncService.stop()
   }
 
   getJobStatus(): Record<string, any> {
