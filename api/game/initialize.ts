@@ -13,6 +13,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  if (req.method === 'GET') {
+    // Allow GET for testing
+    res.status(200).json({ 
+      message: 'Use POST to initialize game data',
+      example: 'POST /api/game/initialize'
+    })
+    return
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return
