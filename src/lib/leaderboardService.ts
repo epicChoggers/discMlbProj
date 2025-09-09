@@ -24,7 +24,7 @@ export class LeaderboardServiceNew {
   // Get leaderboard data using the unified API
   async getLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
     try {
-      let url = `${this.apiBaseUrl}/leaderboard?limit=${limit}`
+      let url = `${this.apiBaseUrl}/game?action=leaderboard&limit=${limit}`
       if (gamePk) {
         url += `&gamePk=${gamePk}`
       }
@@ -125,7 +125,7 @@ export class LeaderboardServiceNew {
         params.append('minAccuracy', filters.minAccuracy.toString())
       }
 
-      const url = `${this.apiBaseUrl}/leaderboard?${params.toString()}`
+      const url = `${this.apiBaseUrl}/game?action=leaderboard&${params.toString()}`
       console.log('Fetching filtered leaderboard:', url)
 
       const response = await fetch(url)
@@ -241,7 +241,7 @@ export class LeaderboardServiceNew {
   // Refresh leaderboard (force update)
   async refreshLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
     try {
-      let url = `${this.apiBaseUrl}/leaderboard?limit=${limit}&refresh=true`
+      let url = `${this.apiBaseUrl}/game?action=leaderboard&limit=${limit}&refresh=true`
       if (gamePk) {
         url += `&gamePk=${gamePk}`
       }

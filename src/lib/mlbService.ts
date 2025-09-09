@@ -20,7 +20,7 @@ class MLBServiceNew {
     }
     
     // Use full URL in production, relative URL in development
-    this.apiBaseUrl = this.isDevelopment ? '/api/game' : `${window.location.origin}/api/game`
+    this.apiBaseUrl = this.isDevelopment ? '/api' : `${window.location.origin}/api`
     console.log(`MLB Service (New) initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
@@ -29,7 +29,7 @@ class MLBServiceNew {
     try {
       console.log('Fetching game state from unified API...')
       
-      const response = await fetch(`${this.apiBaseUrl}/state`)
+      const response = await fetch(`${this.apiBaseUrl}/game?action=state`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)

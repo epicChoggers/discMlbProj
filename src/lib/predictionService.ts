@@ -43,7 +43,7 @@ export class PredictionServiceNew {
         return false
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}&atBatIndex=${atBatIndex}&userId=${user.id}`)
+      const response = await fetch(`${this.apiBaseUrl}/game?action=predictions&gamePk=${gamePk}&atBatIndex=${atBatIndex}&userId=${user.id}`)
       
       if (!response.ok) {
         console.error('Error checking existing prediction:', response.statusText)
@@ -94,7 +94,7 @@ export class PredictionServiceNew {
         throw new Error('No valid session found')
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/predictions`, {
+      const response = await fetch(`${this.apiBaseUrl}/game?action=predictions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ export class PredictionServiceNew {
   // Get predictions for a specific at-bat using the unified API
   async getAtBatPredictions(gamePk: number, atBatIndex: number): Promise<AtBatPrediction[]> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}&atBatIndex=${atBatIndex}`)
+      const response = await fetch(`${this.apiBaseUrl}/game?action=predictions&gamePk=${gamePk}&atBatIndex=${atBatIndex}`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -148,7 +148,7 @@ export class PredictionServiceNew {
         return []
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}&userId=${user.id}`)
+      const response = await fetch(`${this.apiBaseUrl}/game?action=predictions&gamePk=${gamePk}&userId=${user.id}`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -165,7 +165,7 @@ export class PredictionServiceNew {
   // Get all predictions for a game using the unified API
   async getAllGamePredictions(gamePk: number): Promise<AtBatPrediction[]> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/predictions?gamePk=${gamePk}`)
+      const response = await fetch(`${this.apiBaseUrl}/game?action=predictions&gamePk=${gamePk}`)
       
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`)

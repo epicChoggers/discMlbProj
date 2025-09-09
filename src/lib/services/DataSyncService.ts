@@ -186,7 +186,7 @@ export class DataSyncService {
       // console.log(`Syncing at-bats for game ${gamePk}...`)
 
       // Get fresh game data through our API endpoint
-      const gameStateResponse = await fetch('/api/game/state')
+      const gameStateResponse = await fetch('/api/game?action=state')
       if (!gameStateResponse.ok) {
         throw new Error(`Failed to fetch game state: ${gameStateResponse.status}`)
       }
@@ -247,7 +247,7 @@ export class DataSyncService {
       // console.log(`Resolving predictions for game ${gamePk}...`)
 
       // Get fresh game data through our API endpoint
-      const gameStateResponse = await fetch('/api/game/state')
+      const gameStateResponse = await fetch('/api/game?action=state')
       if (!gameStateResponse.ok) {
         throw new Error(`Failed to fetch game state: ${gameStateResponse.status}`)
       }

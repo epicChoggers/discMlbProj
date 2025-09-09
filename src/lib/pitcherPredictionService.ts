@@ -32,7 +32,7 @@ class PitcherPredictionService {
         params.append('pitcherId', pitcherId.toString())
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions?${params}`)
+      const response = await fetch(`${this.apiBaseUrl}/game?action=pitcher-predictions&${params}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -59,7 +59,7 @@ class PitcherPredictionService {
         params.append('gamePk', gamePk.toString())
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions?${params}`)
+      const response = await fetch(`${this.apiBaseUrl}/game?action=pitcher-predictions&${params}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -103,7 +103,7 @@ class PitcherPredictionService {
         actualGamePk = game.gamePk
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions`, {
+      const response = await fetch(`${this.apiBaseUrl}/game?action=pitcher-predictions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +156,7 @@ class PitcherPredictionService {
         throw new Error('User not authenticated')
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/pitcher-predictions`, {
+      const response = await fetch(`${this.apiBaseUrl}/game?action=pitcher-predictions`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -212,7 +212,7 @@ class PitcherPredictionService {
   async getPitcherInfo(): Promise<any> {
     try {
       // Use the updated endpoint that doesn't require gamePk parameter
-      const url = `${this.apiBaseUrl}/pitcher-predictions?action=info`
+      const url = `${this.apiBaseUrl}/game?action=pitcher-info`
       
       const response = await fetch(url)
       
@@ -237,7 +237,7 @@ class PitcherPredictionService {
   async getPitcherInfoWithGame(): Promise<{ pitcher: any; game: any }> {
     try {
       // Use the updated endpoint that doesn't require gamePk parameter
-      const url = `${this.apiBaseUrl}/pitcher-predictions?action=info`
+      const url = `${this.apiBaseUrl}/game?action=pitcher-info`
       
       const response = await fetch(url)
       
