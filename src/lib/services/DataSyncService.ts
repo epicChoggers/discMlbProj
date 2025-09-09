@@ -64,7 +64,6 @@ export class DataSyncService {
   // Perform a full synchronization
   async performFullSync(): Promise<SyncResult[]> {
     const results: SyncResult[] = []
-    const startTime = Date.now()
 
     try {
       // console.log('Starting full sync...')
