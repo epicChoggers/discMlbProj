@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 
 export class GameCacheService {
   private readonly GAME_STATE_TTL = 10000 // 10 seconds for live games
