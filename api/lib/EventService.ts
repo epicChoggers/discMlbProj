@@ -91,9 +91,57 @@ export class EventService {
     }
   }
 
+  async triggerAtBatSync(): Promise<EventJobResult> {
+    const start = Date.now()
+    try {
+      const game = await gameDataService.getTodaysMarinersGame()
+      if (!game) {
+        return { success: false, duration: Date.now() - start, error: 'No Mariners game found' }
+      }
+
+      // Get detailed game data
+      const detailedGame = await gameDataService.getGameDetails(game.gamePk)
+      if (!detailedGame) {
+        return { success: false, duration: Date.now() - start, error: 'Could not fetch detailed game data' }
+      }
+
+      // Get all plays and cache them
+      const plays = gameDataService.getGamePlays(detailedGame)
+      let syncedCount = 0
+      const errors: string[] = []
+
+      if (plays && plays.length > 0) {
+        for (const play of plays) {
+          if (play.about?.atBatIndex !== undefined) {
+            try {
+              await (gameCacheService as any).cacheAtBat(game.gamePk, play.about.atBatIndex, play)
+              syncedCount++
+            } catch (error) {
+              errors.push(`Failed to cache at-bat ${play.about.atBatIndex}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            }
+          }
+        }
+      }
+
+      return { 
+        success: true, 
+        duration: Date.now() - start, 
+        data: { 
+          gamePk: game.gamePk,
+          syncedAtBats: syncedCount,
+          totalPlays: plays?.length || 0,
+          errors: errors.length > 0 ? errors : undefined
+        } 
+      }
+    } catch (error) {
+      return { success: false, duration: Date.now() - start, error: (error as Error).message }
+    }
+  }
+
   async triggerAllEventDrivenJobs(): Promise<Record<string, EventJobResult>> {
     const results: Record<string, EventJobResult> = {}
     results.game_state_sync = await this.triggerGameStateSync()
+    results.at_bat_sync = await this.triggerAtBatSync()
     results.prediction_resolution = await this.triggerPredictionResolution()
     return results
   }

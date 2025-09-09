@@ -115,6 +115,18 @@ export class GameDataService {
     return null
   }
 
+  // Get all plays from a game
+  getGamePlays(game: any): any[] {
+    if (!game?.liveData?.plays?.allPlays) {
+      console.log(`[GameDataService] No plays found in game data`)
+      return []
+    }
+    
+    const plays = game.liveData.plays.allPlays
+    console.log(`[GameDataService] Found ${plays.length} plays in game data`)
+    return plays
+  }
+
   // Get game details by gamePk
   async getGameDetails(gamePk: number): Promise<any | null> {
     try {

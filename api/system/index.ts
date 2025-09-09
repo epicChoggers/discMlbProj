@@ -130,13 +130,17 @@ async function handleTriggerSync(req: VercelRequest, res: VercelResponse) {
         result = await (await import('../lib/EventService.js')).eventService.triggerPredictionResolution()
         break
 
+      case 'at_bats':
+        result = await (await import('../lib/EventService.js')).eventService.triggerAtBatSync()
+        break
+
       case 'all':
         result = await (await import('../lib/EventService.js')).eventService.triggerAllEventDrivenJobs()
         break
 
       default:
         res.status(400).json({ 
-          error: 'Invalid sync type. Supported types: game_state, predictions, all' 
+          error: 'Invalid sync type. Supported types: game_state, predictions, at_bats, all' 
         })
         return
     }

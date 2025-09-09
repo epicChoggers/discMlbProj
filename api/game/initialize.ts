@@ -33,10 +33,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`Found game: ${game.teams.away.team.name} vs ${game.teams.home.team.name}`)
 
+    // Get detailed game data to access plays
+    const detailedGame = await gameDataService.getGameDetails(game.gamePk)
+    if (!detailedGame) {
+      res.status(404).json({ 
+        success: false, 
+        error: 'Could not fetch detailed game data' 
+      })
+      return
+    }
+
     // Cache the game state
     const gameState = {
-      game,
-      currentAtBat: gameDataService.getCurrentAtBat(game),
+      game: detailedGame,
+      currentAtBat: gameDataService.getCurrentAtBat(detailedGame),
       isLoading: false,
       lastUpdated: new Date().toISOString()
     }
@@ -45,30 +55,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('Game state cached successfully')
 
     // Get all plays and cache them
-    const plays = gameDataService.getGamePlays(game)
+    const plays = gameDataService.getGamePlays(detailedGame)
     let cachedAtBats = 0
     
     if (plays && plays.length > 0) {
+      console.log(`Found ${plays.length} plays, caching at-bats...`)
       for (const play of plays) {
         if (play.about?.atBatIndex !== undefined) {
           try {
             await gameCacheService.cacheAtBat(game.gamePk, play.about.atBatIndex, play)
             cachedAtBats++
+            console.log(`Cached at-bat ${play.about.atBatIndex}`)
           } catch (error) {
             console.error(`Failed to cache at-bat ${play.about.atBatIndex}:`, error)
           }
         }
       }
+    } else {
+      console.log('No plays found in game data')
     }
 
     res.status(200).json({
       success: true,
       message: 'Game data initialized successfully',
       game: {
-        gamePk: game.gamePk,
-        awayTeam: game.teams.away.team.name,
-        homeTeam: game.teams.home.team.name,
-        status: game.status.detailedState
+        gamePk: detailedGame.gamePk,
+        awayTeam: detailedGame.teams.away.team.name,
+        homeTeam: detailedGame.teams.home.team.name,
+        status: detailedGame.status.detailedState
       },
       cachedAtBats,
       totalPlays: plays?.length || 0,

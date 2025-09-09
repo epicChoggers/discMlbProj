@@ -1,12 +1,10 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { supabase } from '../lib/supabase.js'
-import { gameDataService } from '../lib/gameDataService.js'
-import { gameCacheService } from '../lib/gameCacheService.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 
   if (req.method === 'OPTIONS') {
@@ -14,16 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  if (req.method === 'GET') {
-    await handleGetCachedAtBats(req, res)
-  } else if (req.method === 'POST') {
-    await handleSyncAtBats(req, res)
-  } else {
+  if (req.method !== 'GET') {
     res.status(405).json({ error: 'Method not allowed' })
+    return
   }
-}
 
-async function handleGetCachedAtBats(req: VercelRequest, res: VercelResponse) {
   try {
     const { gamePk, atBatIndex, context } = req.query
     
@@ -87,15 +80,15 @@ async function handleGetCachedAtBats(req: VercelRequest, res: VercelResponse) {
           outcome: item.outcome,
           isResolved: item.is_resolved,
           batter: batter ? {
-            id: batter.id,
-            name: batter.fullName || batter.name,
-            position: batter.primaryPosition?.abbreviation || 'Unknown',
-            batSide: batter.batSide?.code || 'Unknown'
+            id: (batter as any)?.id,
+            name: (batter as any)?.fullName || (batter as any)?.name,
+            position: (batter as any)?.primaryPosition?.abbreviation || 'Unknown',
+            batSide: (batter as any)?.batSide?.code || 'Unknown'
           } : null,
           pitcher: pitcher ? {
-            id: pitcher.id,
-            name: pitcher.fullName || pitcher.name,
-            hand: pitcher.pitchHand?.code || 'Unknown'
+            id: (pitcher as any)?.id,
+            name: (pitcher as any)?.fullName || (pitcher as any)?.name,
+            hand: (pitcher as any)?.pitchHand?.code || 'Unknown'
           } : null,
           createdAt: item.created_at,
           updatedAt: item.updated_at
@@ -152,75 +145,4 @@ async function handleGetCachedAtBats(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-async function handleSyncAtBats(req: VercelRequest, res: VercelResponse) {
-  try {
-    const { gamePk } = req.body
 
-    if (!gamePk) {
-      res.status(400).json({ error: 'gamePk is required' })
-      return
-    }
-
-    console.log(`Syncing at-bats for game ${gamePk}...`)
-
-    // Get the current game data
-    const game = await gameDataService.getGameById(gamePk)
-    if (!game) {
-      res.status(404).json({ error: 'Game not found' })
-      return
-    }
-
-    // Get all plays from the game
-    const plays = gameDataService.getGamePlays(game)
-    if (!plays || plays.length === 0) {
-      res.status(200).json({ 
-        success: true, 
-        message: 'No plays found for this game',
-        syncedAtBats: 0
-      })
-      return
-    }
-
-    let syncedCount = 0
-    const errors: string[] = []
-
-    // Cache each at-bat
-    for (const play of plays) {
-      try {
-        if (play.about?.atBatIndex !== undefined) {
-          await gameCacheService.cacheAtBat(gamePk, play.about.atBatIndex, play)
-          syncedCount++
-          console.log(`Cached at-bat ${play.about.atBatIndex} for game ${gamePk}`)
-        }
-      } catch (error) {
-        const errorMsg = `Failed to cache at-bat ${play.about?.atBatIndex}: ${error instanceof Error ? error.message : 'Unknown error'}`
-        console.error(errorMsg)
-        errors.push(errorMsg)
-      }
-    }
-
-    // Update game state cache
-    const gameState = {
-      game,
-      currentAtBat: gameDataService.getCurrentAtBat(game),
-      isLoading: false,
-      lastUpdated: new Date().toISOString()
-    }
-    await gameCacheService.cacheGameState(gameState)
-
-    res.status(200).json({
-      success: true,
-      message: `Successfully synced ${syncedCount} at-bats for game ${gamePk}`,
-      syncedAtBats: syncedCount,
-      totalPlays: plays.length,
-      errors: errors.length > 0 ? errors : undefined
-    })
-
-  } catch (error) {
-    console.error('Error syncing at-bats:', error)
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error'
-    })
-  }
-}
