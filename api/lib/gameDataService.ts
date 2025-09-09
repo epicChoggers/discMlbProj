@@ -17,14 +17,17 @@ export class GameDataService {
   }
 
   // Helper method to get Pacific Time date string to avoid timezone issues
+  // Vercel runs in UTC, so we need to explicitly convert to Pacific Time
   private getPacificDateString(): string {
     const now = new Date()
-    // Get Pacific Time components directly
+    // Get Pacific Time components directly - this works correctly even on Vercel UTC
     const pacificYear = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
     const pacificMonth = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
     const pacificDay = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
     
-    return `${pacificYear}-${pacificMonth}-${pacificDay}`
+    const pacificDate = `${pacificYear}-${pacificMonth}-${pacificDay}`
+    console.log(`[GameDataService] Pacific date: ${pacificDate} (UTC time: ${now.toISOString()})`)
+    return pacificDate
   }
 
   // Get today's Mariners game with probable pitcher
@@ -171,11 +174,15 @@ export class GameDataService {
       }
 
       // Extract the date from the game and convert to Pacific Time
+      // Vercel runs in UTC, so we need to explicitly convert to Pacific Time
       const gameDateTime = new Date(gameData.gameData.datetime.originalDate)
       const pacificYear = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
       const pacificMonth = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
       const pacificDay = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
       const gameDate = `${pacificYear}-${pacificMonth}-${pacificDay}`
+      
+      console.log(`[GameDataService] Game original date: ${gameData.gameData.datetime.originalDate}`)
+      console.log(`[GameDataService] Game Pacific date: ${gameDate}`)
       
       // Now get the schedule with probable pitcher hydration
       const scheduleUrl = `${this.apiBaseUrl}/schedule?sportId=1&hydrate=probablePitcher&startDate=${gameDate}&endDate=${gameDate}`
@@ -192,14 +199,19 @@ export class GameDataService {
       if (scheduleData.dates && scheduleData.dates.length > 0) {
         for (const date of scheduleData.dates) {
           if (date.games) {
+            console.log(`[GameDataService] Checking ${date.games.length} games on ${date.date}`)
             const game = date.games.find((g: any) => g.gamePk === gamePk)
             if (game) {
+              console.log(`[GameDataService] Found game ${gamePk} in schedule`)
+              console.log(`[GameDataService] Game status: ${game.status?.abstractGameState}`)
+              console.log(`[GameDataService] Has probable pitcher: ${!!game.teams?.home?.probablePitcher || !!game.teams?.away?.probablePitcher}`)
               return game
             }
           }
         }
       }
       
+      console.log(`[GameDataService] Game ${gamePk} not found in schedule for date ${gameDate}`)
       return null
     } catch (error) {
       console.error('Error fetching game with probable pitcher:', error)
