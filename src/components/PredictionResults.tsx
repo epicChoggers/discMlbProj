@@ -200,6 +200,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
     const loadAtBatContexts = async () => {
       if (!predictions.length) return
 
+      console.log('Loading at-bat contexts for predictions:', predictions.map(p => p.atBatIndex))
       const contexts: Record<number, any> = {}
       
       // Get unique at-bat indices from predictions
@@ -207,20 +208,60 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
       
       for (const atBatIndex of atBatIndices) {
         try {
+          console.log(`Loading context for at-bat ${atBatIndex}...`)
           const cachedAtBat = await gameCacheService.getCachedAtBat(gamePk, atBatIndex)
+          console.log(`Cached at-bat data for ${atBatIndex}:`, cachedAtBat)
+          
           if (cachedAtBat && cachedAtBat.at_bat_data) {
             contexts[atBatIndex] = cachedAtBat.at_bat_data
+            console.log(`Context loaded for at-bat ${atBatIndex}:`, cachedAtBat.at_bat_data)
+          } else {
+            console.log(`No cached data found for at-bat ${atBatIndex}`)
           }
         } catch (error) {
           console.error(`Error loading context for at-bat ${atBatIndex}:`, error)
         }
       }
       
+      console.log('Final contexts:', contexts)
       setAtBatContexts(contexts)
     }
 
     loadAtBatContexts()
   }, [predictions, gamePk])
+
+  // Auto-resolve predictions when game state updates
+  useEffect(() => {
+    const autoResolvePredictions = async () => {
+      if (!gamePk || !onGameStateUpdate) return
+
+      // Register for game state updates
+      const unsubscribe = onGameStateUpdate(async () => {
+        try {
+          console.log('Game state updated, checking for auto-resolution...')
+          
+          // Import services dynamically to avoid circular dependencies
+          const { mlbServiceNew } = await import('../lib/mlbService')
+          const { predictionServiceNew } = await import('../lib/predictionService')
+          
+          // Get current game state
+          const currentGameState = await mlbServiceNew.getGameState()
+          if (currentGameState.game && currentGameState.game.gamePk === gamePk) {
+            console.log('Auto-resolving completed at-bats...')
+            await predictionServiceNew.autoResolveAllCompletedAtBats(gamePk, currentGameState.game)
+            console.log('Auto-resolution complete')
+          }
+        } catch (error) {
+          console.error('Error in auto-resolution:', error)
+        }
+      })
+
+      // Return cleanup function
+      return unsubscribe
+    }
+
+    autoResolvePredictions()
+  }, [gamePk, onGameStateUpdate])
 
   // Track when we've initially loaded data
   useEffect(() => {
@@ -275,54 +316,12 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
           <h3 className="text-white text-lg font-semibold">
             All Predictions for This Game ({predictions.length})
           </h3>
-          <div className="flex items-center space-x-3">
-            {isUpdating && (
-              <div className="flex items-center space-x-2 text-blue-400 text-sm">
-                <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                <span>Updating...</span>
-              </div>
-            )}
-            <button
-              onClick={async () => {
-                try {
-                  const { mlbServiceNew } = await import('../lib/mlbService')
-                  const { predictionServiceNew } = await import('../lib/predictionService')
-                  
-                  // Get current game state
-                  const currentGameState = await mlbServiceNew.getGameState()
-                  if (currentGameState.game && currentGameState.game.gamePk) {
-                    console.log('Manually triggering resolution of all completed at-bats...')
-                    await predictionServiceNew.autoResolveAllCompletedAtBats(currentGameState.game.gamePk, currentGameState.game)
-                    console.log('Manual resolution complete')
-                  }
-                } catch (error) {
-                  console.error('Error manually resolving predictions:', error)
-                }
-              }}
-              className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition-colors"
-            >
-              Resolve All
-            </button>
-            <button
-              onClick={() => {
-                console.log('Current predictions data:', predictions)
-                predictions.forEach((pred, index) => {
-                  console.log(`Prediction ${index}:`, {
-                    id: pred.id,
-                    atBatIndex: pred.atBatIndex,
-                    prediction: pred.prediction,
-                    actualOutcome: pred.actualOutcome,
-                    isCorrect: pred.isCorrect,
-                    pointsEarned: pred.pointsEarned,
-                    resolvedAt: pred.resolvedAt
-                  })
-                })
-              }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
-            >
-              Debug Data
-            </button>
-          </div>
+          {isUpdating && (
+            <div className="flex items-center space-x-2 text-blue-400 text-sm">
+              <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <span>Updating...</span>
+            </div>
+          )}
         </div>
         
         {predictions.length === 0 ? (
@@ -395,7 +394,21 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                       )}
                     </div>
                     
-                    {/* Individual predictions removed - only showing at-bat context */}
+                    <div className="space-y-2">
+                      {atBatPredictions.map((prediction, index) => (
+                        <div 
+                          key={prediction.id} 
+                          className={`transition-all duration-300 ${
+                            isUpdating ? 'opacity-90' : 'opacity-100'
+                          }`}
+                          style={{
+                            animationDelay: `${index * 50}ms`
+                          }}
+                        >
+                          <PredictionCard prediction={prediction} />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )
               })
@@ -407,4 +420,119 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
   )
 }
 
-// PredictionCard component removed - individual predictions no longer displayed
+interface PredictionCardProps {
+  prediction: AtBatPrediction
+}
+
+const PredictionCard = ({ prediction }: PredictionCardProps) => {
+  const getUserDisplayName = (prediction: AtBatPrediction) => {
+    if (prediction.user?.raw_user_meta_data?.preferred_username) {
+      return prediction.user.raw_user_meta_data.preferred_username
+    }
+    if (prediction.user?.raw_user_meta_data?.full_name) {
+      return prediction.user.raw_user_meta_data.full_name
+    }
+    if (prediction.user?.email && typeof prediction.user.email === 'string') {
+      return prediction.user.email.split('@')[0]
+    }
+    return 'Anonymous'
+  }
+
+  const getUserProfilePicture = (prediction: AtBatPrediction) => {
+    // Check for Discord avatar first
+    if (prediction.user?.raw_user_meta_data?.avatar_url) {
+      return prediction.user.raw_user_meta_data.avatar_url
+    }
+    // Check for Supabase auth avatar
+    if (prediction.user?.avatar_url) {
+      return prediction.user.avatar_url
+    }
+    // Return null if no avatar found
+    return null
+  }
+
+  const isResolved = prediction.actualOutcome !== undefined && prediction.actualOutcome !== null
+  const isCorrect = prediction.isCorrect
+  const profilePicture = getUserProfilePicture(prediction)
+  const displayName = getUserDisplayName(prediction)
+
+  return (
+    <div className={`p-4 rounded-lg border transition-all duration-500 ${
+      isResolved 
+        ? isCorrect 
+          ? 'bg-green-900/20 border-green-700' 
+          : 'bg-red-900/20 border-red-700'
+        : 'bg-gray-700 border-gray-600'
+    }`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="text-2xl">{getOutcomeEmoji(prediction.prediction)}</div>
+          <div className="flex items-center space-x-3">
+            {/* User Profile Picture */}
+            <div className="flex-shrink-0">
+              {profilePicture ? (
+                <img 
+                  src={profilePicture} 
+                  alt={displayName}
+                  className="w-8 h-8 rounded-full border-2 border-gray-600"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <div className={`w-8 h-8 rounded-full border-2 border-gray-600 bg-gray-600 flex items-center justify-center text-white text-sm font-medium ${profilePicture ? 'hidden' : ''}`}>
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+            </div>
+            
+            {/* Prediction Info */}
+            <div>
+              <div className="text-white font-medium">
+                {getOutcomeLabel(prediction.prediction)}
+              </div>
+              <div className="text-gray-400 text-sm">
+                by {displayName}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="text-right">
+          {isResolved ? (
+            <div className="flex items-center space-x-2">
+              {isCorrect ? (
+                <>
+                  <span className="text-green-400 text-lg">✅</span>
+                  <div className="text-green-400 text-sm font-medium">
+                    <div>Correct! +{prediction.pointsEarned || 0}pts</div>
+                    {prediction.streakBonus && prediction.streakBonus > 0 && (
+                      <div className="text-yellow-400 text-xs">
+                        🔥 {prediction.streakCount} streak (+{prediction.streakBonus} bonus)
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-red-400 text-lg">❌</span>
+                  <div className="text-red-400 text-sm font-medium">
+                    <div>Incorrect</div>
+                    <div className="text-gray-400 text-xs">
+                      Actual: {getOutcomeLabel(prediction.actualOutcome!)}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="text-gray-400 text-sm">
+              Pending...
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

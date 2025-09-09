@@ -8,7 +8,7 @@ import { Leaderboard } from './Leaderboard'
 import { UserProfile } from './UserProfile'
 import { ScoringSystem } from './ScoringSystem'
 import { ToastContainer } from './Toast'
-import { DebugPredictions } from './DebugPredictions'
+// DebugPredictions component removed
 import { signOut } from '../supabaseClient'
 import { MLBGame, MLBPlay } from '../lib/types'
 
@@ -198,14 +198,11 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                             ) : null
                           })() : null}
                           {gameState.game.gamePk && (
-                            <>
-                              <DebugPredictions gamePk={gameState.game.gamePk} />
-                              <PredictionResults
-                                gamePk={gameState.game.gamePk}
-                                currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
-                                onGameStateUpdate={addGameStateUpdateCallback}
-                              />
-                            </>
+                            <PredictionResults
+                              gamePk={gameState.game.gamePk}
+                              currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
+                              onGameStateUpdate={addGameStateUpdateCallback}
+                            />
                           )}
                         </>
                       ) : (
