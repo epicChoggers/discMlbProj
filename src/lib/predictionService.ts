@@ -536,6 +536,32 @@ export class PredictionServiceNew {
         return
       }
 
+      // CRITICAL VALIDATION: Ensure we're applying the outcome to the correct at-bat
+      console.log(`🔍 VALIDATION: Processing single at-bat ${atBatIndex}`)
+      console.log(`🔍 Play data:`, {
+        atBatIndex: completedAtBat.about?.atBatIndex,
+        description: completedAtBat.result?.description,
+        event: completedAtBat.result?.event,
+        eventType: completedAtBat.result?.eventType,
+        extractedOutcome: actualOutcome
+      })
+      console.log(`🔍 Predictions to resolve:`, unresolvedPredictions.map(p => ({
+        id: p.id,
+        atBatIndex: p.atBatIndex,
+        prediction: p.prediction,
+        userId: p.userId
+      })))
+
+      // Double-check that all predictions belong to the same at-bat index
+      const mismatchedPredictions = unresolvedPredictions.filter(p => p.atBatIndex !== atBatIndex)
+      if (mismatchedPredictions.length > 0) {
+        console.error(`❌ CRITICAL ERROR: Found ${mismatchedPredictions.length} predictions with mismatched at-bat indices!`)
+        console.error(`❌ Expected at-bat index: ${atBatIndex}`)
+        console.error(`❌ Mismatched predictions:`, mismatchedPredictions)
+        console.error(`❌ Skipping resolution to prevent data corruption`)
+        return
+      }
+
       // Resolve the predictions
       await this.resolveAtBatPredictions(gamePk, atBatIndex, actualOutcome)
       
@@ -628,6 +654,33 @@ export class PredictionServiceNew {
 
         if (!actualOutcome) {
           console.warn(`Could not extract outcome from at-bat ${atBatIndex}, skipping`)
+          continue
+        }
+
+        // CRITICAL VALIDATION: Ensure we're applying the outcome to the correct at-bat
+        // Log detailed information about the play and predictions to prevent cross-contamination
+        console.log(`🔍 VALIDATION: Processing at-bat ${atBatIndex}`)
+        console.log(`🔍 Play data:`, {
+          atBatIndex: play.about?.atBatIndex,
+          description: play.result?.description,
+          event: play.result?.event,
+          eventType: play.result?.eventType,
+          extractedOutcome: actualOutcome
+        })
+        console.log(`🔍 Predictions to resolve:`, unresolvedPredictions.map(p => ({
+          id: p.id,
+          atBatIndex: p.atBatIndex,
+          prediction: p.prediction,
+          userId: p.userId
+        })))
+
+        // Double-check that all predictions belong to the same at-bat index
+        const mismatchedPredictions = unresolvedPredictions.filter(p => p.atBatIndex !== atBatIndex)
+        if (mismatchedPredictions.length > 0) {
+          console.error(`❌ CRITICAL ERROR: Found ${mismatchedPredictions.length} predictions with mismatched at-bat indices!`)
+          console.error(`❌ Expected at-bat index: ${atBatIndex}`)
+          console.error(`❌ Mismatched predictions:`, mismatchedPredictions)
+          console.error(`❌ Skipping resolution to prevent data corruption`)
           continue
         }
 
