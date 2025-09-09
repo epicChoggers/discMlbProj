@@ -71,8 +71,8 @@ export class PredictionServiceNew {
         throw new Error('Invalid gamePk: gamePk is required and cannot be null')
       }
       
-      if (!atBatIndex || atBatIndex === null || atBatIndex === undefined) {
-        throw new Error('Invalid atBatIndex: atBatIndex is required and cannot be null')
+      if (atBatIndex === null || atBatIndex === undefined || atBatIndex < 1) {
+        throw new Error('Invalid atBatIndex: atBatIndex is required and must be a positive number')
       }
 
       const { data: { user } } = await supabase.auth.getUser()

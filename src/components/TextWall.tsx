@@ -56,36 +56,86 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
 
   // Create a simulated at-bat for test mode
   const createSimulatedAtBat = (game: MLBGame): MLBPlay | null => {
-    if (!game.liveData?.plays?.allPlays || game.liveData.plays.allPlays.length === 0) {
-      return null
-    }
-
-    const lastPlay = game.liveData.plays.allPlays[game.liveData.plays.allPlays.length - 1]
-    if (!lastPlay) {
-      return null
-    }
-
-    // Create a simulated "current" at-bat by modifying the last play
-    return {
-      ...lastPlay,
-      about: {
-        ...lastPlay.about,
-        atBatIndex: lastPlay.about.atBatIndex + 1 // Make it the "next" at-bat
-      },
-      count: {
-        balls: 0,
-        strikes: 0,
-        outs: lastPlay.count.outs
-      },
-      result: {
-        type: 'at_bat',
-        event: '',
-        description: '',
-        rbi: 0,
-        awayScore: lastPlay.result.awayScore,
-        homeScore: lastPlay.result.homeScore
+    // If there are existing plays, use the last one as a base
+    if (game.liveData?.plays?.allPlays && game.liveData.plays.allPlays.length > 0) {
+      const lastPlay = game.liveData.plays.allPlays[game.liveData.plays.allPlays.length - 1]
+      if (lastPlay) {
+        // Create a simulated "current" at-bat by modifying the last play
+        return {
+          ...lastPlay,
+          about: {
+            ...lastPlay.about,
+            atBatIndex: lastPlay.about.atBatIndex + 1 // Make it the "next" at-bat
+          },
+          count: {
+            balls: 0,
+            strikes: 0,
+            outs: lastPlay.count.outs
+          },
+          result: {
+            type: 'at_bat',
+            event: '',
+            description: '',
+            rbi: 0,
+            awayScore: lastPlay.result.awayScore,
+            homeScore: lastPlay.result.homeScore
+          }
+        }
       }
     }
+
+    // If no plays exist (e.g., during warmup), create a simulated first at-bat
+    if (game.liveData?.plays?.allPlays?.length === 0 || !game.liveData?.plays?.allPlays) {
+      // Create a simulated first at-bat for warmup
+      return {
+        about: {
+          atBatIndex: 1, // First at-bat
+          inning: 1,
+          halfInning: 'Top',
+          isComplete: false,
+          isTopInning: true,
+          hasOut: false,
+          inningHalf: 'Top',
+          startTime: new Date().toISOString(),
+          endTime: null
+        },
+        count: {
+          balls: 0,
+          strikes: 0,
+          outs: 0
+        },
+        matchup: {
+          batter: {
+            id: 0,
+            fullName: 'TBD',
+            link: '/api/v1/people/0'
+          },
+          pitcher: {
+            id: 0,
+            fullName: 'TBD',
+            link: '/api/v1/people/0'
+          },
+          batSide: {
+            code: 'R',
+            description: 'Right'
+          },
+          pitchHand: {
+            code: 'R',
+            description: 'Right'
+          }
+        },
+        result: {
+          type: 'at_bat',
+          event: '',
+          description: 'At-bat in progress',
+          rbi: 0,
+          awayScore: 0,
+          homeScore: 0
+        }
+      }
+    }
+
+    return null
   }
 
   // Determine if we should show live features
