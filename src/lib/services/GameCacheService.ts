@@ -177,30 +177,23 @@ export class GameCacheService {
   // Get cached at-bat data
   async getCachedAtBat(gamePk: number, atBatIndex: number): Promise<CachedAtBat | null> {
     try {
-      const { data, error } = await supabase
-        .from('cached_at_bats')
-        .select('*')
-        .eq('game_pk', gamePk)
-        .eq('at_bat_index', atBatIndex)
-        .single()
-
-      if (error) {
-        if (error.code === 'PGRST116') {
+      // Use API endpoint instead of direct database access to avoid RLS issues
+      const response = await fetch(`/api/game/cached-at-bats?gamePk=${gamePk}&atBatIndex=${atBatIndex}`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
           return null
         }
-        throw error
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
 
-      // Check if cache is still valid
-      const now = new Date().getTime()
-      const createdAt = new Date(data.created_at).getTime()
-
-      if ((now - createdAt) > this.AT_BAT_TTL) {
-        console.log(`Cached at-bat ${atBatIndex} for game ${gamePk} is stale`)
-        return null
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch cached at-bat')
       }
 
-      return data
+      return result.atBat
     } catch (error) {
       console.error('Error getting cached at-bat:', error)
       return null
@@ -210,17 +203,23 @@ export class GameCacheService {
   // Get all cached at-bats for a game
   async getCachedAtBatsForGame(gamePk: number): Promise<CachedAtBat[]> {
     try {
-      const { data, error } = await supabase
-        .from('cached_at_bats')
-        .select('*')
-        .eq('game_pk', gamePk)
-        .order('at_bat_index', { ascending: true })
-
-      if (error) {
-        throw error
+      // Use API endpoint instead of direct database access to avoid RLS issues
+      const response = await fetch(`/api/game/cached-at-bats?gamePk=${gamePk}`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return []
+        }
+        throw new Error(`API error: ${response.status} ${response.statusText}`)
       }
 
-      return data || []
+      const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch cached at-bats')
+      }
+
+      return result.atBats || []
     } catch (error) {
       console.error('Error getting cached at-bats for game:', error)
       return []

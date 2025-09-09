@@ -395,21 +395,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                       )}
                     </div>
                     
-                    <div className="space-y-2">
-                      {atBatPredictions.map((prediction, index) => (
-                        <div 
-                          key={prediction.id} 
-                          className={`transition-all duration-300 ${
-                            isUpdating ? 'opacity-90' : 'opacity-100'
-                          }`}
-                          style={{
-                            animationDelay: `${index * 50}ms`
-                          }}
-                        >
-                          <PredictionCard prediction={prediction} />
-                        </div>
-                      ))}
-                    </div>
+                    {/* Individual predictions removed - only showing at-bat context */}
                   </div>
                 )
               })
@@ -421,80 +407,4 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
   )
 }
 
-interface PredictionCardProps {
-  prediction: AtBatPrediction
-}
-
-const PredictionCard = ({ prediction }: PredictionCardProps) => {
-
-  const getUserDisplayName = (prediction: AtBatPrediction) => {
-    if (prediction.user?.raw_user_meta_data?.preferred_username) {
-      return prediction.user.raw_user_meta_data.preferred_username
-    }
-    if (prediction.user?.raw_user_meta_data?.full_name) {
-      return prediction.user.raw_user_meta_data.full_name
-    }
-    if (prediction.user?.email && typeof prediction.user.email === 'string') {
-      return prediction.user.email.split('@')[0]
-    }
-    return 'Anonymous'
-  }
-
-  const isResolved = prediction.actualOutcome !== undefined && prediction.actualOutcome !== null
-  const isCorrect = prediction.isCorrect
-
-  return (
-    <div className={`p-4 rounded-lg border transition-all duration-500 ${
-      isResolved 
-        ? isCorrect 
-          ? 'bg-green-900/20 border-green-700' 
-          : 'bg-red-900/20 border-red-700'
-        : 'bg-gray-700 border-gray-600'
-    }`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="text-2xl">{getOutcomeEmoji(prediction.prediction)}</div>
-          <div>
-            <div className="text-white font-medium">
-              {getOutcomeLabel(prediction.prediction)}
-            </div>
-            <div className="text-gray-400 text-sm">
-              by {getUserDisplayName(prediction)}
-            </div>
-          </div>
-        </div>
-        
-        <div className="text-right">
-          {isResolved ? (
-            <div className="flex items-center space-x-2">
-              {isCorrect ? (
-                <>
-                  <span className="text-green-400 text-lg">✅</span>
-                  <div className="text-green-400 text-sm font-medium">
-                    <div>Correct! +{prediction.pointsEarned || 0}pts</div>
-                    {prediction.streakBonus && prediction.streakBonus > 0 && (
-                      <div className="text-yellow-400 text-xs">
-                        🔥 {prediction.streakCount} streak (+{prediction.streakBonus} bonus)
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="text-red-400 text-lg">❌</span>
-                  <span className="text-red-400 text-sm font-medium">
-                    {getOutcomeLabel(prediction.actualOutcome!)}
-                  </span>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="text-gray-400 text-sm">
-              Pending...
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+// PredictionCard component removed - individual predictions no longer displayed
