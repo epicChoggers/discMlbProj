@@ -186,8 +186,13 @@ export class DataSyncService {
     try {
       console.log(`Syncing at-bats for game ${gamePk}...`)
 
-      // Get fresh game data
-      const game = await gameDataService.getGameDetails(gamePk)
+      // Get fresh game data through our API endpoint
+      const gameStateResponse = await fetch('/api/game/state')
+      if (!gameStateResponse.ok) {
+        throw new Error(`Failed to fetch game state: ${gameStateResponse.status}`)
+      }
+      const gameStateData = await gameStateResponse.json()
+      const game = gameStateData.game
       
       if (!game || !game.liveData?.plays?.allPlays) {
         const result: SyncResult = {
@@ -248,8 +253,13 @@ export class DataSyncService {
     try {
       console.log(`Resolving predictions for game ${gamePk}...`)
 
-      // Get fresh game data
-      const game = await gameDataService.getGameDetails(gamePk)
+      // Get fresh game data through our API endpoint
+      const gameStateResponse = await fetch('/api/game/state')
+      if (!gameStateResponse.ok) {
+        throw new Error(`Failed to fetch game state: ${gameStateResponse.status}`)
+      }
+      const gameStateData = await gameStateResponse.json()
+      const game = gameStateData.game
       
       if (!game) {
         const result: SyncResult = {

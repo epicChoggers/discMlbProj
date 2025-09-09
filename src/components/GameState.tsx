@@ -98,7 +98,34 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
               {(marinersTeam as any)?.team?.name || (marinersTeam as any)?.name} vs {(opponentTeam as any)?.team?.name || (opponentTeam as any)?.name}
             </h3>
             <p className="text-gray-400 text-sm">
-              {game.venue.name} • {new Date(game.gameDate).toLocaleDateString()}
+              {game.venue.name} •               {(() => {
+                try {
+                  // Try different possible date fields and formats
+                  const dateValue = game.gameDate || (game.gameData as any)?.game?.gameDate || (game.gameData as any)?.datetime?.originalDate
+                  
+                  // Debug logging to help understand the data structure
+                  if (!dateValue) {
+                    console.log('No date value found in game data:', {
+                      gameDate: game.gameDate,
+                      gameDataGameDate: (game.gameData as any)?.game?.gameDate,
+                      gameDataDatetime: (game.gameData as any)?.datetime?.originalDate,
+                      gameKeys: Object.keys(game)
+                    })
+                    return 'Date TBD'
+                  }
+                  
+                  const date = new Date(dateValue)
+                  if (isNaN(date.getTime())) {
+                    console.log('Invalid date value:', dateValue)
+                    return 'Date TBD'
+                  }
+                  
+                  return date.toLocaleDateString()
+                } catch (error) {
+                  console.error('Error formatting game date:', error, 'Game data:', game)
+                  return 'Date TBD'
+                }
+              })()}
             </p>
           </div>
         </div>
