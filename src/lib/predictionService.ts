@@ -503,6 +503,18 @@ export class PredictionServiceNew {
         return
       }
 
+      // CRITICAL: Only process truly completed at-bats
+      if (completedAtBat.about?.isComplete !== true) {
+        console.log(`Skipping at-bat ${atBatIndex} - not completed yet (isComplete: ${completedAtBat.about?.isComplete})`)
+        return
+      }
+
+      // Ensure the at-bat has a valid result
+      if (!completedAtBat.result || !completedAtBat.result.event) {
+        console.log(`Skipping at-bat ${atBatIndex} - no valid result found`)
+        return
+      }
+
       // Check cache first to avoid redundant database queries
       if (this.isAtBatResolved(gamePk, atBatIndex)) {
         return // Already resolved, skip
@@ -519,13 +531,22 @@ export class PredictionServiceNew {
       const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
       const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
       
+      console.log(`At-bat ${atBatIndex} has ${existingPredictions.length} total predictions, ${unresolvedPredictions.length} unresolved`)
+      
       if (unresolvedPredictions.length === 0) {
         // Mark as resolved in cache to avoid future checks
         this.markAtBatResolved(gamePk, atBatIndex)
+        console.log(`At-bat ${atBatIndex} already resolved, skipping`)
         return // Already resolved
       }
 
       console.log(`Found ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
+      console.log(`Unresolved prediction details:`, unresolvedPredictions.map(p => ({
+        id: p.id,
+        userId: p.userId,
+        prediction: p.prediction,
+        category: p.predictionCategory
+      })))
 
       // Extract outcome from the completed play
       const actualOutcome = this.extractOutcomeFromPlay(completedAtBat)
@@ -588,9 +609,12 @@ export class PredictionServiceNew {
 
       const { allPlays } = game.liveData.plays
       
-      // Find all completed plays (those with a result type other than 'at_bat')
+      // Find all completed plays (those with isComplete: true and valid result)
       const completedPlays = allPlays.filter((play: any) => 
-        play.result.type && play.result.type !== 'at_bat'
+        play.about?.isComplete === true && 
+        play.result && 
+        play.result.event &&
+        play.about?.atBatIndex !== undefined
       )
       
       // Sort completed plays by atBatIndex to ensure chronological order
@@ -634,9 +658,12 @@ export class PredictionServiceNew {
         const existingPredictions = await this.getAtBatPredictions(gamePk, atBatIndex)
         const unresolvedPredictions = existingPredictions.filter(p => !p.actualOutcome)
         
+        console.log(`At-bat ${atBatIndex} has ${existingPredictions.length} total predictions, ${unresolvedPredictions.length} unresolved`)
+        
         if (unresolvedPredictions.length === 0) {
           // Mark as resolved in cache to avoid future checks
           this.markAtBatResolved(gamePk, atBatIndex)
+          console.log(`At-bat ${atBatIndex} already resolved, skipping`)
           continue // Already resolved
         }
 
@@ -709,59 +736,156 @@ export class PredictionServiceNew {
       const predictions = await this.getAtBatPredictions(gamePk, atBatIndex)
       console.log(`Found ${predictions.length} predictions to resolve for at-bat ${atBatIndex}`)
       
-      // Update each prediction with the actual outcome and points
-      for (const prediction of predictions) {
-        console.log(`Resolving prediction ${prediction.id} for user ${prediction.userId}`)
-        console.log(`Prediction: ${prediction.prediction}, Category: ${prediction.predictionCategory}`)
-        
-        // Get current streak before this prediction
-        const currentStreak = await this.getUserCurrentStreak(prediction.userId)
-        console.log(`Current streak for user ${prediction.userId}: ${currentStreak}`)
-        
-        const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
-          prediction.prediction,
-          prediction.predictionCategory,
-          actualOutcome,
-          currentStreak
-        )
-        
-        console.log(`Points calculation: ${points} base, ${streakBonus} streak bonus, exact: ${isExact}, category: ${isCategoryCorrect}`)
-        
-        // Calculate new streak count
-        const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
-        
-        const updateData = {
-          actual_outcome: actualOutcome,
-          actual_category: getOutcomeCategory(actualOutcome),
-          is_correct: isExact || isCategoryCorrect,
-          points_earned: points + streakBonus,
-          streak_count: newStreakCount,
-          streak_bonus: streakBonus,
-          resolved_at: new Date().toISOString()
-        }
-        
-        console.log(`Updating prediction ${prediction.id} with:`, updateData)
-        
-        const { error, data } = await supabase
-          .from('at_bat_predictions')
-          .update(updateData)
-          .eq('id', prediction.id)
-          .select()
-        
-        if (error) {
-          console.error('❌ ERROR resolving prediction:', error)
-          console.error('Update data:', updateData)
-          console.error('Prediction ID:', prediction.id)
-          console.error('Full error details:', JSON.stringify(error, null, 2))
-        } else {
-          console.log(`✅ Successfully resolved prediction ${prediction.id}`)
-          console.log('Updated prediction data:', data)
-        }
+      if (predictions.length === 0) {
+        console.log(`No predictions found for at-bat ${atBatIndex}`)
+        return
+      }
+
+      // Try transaction-based approach first for better reliability
+      try {
+        await this.resolvePredictionsWithTransaction(predictions, actualOutcome)
+        console.log(`✅ Successfully resolved all ${predictions.length} predictions using transaction`)
+        return
+      } catch (transactionError) {
+        console.warn(`Transaction-based resolution failed, falling back to individual updates:`, transactionError)
+      }
+
+      // Fallback to individual updates with retry logic
+      const updatePromises = predictions.map(async (prediction) => {
+        return await this.resolveSinglePrediction(prediction, actualOutcome)
+      })
+
+      // Wait for all updates to complete
+      const results = await Promise.allSettled(updatePromises)
+      
+      // Log results
+      const successful = results.filter(r => r.status === 'fulfilled').length
+      const failed = results.filter(r => r.status === 'rejected').length
+      
+      console.log(`Resolution completed for at-bat ${atBatIndex}: ${successful} successful, ${failed} failed`)
+      
+      if (failed > 0) {
+        console.error(`❌ ${failed} predictions failed to resolve for at-bat ${atBatIndex}`)
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.error(`Failed prediction ${predictions[index].id}:`, result.reason)
+          }
+        })
       }
       
-      console.log(`Completed resolution for at-bat ${atBatIndex}`)
     } catch (error) {
       console.error('Error resolving at-bat predictions:', error)
+    }
+  }
+
+  // Resolve predictions using database transaction for better reliability
+  private async resolvePredictionsWithTransaction(
+    predictions: AtBatPrediction[],
+    actualOutcome: AtBatOutcome
+  ): Promise<void> {
+    console.log(`Attempting transaction-based resolution for ${predictions.length} predictions`)
+    
+    // Prepare all update data
+    const updateDataList = []
+    for (const prediction of predictions) {
+      const currentStreak = await this.getUserCurrentStreak(prediction.userId)
+      const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
+        prediction.prediction,
+        prediction.predictionCategory,
+        actualOutcome,
+        currentStreak
+      )
+      const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
+      
+      updateDataList.push({
+        id: prediction.id,
+        actual_outcome: actualOutcome,
+        actual_category: getOutcomeCategory(actualOutcome),
+        is_correct: isExact || isCategoryCorrect,
+        points_earned: points + streakBonus,
+        streak_count: newStreakCount,
+        streak_bonus: streakBonus,
+        resolved_at: new Date().toISOString()
+      })
+    }
+
+    // Execute all updates in a single batch
+    const { error } = await supabase
+      .from('at_bat_predictions')
+      .upsert(updateDataList, { onConflict: 'id' })
+
+    if (error) {
+      throw new Error(`Transaction failed: ${error.message}`)
+    }
+
+    console.log(`✅ Transaction-based resolution successful for ${predictions.length} predictions`)
+  }
+
+  // Resolve a single prediction with retry logic
+  private async resolveSinglePrediction(
+    prediction: AtBatPrediction, 
+    actualOutcome: AtBatOutcome,
+    retryCount: number = 0
+  ): Promise<void> {
+    const maxRetries = 3
+    const retryDelay = 1000 * (retryCount + 1) // Exponential backoff
+    
+    try {
+      console.log(`Resolving prediction ${prediction.id} for user ${prediction.userId} (attempt ${retryCount + 1})`)
+      console.log(`Prediction: ${prediction.prediction}, Category: ${prediction.predictionCategory}`)
+      
+      // Get current streak before this prediction
+      const currentStreak = await this.getUserCurrentStreak(prediction.userId)
+      console.log(`Current streak for user ${prediction.userId}: ${currentStreak}`)
+      
+      const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
+        prediction.prediction,
+        prediction.predictionCategory,
+        actualOutcome,
+        currentStreak
+      )
+      
+      console.log(`Points calculation: ${points} base, ${streakBonus} streak bonus, exact: ${isExact}, category: ${isCategoryCorrect}`)
+      
+      // Calculate new streak count
+      const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
+      
+      const updateData = {
+        actual_outcome: actualOutcome,
+        actual_category: getOutcomeCategory(actualOutcome),
+        is_correct: isExact || isCategoryCorrect,
+        points_earned: points + streakBonus,
+        streak_count: newStreakCount,
+        streak_bonus: streakBonus,
+        resolved_at: new Date().toISOString()
+      }
+      
+      console.log(`Updating prediction ${prediction.id} with:`, updateData)
+      
+      const { error, data } = await supabase
+        .from('at_bat_predictions')
+        .update(updateData)
+        .eq('id', prediction.id)
+        .select()
+      
+      if (error) {
+        throw new Error(`Database update failed: ${error.message}`)
+      }
+      
+      console.log(`✅ Successfully resolved prediction ${prediction.id}`)
+      console.log('Updated prediction data:', data)
+      
+    } catch (error) {
+      console.error(`❌ ERROR resolving prediction ${prediction.id} (attempt ${retryCount + 1}):`, error)
+      
+      if (retryCount < maxRetries) {
+        console.log(`Retrying prediction ${prediction.id} in ${retryDelay}ms...`)
+        await new Promise(resolve => setTimeout(resolve, retryDelay))
+        return await this.resolveSinglePrediction(prediction, actualOutcome, retryCount + 1)
+      } else {
+        console.error(`❌ FAILED to resolve prediction ${prediction.id} after ${maxRetries + 1} attempts`)
+        throw error
+      }
     }
   }
 

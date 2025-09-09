@@ -108,9 +108,9 @@ class MLBServiceNew {
     }
 
     // If no current play, we need to determine the next at-bat
-    // Find all completed plays (those with a result type other than 'at_bat')
+    // Find all completed plays (those with isComplete: true)
     const completedPlays = allPlays.filter(play => 
-      play.result.type && play.result.type !== 'at_bat'
+      (play.about as any)?.isComplete === true
     )
     
     if (completedPlays.length === 0) {
@@ -157,9 +157,9 @@ class MLBServiceNew {
 
     const { allPlays } = game.liveData.plays
     
-    // Find all completed plays (those with a result type other than 'at_bat')
+    // Find all completed plays (those with isComplete: true)
     const completedPlays = allPlays.filter(play => 
-      play.result.type && play.result.type !== 'at_bat'
+      (play.about as any)?.isComplete === true
     )
     
     if (completedPlays.length === 0) {

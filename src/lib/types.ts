@@ -117,6 +117,12 @@ export interface MLBPlay {
     halfInning: string
     inning: number
     isTopInning: boolean
+    isComplete?: boolean
+    startTime?: string
+    endTime?: string
+    isScoringPlay?: boolean
+    hasOut?: boolean
+    captivatingIndex?: number
   }
   count: {
     balls: number
