@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { GameState } from './types'
 import { mlbServiceNew } from './mlbService'
+import { eventService } from './services/EventService'
 
 export const useGameStateNew = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -44,12 +45,24 @@ export const useGameStateNew = () => {
   }, [gameStateUpdateCallbacks])
 
   useEffect(() => {
+    // Start the event service for automatic prediction resolution
+    const startEventService = async () => {
+      try {
+        await eventService.start()
+        console.log('Event service started for prediction resolution')
+      } catch (error) {
+        console.error('Error starting event service:', error)
+      }
+    }
+
+    startEventService()
+
     // Initial load
     refreshGameState()
 
     // Set up real-time updates
     const handleGameUpdate = async (newGameState: GameState) => {
-      // Note: Prediction resolution is now handled server-side by DataSyncService
+      // Note: Prediction resolution is now handled by DataSyncService via EventService
       // No need to call autoResolveAllCompletedAtBats here
       
       setGameState(newGameState)
@@ -69,6 +82,7 @@ export const useGameStateNew = () => {
     // Cleanup
     return () => {
       mlbServiceNew.removeListener(handleGameUpdate)
+      eventService.stop()
     }
   }, [refreshGameState, gameStateUpdateCallbacks])
 

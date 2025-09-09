@@ -355,14 +355,14 @@ export const getOutcomeCategory = (outcome: AtBatOutcome): string => {
     case 'intent_walk':
       return 'walk'
     
-    // Strikeouts
+    // Strikeouts (all outs)
     case 'strikeout':
     case 'strike_out':
     case 'strikeout_double_play':
     case 'strikeout_triple_play':
-      return 'strikeout'
+      return 'out'
     
-    // Field Outs
+    // Field Outs (all outs)
     case 'field_out':
     case 'fielders_choice':
     case 'fielders_choice_out':

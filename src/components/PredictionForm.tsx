@@ -52,26 +52,39 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   const [hasAlreadyPredicted, setHasAlreadyPredicted] = useState(false)
   const [isCheckingPrediction, setIsCheckingPrediction] = useState(true)
   const [isWaitingForResolution, setIsWaitingForResolution] = useState(false)
+  const [lastPredictedAtBatIndex, setLastPredictedAtBatIndex] = useState<number | null>(null)
 
   // Check if user has already made a prediction for this at-bat and if it's resolved
   useEffect(() => {
     const checkExistingPrediction = async () => {
       try {
         setIsCheckingPrediction(true)
-        const hasPredicted = await predictionServiceNew.hasUserPredictedForAtBat(gamePk, currentAtBat.about.atBatIndex)
-        setHasAlreadyPredicted(hasPredicted)
+        const currentAtBatIndex = currentAtBat.about.atBatIndex
+        const hasPredicted = await predictionServiceNew.hasUserPredictedForAtBat(gamePk, currentAtBatIndex)
         
-        // If user has predicted, check if the at-bat is resolved
-        if (hasPredicted) {
-          const predictions = await predictionServiceNew.getAtBatPredictions(gamePk, currentAtBat.about.atBatIndex)
+        // Check if this is a new at-bat (different from the last one we predicted for)
+        const isNewAtBat = lastPredictedAtBatIndex === null || lastPredictedAtBatIndex !== currentAtBatIndex
+        
+        if (hasPredicted && !isNewAtBat) {
+          // User has already predicted for this exact at-bat
+          setHasAlreadyPredicted(true)
+          
+          // Check if the at-bat is resolved
+          const predictions = await predictionServiceNew.getAtBatPredictions(gamePk, currentAtBatIndex)
           const userId = await predictionServiceNew.getCurrentUserId()
           const userPrediction = predictions.find(p => p.userId === userId)
           const isResolved = userPrediction?.actualOutcome !== undefined
           
           // Only show waiting for resolution if the at-bat is not yet resolved
-          // If it's resolved, allow the user to make predictions for the next at-bat
           setIsWaitingForResolution(!isResolved)
+        } else if (hasPredicted && isNewAtBat) {
+          // User has predicted for a previous at-bat, but this is a new at-bat
+          setHasAlreadyPredicted(false)
+          setIsWaitingForResolution(false)
+          setLastPredictedAtBatIndex(null) // Reset since we're allowing predictions for new at-bat
         } else {
+          // User hasn't predicted for this at-bat
+          setHasAlreadyPredicted(false)
           setIsWaitingForResolution(false)
         }
       } catch (error) {
@@ -84,7 +97,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
     }
 
     checkExistingPrediction()
-  }, [gamePk, currentAtBat.about.atBatIndex])
+  }, [gamePk, currentAtBat.about.atBatIndex, lastPredictedAtBatIndex])
 
   // Subscribe to real-time updates for this at-bat to detect when it gets resolved
   useEffect(() => {
@@ -151,6 +164,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
         setSuccess(true)
         setHasAlreadyPredicted(true)
         setIsWaitingForResolution(true)
+        setLastPredictedAtBatIndex(currentAtBat.about.atBatIndex) // Track this at-bat as predicted
         onPredictionSubmitted()
         
         // Reset form after a delay
@@ -212,23 +226,35 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   // Check if the inning has ended (3 outs) - prevent predictions
   const isInningEnded = currentAtBat?.count?.outs >= 3
 
-  // Show a subtle indicator if user has already predicted for this at-bat
-  if (hasAlreadyPredicted && isWaitingForResolution) {
+  // Show a message if user has already predicted for this at-bat
+  if (hasAlreadyPredicted) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-white text-lg font-semibold">Make Your Prediction</h3>
-          <div className="flex items-center space-x-2 text-blue-400 text-sm">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-            <span>Waiting for resolution...</span>
-          </div>
+          {isWaitingForResolution ? (
+            <div className="flex items-center space-x-2 text-blue-400 text-sm">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+              <span>Waiting for resolution...</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 text-green-400 text-sm">
+              <div className="text-green-400">✅</div>
+              <span>Previous at-bat resolved</span>
+            </div>
+          )}
         </div>
         
-        <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
+        <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4">
           <div className="text-center">
-            <div className="text-blue-300 text-lg mb-2">⏳</div>
-            <h4 className="text-blue-300 font-semibold mb-1">Prediction Submitted!</h4>
-            <p className="text-blue-400 text-sm">Your prediction has been submitted for this at-bat. Waiting for the outcome...</p>
+            <div className="text-red-300 text-lg mb-2">🚫</div>
+            <h4 className="text-red-300 font-semibold mb-1">Already Predicted</h4>
+            <p className="text-red-400 text-sm">
+              {isWaitingForResolution 
+                ? "You have already made a prediction for this at-bat. Please wait for the next at-bat."
+                : "You have already made a prediction for this at-bat. Please wait for the next at-bat."
+              }
+            </p>
           </div>
         </div>
       </div>
@@ -252,12 +278,6 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
     <div className="bg-gray-800 rounded-lg p-6 mb-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-white text-lg font-semibold">Make Your Prediction</h3>
-        {hasAlreadyPredicted && !isWaitingForResolution && (
-          <div className="flex items-center space-x-2 text-green-400 text-sm">
-            <div className="text-green-400">✅</div>
-            <span>Previous at-bat resolved</span>
-          </div>
-        )}
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">

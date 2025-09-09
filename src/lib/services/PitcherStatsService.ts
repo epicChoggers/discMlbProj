@@ -157,12 +157,31 @@ export class PitcherStatsService {
    * Get Mariners starting pitcher stats from game data
    */
   getMarinersStartingPitcherStats(gameData: any): PitcherGameStats | null {
+    console.log('Extracting pitcher stats from game data...')
     const allPitcherStats = this.extractPitcherStats(gameData)
+    console.log(`Found ${allPitcherStats.length} pitcher stats:`, allPitcherStats.map(p => ({ 
+      name: p.pitcherName, 
+      id: p.pitcherId, 
+      isStarting: p.isStartingPitcher,
+      ip: p.ip 
+    })))
     
     // Find Mariners starting pitcher
     const marinersStartingPitcher = allPitcherStats.find(pitcher => 
       pitcher.isStartingPitcher && this.isMarinersPitcher(pitcher, gameData)
     )
+
+    console.log('Mariners starting pitcher found:', marinersStartingPitcher ? {
+      name: marinersStartingPitcher.pitcherName,
+      id: marinersStartingPitcher.pitcherId,
+      stats: {
+        ip: marinersStartingPitcher.ip,
+        hits: marinersStartingPitcher.hits,
+        earnedRuns: marinersStartingPitcher.earnedRuns,
+        walks: marinersStartingPitcher.walks,
+        strikeouts: marinersStartingPitcher.strikeouts
+      }
+    } : null)
 
     return marinersStartingPitcher || null
   }

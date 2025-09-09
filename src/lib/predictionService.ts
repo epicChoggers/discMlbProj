@@ -263,9 +263,8 @@ export class PredictionServiceNew {
     if (predictedCategory === actualCategory) {
       switch (actualCategory) {
         case 'hit': return 3        // Hit category (single, double, triple, home run)
-        case 'out': return 1        // Out category (field_out, fielders_choice, etc.)
+        case 'out': return 1        // Out category (strikeout, field_out, fielders_choice, etc.)
         case 'walk': return 2       // Walk category
-        case 'strikeout': return 2  // Strikeout category
         case 'sacrifice': return 2  // Sacrifice category
         case 'error': return 1      // Error category
         case 'hit_by_pitch': return 2 // Hit by pitch category

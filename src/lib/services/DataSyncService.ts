@@ -478,9 +478,14 @@ export class DataSyncService {
   private async resolvePitcherPredictions(gamePk: number, gameData: any): Promise<void> {
     try {
       console.log(`Checking pitcher predictions for game ${gamePk}...`)
+      console.log('Game status:', gameData?.status?.abstractGameState || gameData?.gameData?.status?.abstractGameState)
+      console.log('Game detailed status:', gameData?.status?.detailedState || gameData?.gameData?.status?.detailedState)
 
       // Check if we should resolve pitcher predictions
-      if (!pitcherSubstitutionService.shouldResolveStartingPitcherPredictions(gameData)) {
+      const shouldResolve = pitcherSubstitutionService.shouldResolveStartingPitcherPredictions(gameData)
+      console.log('Should resolve pitcher predictions:', shouldResolve)
+      
+      if (!shouldResolve) {
         console.log('Starting pitcher still pitching or game not final - skipping pitcher prediction resolution')
         return
       }

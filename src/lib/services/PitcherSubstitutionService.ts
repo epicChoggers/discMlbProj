@@ -255,7 +255,9 @@ export class PitcherSubstitutionService {
    * Check if the game is final and starting pitcher should be considered finished
    */
   isGameFinal(gameData: any): boolean {
-    const gameStatus = gameData?.gameData?.status?.abstractGameState
+    // Check both possible locations for game status
+    const gameStatus = gameData?.status?.abstractGameState || gameData?.gameData?.status?.abstractGameState
+    console.log('Game status found:', gameStatus)
     return gameStatus === 'Final' || gameStatus === 'Game Over'
   }
 
@@ -267,12 +269,20 @@ export class PitcherSubstitutionService {
     // 1. Game is final, OR
     // 2. Starting pitcher has been removed from the game
     
-    if (this.isGameFinal(gameData)) {
+    const isFinal = this.isGameFinal(gameData)
+    console.log('Game is final:', isFinal)
+    
+    if (isFinal) {
+      console.log('Game is final, should resolve pitcher predictions')
       return true
     }
 
     const pitcherStatus = this.hasStartingPitcherBeenRemoved(gameData)
-    return pitcherStatus ? !pitcherStatus.isStillPitching : false
+    console.log('Pitcher status:', pitcherStatus)
+    const shouldResolve = pitcherStatus ? !pitcherStatus.isStillPitching : false
+    console.log('Should resolve based on pitcher status:', shouldResolve)
+    
+    return shouldResolve
   }
 }
 
