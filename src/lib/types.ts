@@ -211,6 +211,17 @@ export interface AtBatPrediction {
   pointsEarned?: number // Points earned for this prediction (1 or 3)
   streakCount?: number // Current streak count when this prediction was made
   streakBonus?: number // Bonus points earned from streak
+  batter?: {
+    id: number
+    name: string
+    position: string
+    batSide: string
+  } | null
+  pitcher?: {
+    id: number
+    name: string
+    hand: string
+  } | null
   user?: {
     id: string
     email: string

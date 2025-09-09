@@ -347,9 +347,11 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
               .map(([atBatIndex, atBatPredictions]) => {
                 const atBatContext = atBatContexts[parseInt(atBatIndex)]
                 const atBatInfo = atBatContext?.matchup
-                const pitcher = atBatInfo?.pitcher
-                const batter = atBatInfo?.batter
-                const actualOutcome = atBatPredictions[0].actualOutcome
+                // Get batter and pitcher data from the first prediction (they should all be the same for the same at-bat)
+                const prediction = atBatPredictions[0]
+                const pitcher = prediction.pitcher || atBatInfo?.pitcher
+                const batter = prediction.batter || atBatInfo?.batter
+                const actualOutcome = prediction.actualOutcome
                 
                 return (
                   <div key={atBatIndex} className="space-y-3">
@@ -371,13 +373,13 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                         <div>
                           <div className="text-gray-400 text-xs mb-1">Batter</div>
                           <div className="text-white font-medium">
-                            {batter?.fullName || 'Unknown'}
+                            {batter?.name || batter?.fullName || 'Unknown'}
                           </div>
                         </div>
                         <div>
                           <div className="text-gray-400 text-xs mb-1">Pitcher</div>
                           <div className="text-white font-medium">
-                            {pitcher?.fullName || 'Unknown'}
+                            {pitcher?.name || pitcher?.fullName || 'Unknown'}
                           </div>
                         </div>
                       </div>

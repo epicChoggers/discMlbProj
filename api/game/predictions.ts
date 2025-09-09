@@ -74,6 +74,18 @@ async function handleGetPredictions(req: VercelRequest, res: VercelResponse) {
       streakBonus: prediction.streak_bonus || 0,
       createdAt: prediction.created_at,
       resolvedAt: prediction.resolved_at,
+      // Add batter and pitcher data
+      batter: prediction.batter_name ? {
+        id: prediction.batter_id,
+        name: prediction.batter_name,
+        position: prediction.batter_position,
+        batSide: prediction.batter_bat_side
+      } : null,
+      pitcher: prediction.pitcher_name ? {
+        id: prediction.pitcher_id,
+        name: prediction.pitcher_name,
+        hand: prediction.pitcher_hand
+      } : null,
       user: {
         id: prediction.user_id,
         email: prediction.email || '',
@@ -128,6 +140,49 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
 
     console.log(`Creating prediction: user=${user.id}, gamePk=${gamePk}, atBatIndex=${atBatIndex}, prediction=${prediction}`)
 
+    // Get cached at-bat data to extract batter and pitcher information
+    let batterData = null
+    let pitcherData = null
+    
+    try {
+      const { data: cachedAtBat, error: atBatError } = await supabase
+        .from('cached_at_bats')
+        .select('at_bat_data')
+        .eq('game_pk', gamePk)
+        .eq('at_bat_index', atBatIndex)
+        .single()
+
+      if (!atBatError && cachedAtBat?.at_bat_data?.matchup) {
+        const matchup = cachedAtBat.at_bat_data.matchup
+        
+        // Extract batter data
+        if (matchup.batter) {
+          batterData = {
+            id: matchup.batter.id,
+            name: matchup.batter.fullName,
+            position: matchup.batter.primaryPosition?.abbreviation || 'Unknown',
+            bat_side: matchup.batSide?.code || 'Unknown'
+          }
+        }
+        
+        // Extract pitcher data
+        if (matchup.pitcher) {
+          pitcherData = {
+            id: matchup.pitcher.id,
+            name: matchup.pitcher.fullName,
+            hand: matchup.pitchHand?.code || 'Unknown'
+          }
+        }
+        
+        console.log('Extracted player data:', { batterData, pitcherData })
+      } else {
+        console.warn('No cached at-bat data found for gamePk:', gamePk, 'atBatIndex:', atBatIndex)
+      }
+    } catch (error) {
+      console.warn('Error fetching cached at-bat data:', error)
+      // Continue without batter/pitcher data rather than failing
+    }
+
     // Check if user has already made a prediction for this at-bat
     const { data: existingPrediction } = await supabase
       .from('at_bat_predictions')
@@ -142,13 +197,26 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    // Create the prediction
+    // Create the prediction with batter and pitcher data
     const predictionData = {
       user_id: user.id,
       game_pk: gamePk,
       at_bat_index: atBatIndex,
       prediction,
       prediction_category: predictionCategory,
+      // Add batter data if available
+      ...(batterData && {
+        batter_id: batterData.id,
+        batter_name: batterData.name,
+        batter_position: batterData.position,
+        batter_bat_side: batterData.bat_side
+      }),
+      // Add pitcher data if available
+      ...(pitcherData && {
+        pitcher_id: pitcherData.id,
+        pitcher_name: pitcherData.name,
+        pitcher_hand: pitcherData.hand
+      }),
       created_at: new Date().toISOString()
     }
 
