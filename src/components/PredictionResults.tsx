@@ -245,44 +245,8 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
     loadAtBatContexts()
   }, [predictions, gamePk])
 
-  // Auto-resolve predictions when game state updates
-  useEffect(() => {
-    const autoResolvePredictions = async () => {
-      if (!gamePk || !onGameStateUpdate) return
-
-      // Register for game state updates
-      const unsubscribe = onGameStateUpdate(async () => {
-        try {
-          console.log('Game state updated, checking for auto-resolution...')
-          
-          // Import services dynamically to avoid circular dependencies
-          const { mlbServiceNew } = await import('../lib/mlbService')
-          const { predictionServiceNew } = await import('../lib/predictionService')
-          
-          // Get current game state
-          const currentGameState = await mlbServiceNew.getGameState()
-          if (currentGameState.game && currentGameState.game.gamePk === gamePk) {
-            console.log('Auto-resolving completed at-bats...')
-            await predictionServiceNew.autoResolveAllCompletedAtBats(gamePk, currentGameState.game)
-            
-            // Also trigger pitcher prediction resolution
-            console.log('Auto-resolving pitcher predictions...')
-            const { dataSyncService } = await import('../lib/services/DataSyncService')
-            await dataSyncService.resolvePredictions(gamePk)
-            
-            console.log('Auto-resolution complete')
-          }
-        } catch (error) {
-          console.error('Error in auto-resolution:', error)
-        }
-      })
-
-      // Return cleanup function
-      return unsubscribe
-    }
-
-    autoResolvePredictions()
-  }, [gamePk, onGameStateUpdate])
+  // Note: Prediction resolution is now handled entirely server-side
+  // No client-side auto-resolution needed
 
   // Track when we've initially loaded data
   useEffect(() => {
@@ -497,7 +461,7 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
         ? isCorrect 
           ? 'bg-green-900/20 border-green-700' 
           : isPartialCredit
-            ? 'bg-yellow-900/20 border-yellow-700'
+            ? 'bg-orange-900/20 border-orange-700'
             : 'bg-red-900/20 border-red-700'
         : 'bg-gray-700 border-gray-600'
     }`}>
@@ -544,17 +508,12 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
                   <span className="text-green-400 text-lg">✅</span>
                   <div className="text-green-400 text-sm font-medium">
                     <div>Correct! +{prediction.pointsEarned || 0}pts</div>
-                    {prediction.streakBonus && prediction.streakBonus > 0 && (
-                      <div className="text-yellow-400 text-xs">
-                        🔥 {prediction.streakCount} streak (+{prediction.streakBonus} bonus)
-                      </div>
-                    )}
                   </div>
                 </>
               ) : isPartialCredit ? (
                 <>
-                  <span className="text-yellow-400 text-lg">⚠️</span>
-                  <div className="text-yellow-400 text-sm font-medium">
+                  <span className="text-orange-400 text-lg">⚠️</span>
+                  <div className="text-orange-400 text-sm font-medium">
                     <div>Partial Credit! +{prediction.pointsEarned || 0}pts</div>
                     <div className="text-gray-400 text-xs">
                       Correct category, wrong outcome
@@ -562,11 +521,6 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
                     <div className="text-gray-400 text-xs">
                       Actual: {getOutcomeLabel(prediction.actualOutcome!)}
                     </div>
-                    {prediction.streakBonus && prediction.streakBonus > 0 && (
-                      <div className="text-yellow-400 text-xs">
-                        🔥 {prediction.streakCount} streak (+{prediction.streakBonus} bonus)
-                      </div>
-                    )}
                   </div>
                 </>
               ) : (

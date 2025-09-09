@@ -84,10 +84,36 @@ export class EventService {
   async triggerPredictionResolution(): Promise<EventJobResult> {
     const start = Date.now()
     try {
-      // Minimal stub; full resolution runs in client services
-      return { success: true, duration: Date.now() - start, data: { message: 'No-op on server' } }
+      console.log('Server-side prediction resolution triggered...')
+      
+      // Get current game state
+      const gameState = await gameCacheService.getCachedGameState()
+      if (!gameState?.game?.gamePk) {
+        return { 
+          success: true, 
+          duration: Date.now() - start, 
+          data: { message: 'No active game found for prediction resolution' } 
+        }
+      }
+
+      // Import and use the data sync service for resolution
+      const { dataSyncService } = await import('./DataSyncService.js')
+      const result = await dataSyncService.resolvePredictions(gameState.game.gamePk)
+      
+      console.log(`Server-side resolution completed: ${result.predictionsResolved} predictions resolved, ${result.pointsAwarded} points awarded`)
+      
+      return { 
+        success: result.success, 
+        duration: Date.now() - start, 
+        data: result 
+      }
     } catch (error) {
-      return { success: false, duration: Date.now() - start, error: (error as Error).message }
+      console.error('Error in server-side prediction resolution:', error)
+      return { 
+        success: false, 
+        duration: Date.now() - start, 
+        error: (error as Error).message 
+      }
     }
   }
 

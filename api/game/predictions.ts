@@ -81,8 +81,6 @@ async function handleGetPredictions(req: VercelRequest, res: VercelResponse) {
       actualCategory: prediction.actual_category,
       isCorrect: prediction.is_correct,
       pointsEarned: prediction.points_earned,
-      streakCount: prediction.streak_count || 0,
-      streakBonus: prediction.streak_bonus || 0,
       createdAt: prediction.created_at,
       resolvedAt: prediction.resolved_at,
       // Add batter and pitcher data
@@ -208,6 +206,29 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
     if (existingPrediction) {
       res.status(409).json({ error: 'You have already made a prediction for this at-bat' })
       return
+    }
+
+    // Check if count is too advanced (more than 1 ball and 1 strike) - prevent predictions
+    try {
+      const gameStateResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/game/state`)
+      const gameStateData = await gameStateResponse.json()
+      
+      if (gameStateData.success && gameStateData.currentAtBat) {
+        const currentAtBat = gameStateData.currentAtBat
+        const balls = currentAtBat.count?.balls || 0
+        const strikes = currentAtBat.count?.strikes || 0
+        
+        // Check if this is the current at-bat and count is too advanced
+        if (currentAtBat.about?.atBatIndex === atBatIndex && balls > 1 && strikes > 1) {
+          res.status(400).json({ 
+            error: `Predictions are no longer accepted after the count reaches more than 1 ball and 1 strike. Current count: ${balls}-${strikes}` 
+          })
+          return
+        }
+      }
+    } catch (error) {
+      console.warn('Error checking count validation:', error)
+      // Continue without count validation rather than failing
     }
 
     // Create the prediction with batter and pitcher data

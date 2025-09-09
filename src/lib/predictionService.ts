@@ -194,13 +194,12 @@ export class PredictionServiceNew {
     }
   }
 
-  // Calculate points for a prediction based on accuracy and streak
+  // Calculate points for a prediction based on accuracy
   calculatePoints(
     predictedOutcome: AtBatOutcome,
     predictedCategory: string | undefined,
-    actualOutcome: AtBatOutcome,
-    currentStreak: number = 0
-  ): { points: number; isExact: boolean; isCategoryCorrect: boolean; bonusInfo?: string; streakBonus: number } {
+    actualOutcome: AtBatOutcome
+  ): { points: number; isExact: boolean; isCategoryCorrect: boolean; bonusInfo?: string } {
     const actualCategory = getOutcomeCategory(actualOutcome)
     
     // Check if exact prediction is correct
@@ -211,7 +210,6 @@ export class PredictionServiceNew {
     
     let points = 0
     let bonusInfo = ''
-    let streakBonus = 0
     
     if (isExact) {
       // Base points for exact predictions
@@ -224,24 +222,12 @@ export class PredictionServiceNew {
       if (multiplier > 1) {
         bonusInfo = `+${Math.round((multiplier - 1) * 100)}% risk bonus`
       }
-      
-      // Calculate streak bonus for correct predictions
-      streakBonus = this.calculateStreakBonus(currentStreak + 1)
-      if (streakBonus > 0) {
-        bonusInfo += bonusInfo ? `, +${streakBonus} streak bonus` : `+${streakBonus} streak bonus`
-      }
     } else if (isCategoryCorrect) {
       // Points for correct category predictions
       points = this.getCategoryPoints(predictedCategory, actualCategory)
-      
-      // Calculate streak bonus for correct predictions
-      streakBonus = this.calculateStreakBonus(currentStreak + 1)
-      if (streakBonus > 0) {
-        bonusInfo = `+${streakBonus} streak bonus`
-      }
     }
     
-    return { points, isExact, isCategoryCorrect, bonusInfo, streakBonus }
+    return { points, isExact, isCategoryCorrect, bonusInfo }
   }
 
   // Get base points for each outcome type
@@ -277,51 +263,6 @@ export class PredictionServiceNew {
     return 0
   }
 
-  // Calculate streak bonus points
-  private calculateStreakBonus(streakCount: number): number {
-    if (streakCount < 2) return 0 // No bonus for first correct prediction
-    
-    // Progressive streak bonuses
-    if (streakCount >= 10) return 10 // 10+ streak = 10 bonus points
-    if (streakCount >= 7) return 7   // 7+ streak = 7 bonus points
-    if (streakCount >= 5) return 5   // 5+ streak = 5 bonus points
-    if (streakCount >= 3) return 3   // 3+ streak = 3 bonus points
-    return 1 // 2+ streak = 1 bonus point
-  }
-
-  // Get current streak for a user
-  async getUserCurrentStreak(userId: string): Promise<number> {
-    try {
-      const { data, error } = await supabase
-        .from('at_bat_predictions')
-        .select('is_correct, created_at')
-        .eq('user_id', userId)
-        .not('is_correct', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(20) // Check last 20 predictions for streak calculation
-
-      if (error) {
-        console.error('Error fetching user streak:', error)
-        return 0
-      }
-
-      if (!data || data.length === 0) return 0
-
-      let streak = 0
-      for (const prediction of data) {
-        if (prediction.is_correct) {
-          streak++
-        } else {
-          break // Streak ends on first incorrect prediction
-        }
-      }
-
-      return streak
-    } catch (error) {
-      console.error('Error calculating user streak:', error)
-      return 0
-    }
-  }
 
   // Get user's prediction stats
   async getUserPredictionStats(): Promise<PredictionStats> {
@@ -788,23 +729,17 @@ export class PredictionServiceNew {
     // Prepare all update data
     const updateDataList = []
     for (const prediction of predictions) {
-      const currentStreak = await this.getUserCurrentStreak(prediction.userId)
-      const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
+      const { points, isExact, isCategoryCorrect } = this.calculatePoints(
         prediction.prediction,
         prediction.predictionCategory,
-        actualOutcome,
-        currentStreak
+        actualOutcome
       )
-      const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
-      
       updateDataList.push({
         id: prediction.id,
         actual_outcome: actualOutcome,
         actual_category: getOutcomeCategory(actualOutcome),
         is_correct: isExact || isCategoryCorrect,
-        points_earned: points + streakBonus,
-        streak_count: newStreakCount,
-        streak_bonus: streakBonus,
+        points_earned: points,
         resolved_at: new Date().toISOString()
       })
     }
@@ -834,29 +769,19 @@ export class PredictionServiceNew {
       console.log(`Resolving prediction ${prediction.id} for user ${prediction.userId} (attempt ${retryCount + 1})`)
       console.log(`Prediction: ${prediction.prediction}, Category: ${prediction.predictionCategory}`)
       
-      // Get current streak before this prediction
-      const currentStreak = await this.getUserCurrentStreak(prediction.userId)
-      console.log(`Current streak for user ${prediction.userId}: ${currentStreak}`)
-      
-      const { points, isExact, isCategoryCorrect, streakBonus } = this.calculatePoints(
+      const { points, isExact, isCategoryCorrect } = this.calculatePoints(
         prediction.prediction,
         prediction.predictionCategory,
-        actualOutcome,
-        currentStreak
+        actualOutcome
       )
       
-      console.log(`Points calculation: ${points} base, ${streakBonus} streak bonus, exact: ${isExact}, category: ${isCategoryCorrect}`)
-      
-      // Calculate new streak count
-      const newStreakCount = (isExact || isCategoryCorrect) ? currentStreak + 1 : 0
+      console.log(`Points calculation: ${points} base, exact: ${isExact}, category: ${isCategoryCorrect}`)
       
       const updateData = {
         actual_outcome: actualOutcome,
         actual_category: getOutcomeCategory(actualOutcome),
         is_correct: isExact || isCategoryCorrect,
-        points_earned: points + streakBonus,
-        streak_count: newStreakCount,
-        streak_bonus: streakBonus,
+        points_earned: points,
         resolved_at: new Date().toISOString()
       }
       
