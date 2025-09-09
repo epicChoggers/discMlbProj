@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { AtBatPrediction } from './types'
 import { predictionServiceNew } from './predictionService'
 import { supabase } from '../supabaseClient'
+import { resolvePredictionsService } from './resolvePredictionsService'
 
 interface UseRealtimePredictionsNewProps {
   gamePk: number
@@ -44,6 +45,10 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
     console.log('Game state updated, refreshing predictions...')
     setIsUpdating(true)
     try {
+      // Call the resolve-predictions API to resolve any pending predictions
+      await resolvePredictionsService.resolvePredictions()
+      
+      // Then reload the predictions to get the updated data
       await loadPredictions()
     } catch (err) {
       console.error('Error refreshing predictions on game state update:', err)
@@ -107,6 +112,9 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
               try {
                 // Add a small delay to ensure database consistency
                 await new Promise(resolve => setTimeout(resolve, 200))
+                
+                // Call the resolve-predictions API to resolve any pending predictions
+                await resolvePredictionsService.resolvePredictions()
                 
                 // Reload predictions
                 await loadPredictions()
