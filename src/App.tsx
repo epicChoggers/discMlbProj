@@ -9,6 +9,27 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    const initializeApp = async () => {
+      // Start the sync service first
+      try {
+        console.log('Starting sync service...')
+        const response = await fetch('/api/system/startup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (response.ok) {
+          console.log('Sync service started successfully')
+        } else {
+          console.warn('Failed to start sync service:', await response.text())
+        }
+      } catch (error) {
+        console.warn('Error starting sync service:', error)
+      }
+    }
+
     const checkAuth = async () => {
       try {
         // Check if we're running locally and should bypass authentication
@@ -84,6 +105,9 @@ function App() {
       }
     }
 
+    // Initialize the app (start sync service)
+    initializeApp()
+    
     checkAuth()
 
     // Listen for auth state changes

@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { cronService } from '../../src/lib/services/CronService'
+import { eventService } from '../../src/lib/services/EventService'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -29,8 +29,8 @@ async function handleGetSyncStatus(req: VercelRequest, res: VercelResponse) {
 
     console.log('Sync status request:', { includeDetails })
 
-    const jobStatus = cronService.getJobStatus()
-    const systemHealth = await cronService.getSystemHealthSummary()
+    const jobStatus = eventService.getJobStatus()
+    const systemHealth = await eventService.getSystemHealthSummary()
 
     const response = {
       success: true,
@@ -65,15 +65,15 @@ async function handleTriggerSync(req: VercelRequest, res: VercelResponse) {
 
     switch (syncType) {
       case 'game_state':
-        result = await cronService.triggerGameStateSync()
+        result = await eventService.triggerGameStateSync()
         break
 
       case 'predictions':
-        result = await cronService.triggerPredictionResolution()
+        result = await eventService.triggerPredictionResolution()
         break
 
       case 'all':
-        result = await cronService.triggerAllEventDrivenJobs()
+        result = await eventService.triggerAllEventDrivenJobs()
         break
 
       default:
