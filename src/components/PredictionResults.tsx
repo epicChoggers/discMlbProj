@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AtBatPrediction } from '../lib/types'
 import { useRealtimePredictionsNew } from '../lib/useRealtimePredictions'
+import { gameCacheService } from '../lib/services/GameCacheService'
 
 interface PredictionResultsProps {
   gamePk: number
@@ -184,6 +185,7 @@ const getOutcomeLabel = (outcome: string) => {
 
 export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResultsProps) => {
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
+  const [atBatContexts, setAtBatContexts] = useState<Record<number, any>>({})
   
   // Use the new real-time predictions hook to get ALL predictions for the game
   const { predictions, isLoading, isUpdating, error } = useRealtimePredictionsNew({
@@ -192,6 +194,33 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
     onGameStateUpdate // Register for game state updates
   })
 
+
+  // Load at-bat context information for all predictions
+  useEffect(() => {
+    const loadAtBatContexts = async () => {
+      if (!predictions.length) return
+
+      const contexts: Record<number, any> = {}
+      
+      // Get unique at-bat indices from predictions
+      const atBatIndices = [...new Set(predictions.map(p => p.atBatIndex))]
+      
+      for (const atBatIndex of atBatIndices) {
+        try {
+          const cachedAtBat = await gameCacheService.getCachedAtBat(gamePk, atBatIndex)
+          if (cachedAtBat && cachedAtBat.at_bat_data) {
+            contexts[atBatIndex] = cachedAtBat.at_bat_data
+          }
+        } catch (error) {
+          console.error(`Error loading context for at-bat ${atBatIndex}:`, error)
+        }
+      }
+      
+      setAtBatContexts(contexts)
+    }
+
+    loadAtBatContexts()
+  }, [predictions, gamePk])
 
   // Track when we've initially loaded data
   useEffect(() => {
@@ -316,49 +345,75 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
               }, {} as Record<number, AtBatPrediction[]>)
             )
               .sort(([a], [b]) => parseInt(b) - parseInt(a)) // Sort by at-bat index descending (most recent first)
-              .map(([atBatIndex, atBatPredictions]) => (
-                <div key={atBatIndex} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-gray-300 font-medium text-sm">
-                      At-Bat #{atBatIndex} ({atBatPredictions.length} predictions)
-                    </h4>
-                    <div className="text-gray-500 text-xs">
-                      {atBatPredictions[0].actualOutcome ? 
-                        (atBatPredictions[0].isCorrect ? 'Correct' : 'Incorrect') : 
-                        'Pending'
-                      }
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {atBatPredictions.map((prediction, index) => (
-                      <div 
-                        key={prediction.id} 
-                        className={`transition-all duration-300 ${
-                          isUpdating ? 'opacity-90' : 'opacity-100'
-                        }`}
-                        style={{
-                          animationDelay: `${index * 50}ms`
-                        }}
-                      >
-                        <PredictionCard prediction={prediction} />
+              .map(([atBatIndex, atBatPredictions]) => {
+                const atBatContext = atBatContexts[parseInt(atBatIndex)]
+                const atBatInfo = atBatContext?.matchup
+                const pitcher = atBatInfo?.pitcher
+                const batter = atBatInfo?.batter
+                const actualOutcome = atBatPredictions[0].actualOutcome
+                
+                return (
+                  <div key={atBatIndex} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-gray-300 font-medium text-sm">
+                        At-Bat #{atBatIndex} ({atBatPredictions.length} predictions)
+                      </h4>
+                      <div className="text-gray-500 text-xs">
+                        {actualOutcome ? 
+                          (atBatPredictions[0].isCorrect ? 'Correct' : 'Incorrect') : 
+                          'Pending'
+                        }
                       </div>
-                    ))}
-                  </div>
-                  
-                  {/* Show the correct outcome after predictions if resolved */}
-                  {atBatPredictions[0].actualOutcome && (
-                    <div className="mt-4 p-4 bg-blue-900/30 border border-blue-600 rounded-lg">
-                      <div className="flex items-center justify-center space-x-3">
-                        <div className="text-blue-300 text-sm font-medium">Correct Outcome:</div>
-                        <div className="text-2xl">{getOutcomeEmoji(atBatPredictions[0].actualOutcome)}</div>
-                        <div className="text-blue-100 font-semibold text-lg">
-                          {getOutcomeLabel(atBatPredictions[0].actualOutcome)}
+                    </div>
+                    
+                    {/* At-Bat Context Information */}
+                    <div className="bg-gray-700/50 rounded-lg p-3 text-sm">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Batter</div>
+                          <div className="text-white font-medium">
+                            {batter?.fullName || 'Unknown'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Pitcher</div>
+                          <div className="text-white font-medium">
+                            {pitcher?.fullName || 'Unknown'}
+                          </div>
                         </div>
                       </div>
+                      {actualOutcome && (
+                        <div className="mt-3 pt-3 border-t border-gray-600">
+                          <div className="text-gray-400 text-xs mb-1">Actual Outcome</div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-lg">{getOutcomeEmoji(actualOutcome)}</span>
+                            <span className="text-white font-medium">
+                              {getOutcomeLabel(actualOutcome)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                    
+                    <div className="space-y-2">
+                      {atBatPredictions.map((prediction, index) => (
+                        <div 
+                          key={prediction.id} 
+                          className={`transition-all duration-300 ${
+                            isUpdating ? 'opacity-90' : 'opacity-100'
+                          }`}
+                          style={{
+                            animationDelay: `${index * 50}ms`
+                          }}
+                        >
+                          <PredictionCard prediction={prediction} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+            }
           </div>
         )}
       </div>

@@ -16,10 +16,22 @@ export class GameDataService {
     return this.teamId
   }
 
+  // Helper method to get Pacific Time date string to avoid timezone issues
+  private getPacificDateString(): string {
+    const now = new Date()
+    // Get Pacific Time components directly
+    const pacificYear = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
+    const pacificMonth = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
+    const pacificDay = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
+    
+    return `${pacificYear}-${pacificMonth}-${pacificDay}`
+  }
+
   // Get today's Mariners game with probable pitcher
   async getTodaysMarinersGameWithPitcher(): Promise<any | null> {
     try {
-      const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+      // Use Pacific Time to avoid timezone issues
+      const today = this.getPacificDateString()
       const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&hydrate=probablePitcher&date=${today}`
       console.log('[GameDataService] Requesting schedule URL with probable pitcher:', url)
       const response = await fetch(url)
@@ -146,8 +158,12 @@ export class GameDataService {
         throw new Error('Game date not found')
       }
 
-      // Extract the date from the game
-      const gameDate = gameData.gameData.datetime.originalDate.split('T')[0] // YYYY-MM-DD format
+      // Extract the date from the game and convert to Pacific Time
+      const gameDateTime = new Date(gameData.gameData.datetime.originalDate)
+      const pacificYear = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
+      const pacificMonth = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
+      const pacificDay = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
+      const gameDate = `${pacificYear}-${pacificMonth}-${pacificDay}`
       
       // Now get the schedule with probable pitcher hydration
       const scheduleUrl = `${this.apiBaseUrl}/schedule?sportId=1&hydrate=probablePitcher&startDate=${gameDate}&endDate=${gameDate}`

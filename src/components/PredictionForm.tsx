@@ -8,7 +8,7 @@ interface PredictionFormProps {
   onPredictionSubmitted: () => void
 }
 
-// Main prediction categories - simplified to three options
+// Main prediction categories - simplified to two options
 const MAIN_CATEGORIES = [
   { 
     value: 'out', 
@@ -22,54 +22,24 @@ const MAIN_CATEGORIES = [
     value: 'hit', 
     label: 'Hit', 
     emoji: '🏃', 
-    description: 'Batter gets a hit',
+    description: 'Batter gets a hit or reaches base',
     basePoints: 2,
     category: 'hit'
-  },
-  { 
-    value: 'walk', 
-    label: 'Walk', 
-    emoji: '🚶', 
-    description: 'Batter walks or strikes out',
-    basePoints: 3,
-    category: 'walk'
   }
 ]
 
-// Specific outcomes for each main category with higher point values
+// Specific outcomes for each main category - simplified to essential options
 const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string; points: number; bonusPercent: number; description: string }[]> = {
   out: [
-    { value: 'field_out', label: 'Field Out', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Generic field out' },
-    { value: 'fielders_choice', label: "Fielder's Choice", emoji: '🤔', points: 1, bonusPercent: 0, description: 'Fielder chooses to get another out' },
-    { value: 'fielders_choice_out', label: "Fielder's Choice Out", emoji: '🤔', points: 1, bonusPercent: 0, description: 'Fielder\'s choice resulting in out' },
-    { value: 'force_out', label: 'Force Out', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Force play out' },
-    { value: 'grounded_into_double_play', label: 'Grounded Into DP', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Double play groundout' },
-    { value: 'grounded_into_triple_play', label: 'Grounded Into TP', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Triple play groundout' },
-    { value: 'triple_play', label: 'Triple Play', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Triple play' },
-    { value: 'double_play', label: 'Double Play', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Double play' }
+    { value: 'strikeout', label: 'Strikeout', emoji: '❌', points: 3, bonusPercent: 10, description: 'Three strikes' },
+    { value: 'field_out', label: 'Field Out', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Any field out' }
   ],
   hit: [
     { value: 'single', label: 'Single', emoji: '🏃', points: 6, bonusPercent: 20, description: 'One base hit' },
     { value: 'double', label: 'Double', emoji: '🏃🏃', points: 15, bonusPercent: 50, description: 'Two base hit' },
     { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', points: 27, bonusPercent: 80, description: 'Three base hit' },
-    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 40, bonusPercent: 100, description: 'Over the fence' }
-  ],
-  walk: [
-    { value: 'walk', label: 'Walk', emoji: '🚶', points: 4, bonusPercent: 10, description: 'Four balls' },
-    { value: 'intent_walk', label: 'Intentional Walk', emoji: '🚶', points: 4, bonusPercent: 10, description: 'Intentional walk' },
-    { value: 'strikeout', label: 'Strikeout', emoji: '❌', points: 3, bonusPercent: 10, description: 'Three strikes' },
-    { value: 'strike_out', label: 'Strike Out', emoji: '❌', points: 3, bonusPercent: 10, description: 'Three strikes' },
-    { value: 'strikeout_double_play', label: 'Strikeout DP', emoji: '❌', points: 3, bonusPercent: 10, description: 'Strikeout double play' },
-    { value: 'strikeout_triple_play', label: 'Strikeout TP', emoji: '❌', points: 3, bonusPercent: 10, description: 'Strikeout triple play' },
-    { value: 'hit_by_pitch', label: 'Hit by Pitch', emoji: '💢', points: 3, bonusPercent: 10, description: 'Pitch hits batter' },
-    { value: 'field_error', label: 'Field Error', emoji: '😅', points: 1, bonusPercent: 0, description: 'Fielding error' },
-    { value: 'catcher_interf', label: 'Catcher Interference', emoji: '😅', points: 2, bonusPercent: 0, description: 'Catcher interference' },
-    { value: 'batter_interference', label: 'Batter Interference', emoji: '😅', points: 2, bonusPercent: 0, description: 'Batter interference' },
-    { value: 'fan_interference', label: 'Fan Interference', emoji: '😅', points: 2, bonusPercent: 0, description: 'Fan interference' },
-    { value: 'sac_fly', label: 'Sacrifice Fly', emoji: '🙏', points: 3, bonusPercent: 10, description: 'Sacrifice fly' },
-    { value: 'sac_bunt', label: 'Sacrifice Bunt', emoji: '🙏', points: 2, bonusPercent: 0, description: 'Sacrifice bunt' },
-    { value: 'sac_fly_double_play', label: 'Sac Fly DP', emoji: '🙏', points: 3, bonusPercent: 10, description: 'Sacrifice fly double play' },
-    { value: 'sac_bunt_double_play', label: 'Sac Bunt DP', emoji: '🙏', points: 2, bonusPercent: 0, description: 'Sacrifice bunt double play' }
+    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 40, bonusPercent: 100, description: 'Over the fence' },
+    { value: 'walk', label: 'Walk', emoji: '🚶', points: 4, bonusPercent: 10, description: 'Four balls or hit by pitch' }
   ]
 }
 
@@ -239,6 +209,9 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
     )
   }
 
+  // Check if the inning has ended (3 outs) - prevent predictions
+  const isInningEnded = currentAtBat?.count?.outs >= 3
+
   // Show a subtle indicator if user has already predicted for this at-bat
   if (hasAlreadyPredicted && isWaitingForResolution) {
     return (
@@ -257,6 +230,19 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
             <h4 className="text-blue-300 font-semibold mb-1">Prediction Submitted!</h4>
             <p className="text-blue-400 text-sm">Your prediction has been submitted for this at-bat. Waiting for the outcome...</p>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show message when inning has ended (3 outs)
+  if (isInningEnded) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 mb-4">
+        <div className="text-center">
+          <div className="text-orange-400 text-lg mb-2">🏁</div>
+          <h3 className="text-orange-300 font-semibold mb-1">Inning Ended</h3>
+          <p className="text-orange-400 text-sm">This inning has ended with 3 outs. Predictions will be available for the next inning.</p>
         </div>
       </div>
     )
@@ -281,7 +267,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
             <label className="block text-gray-300 text-lg font-medium mb-4 text-center">
               What type of outcome do you predict?
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {MAIN_CATEGORIES.map((category) => (
                 <button
                   key={category.value}
