@@ -481,16 +481,16 @@ export class DataSyncService {
   // Resolve pitcher predictions for a specific game
   private async resolvePitcherPredictions(gamePk: number, gameData: any): Promise<void> {
     try {
-      console.log(`Checking pitcher predictions for game ${gamePk}...`)
-      console.log('Game status:', gameData?.status?.abstractGameState || gameData?.gameData?.status?.abstractGameState)
-      console.log('Game detailed status:', gameData?.status?.detailedState || gameData?.gameData?.status?.detailedState)
+      // console.log(`Checking pitcher predictions for game ${gamePk}...`)
+      // console.log('Game status:', gameData?.status?.abstractGameState || gameData?.gameData?.status?.abstractGameState)
+      // console.log('Game detailed status:', gameData?.status?.detailedState || gameData?.gameData?.status?.detailedState)
 
       // Check if we should resolve pitcher predictions
       const shouldResolve = pitcherSubstitutionService.shouldResolveStartingPitcherPredictions(gameData)
-      console.log('Should resolve pitcher predictions:', shouldResolve)
+      // console.log('Should resolve pitcher predictions:', shouldResolve)
       
       if (!shouldResolve) {
-        console.log('Starting pitcher still pitching or game not final - skipping pitcher prediction resolution')
+        // console.log('Starting pitcher still pitching or game not final - skipping pitcher prediction resolution')
         return
       }
 
@@ -498,11 +498,11 @@ export class DataSyncService {
       const startingPitcherStats = pitcherStatsService.getMarinersStartingPitcherStats(gameData)
       
       if (!startingPitcherStats) {
-        console.log('No Mariners starting pitcher stats found')
+        // console.log('No Mariners starting pitcher stats found')
         return
       }
 
-      console.log(`Found starting pitcher stats:`, startingPitcherStats)
+      // console.log(`Found starting pitcher stats:`, startingPitcherStats)
 
       // Get all unresolved pitcher predictions for this game and pitcher
       const { data: predictions, error: fetchError } = await supabase
@@ -513,16 +513,16 @@ export class DataSyncService {
         .is('resolved_at', null)
 
       if (fetchError) {
-        console.error('Error fetching pitcher predictions:', fetchError)
+        // console.error('Error fetching pitcher predictions:', fetchError)
         return
       }
 
       if (!predictions || predictions.length === 0) {
-        console.log('No unresolved pitcher predictions found')
+        // console.log('No unresolved pitcher predictions found')
         return
       }
 
-      console.log(`Found ${predictions.length} unresolved pitcher predictions`)
+      // console.log(`Found ${predictions.length} unresolved pitcher predictions`)
 
       // Resolve each prediction
       for (const prediction of predictions) {
@@ -556,12 +556,12 @@ export class DataSyncService {
             .eq('id', prediction.id)
 
           if (updateError) {
-            console.error(`Error updating pitcher prediction ${prediction.id}:`, updateError)
+            // console.error(`Error updating pitcher prediction ${prediction.id}:`, updateError)
           } else {
-            console.log(`Resolved pitcher prediction ${prediction.id} with ${pointsEarned} points`)
+            // console.log(`Resolved pitcher prediction ${prediction.id} with ${pointsEarned} points`)
           }
         } catch (error) {
-          console.error(`Error resolving pitcher prediction ${prediction.id}:`, error)
+          // console.error(`Error resolving pitcher prediction ${prediction.id}:`, error)
         }
       }
 
@@ -585,7 +585,7 @@ export class DataSyncService {
       )
 
     } catch (error) {
-      console.error('Error in pitcher prediction resolution:', error)
+      // console.error('Error in pitcher prediction resolution:', error)
     }
   }
 
@@ -608,7 +608,7 @@ export class DataSyncService {
           resolved_at: new Date().toISOString()
         })
     } catch (error) {
-      console.error('Error logging pitcher prediction resolution:', error)
+      // console.error('Error logging pitcher prediction resolution:', error)
     }
   }
 }
