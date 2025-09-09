@@ -19,7 +19,7 @@ export class PredictionServiceNew {
     }
     
     // Use full URL in production, relative URL in development
-    this.apiBaseUrl = this.isDevelopment ? '/api/game' : `${window.location.origin}/api/game`
+    this.apiBaseUrl = this.isDevelopment ? '/api' : `${window.location.origin}/api`
     console.log(`Prediction Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
