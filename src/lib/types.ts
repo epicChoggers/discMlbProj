@@ -214,6 +214,7 @@ export interface AtBatPrediction {
   actualOutcome?: AtBatOutcome
   actualCategory?: string // The category of the actual outcome
   isCorrect?: boolean
+  isPartialCredit?: boolean // True when prediction got category right but not exact outcome
   pointsEarned?: number // Points earned for this prediction (1 or 3)
   batter?: {
     id: number

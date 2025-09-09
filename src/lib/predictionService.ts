@@ -780,7 +780,8 @@ export class PredictionServiceNew {
       const updateData = {
         actual_outcome: actualOutcome,
         actual_category: getOutcomeCategory(actualOutcome),
-        is_correct: isExact || isCategoryCorrect,
+        is_correct: isExact,
+        is_partial_credit: !isExact && isCategoryCorrect,
         points_earned: points,
         resolved_at: new Date().toISOString()
       }

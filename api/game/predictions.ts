@@ -80,6 +80,7 @@ async function handleGetPredictions(req: VercelRequest, res: VercelResponse) {
       actualOutcome: prediction.actual_outcome,
       actualCategory: prediction.actual_category,
       isCorrect: prediction.is_correct,
+      isPartialCredit: prediction.is_partial_credit,
       pointsEarned: prediction.points_earned,
       createdAt: prediction.created_at,
       resolvedAt: prediction.resolved_at,

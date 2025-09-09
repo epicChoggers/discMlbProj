@@ -451,7 +451,7 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
 
   const isResolved = prediction.actualOutcome !== undefined && prediction.actualOutcome !== null
   const isCorrect = prediction.isCorrect
-  const isPartialCredit = isResolved && !isCorrect && prediction.pointsEarned && prediction.pointsEarned > 0
+  const isPartialCredit = prediction.isPartialCredit
   const profilePicture = getUserProfilePicture(prediction)
   const displayName = getUserDisplayName(prediction)
 
