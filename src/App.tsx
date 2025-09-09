@@ -13,7 +13,7 @@ function App() {
       // Start the sync service first
       try {
         console.log('Starting sync service...')
-        const response = await fetch('/api/system/startup', {
+        const response = await fetch('/api/system?action=startup', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
