@@ -10,10 +10,10 @@ function App() {
 
   useEffect(() => {
     const initializeApp = async () => {
-      // Start the sync service first
+      // Initialize game data
       try {
-        console.log('Starting sync service...')
-        const response = await fetch('/api/system?action=startup', {
+        console.log('Initializing game data...')
+        const response = await fetch('/api/game/initialize', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -21,12 +21,13 @@ function App() {
         })
         
         if (response.ok) {
-          console.log('Sync service started successfully')
+          const data = await response.json()
+          console.log('Game data initialized successfully:', data.message)
         } else {
-          console.warn('Failed to start sync service:', await response.text())
+          console.warn('Failed to initialize game data:', await response.text())
         }
       } catch (error) {
-        console.warn('Error starting sync service:', error)
+        console.warn('Error initializing game data:', error)
       }
     }
 

@@ -203,23 +203,60 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
       console.log('Loading at-bat contexts for predictions:', predictions.map(p => p.atBatIndex))
       const contexts: Record<number, any> = {}
       
-      // Get unique at-bat indices from predictions
-      const atBatIndices = [...new Set(predictions.map(p => p.atBatIndex))]
-      
-      for (const atBatIndex of atBatIndices) {
-        try {
-          console.log(`Loading context for at-bat ${atBatIndex}...`)
-          const cachedAtBat = await gameCacheService.getCachedAtBat(gamePk, atBatIndex)
-          console.log(`Cached at-bat data for ${atBatIndex}:`, cachedAtBat)
-          
-          if (cachedAtBat && cachedAtBat.at_bat_data) {
-            contexts[atBatIndex] = cachedAtBat.at_bat_data
-            console.log(`Context loaded for at-bat ${atBatIndex}:`, cachedAtBat.at_bat_data)
-          } else {
-            console.log(`No cached data found for at-bat ${atBatIndex}`)
+      try {
+        // Use the consolidated cached-at-bats API endpoint with context=true
+        const response = await fetch(`/api/game/cached-at-bats?gamePk=${gamePk}&context=true`)
+        const data = await response.json()
+        
+        if (data.success && data.atBats) {
+          // Convert the processed data back to the expected format
+          data.atBats.forEach((atBat: any) => {
+            if (atBat.batter || atBat.pitcher) {
+              contexts[atBat.atBatIndex] = {
+                matchup: {
+                  batter: atBat.batter,
+                  pitcher: atBat.pitcher
+                }
+              }
+            }
+          })
+          console.log('Loaded contexts from API:', contexts)
+        } else {
+          console.warn('Failed to load at-bat contexts from API:', data.error)
+        }
+      } catch (error) {
+        console.error('Error loading at-bat contexts from API:', error)
+        
+        // Fallback to individual cached at-bat lookups
+        const atBatIndices = [...new Set(predictions.map(p => p.atBatIndex))]
+        
+        for (const atBatIndex of atBatIndices) {
+          try {
+            console.log(`Fallback: Loading context for at-bat ${atBatIndex}...`)
+            const cachedAtBat = await gameCacheService.getCachedAtBat(gamePk, atBatIndex)
+            console.log(`Cached at-bat data for ${atBatIndex}:`, cachedAtBat)
+            
+            if (cachedAtBat && cachedAtBat.at_bat_data) {
+              // Extract matchup data from the cached at-bat data
+              const atBatData = cachedAtBat.at_bat_data
+              if (atBatData.matchup) {
+                contexts[atBatIndex] = { matchup: atBatData.matchup }
+              } else if (atBatData.batter || atBatData.pitcher) {
+                // Handle different data structures
+                contexts[atBatIndex] = { 
+                  matchup: {
+                    batter: atBatData.batter,
+                    pitcher: atBatData.pitcher
+                  }
+                }
+              }
+              console.log(`Context loaded for at-bat ${atBatIndex}:`, contexts[atBatIndex])
+            } else {
+              console.log(`No cached data found for at-bat ${atBatIndex}`)
+            }
+          } catch (error) {
+            console.error(`Error loading context for at-bat ${atBatIndex}:`, error)
           }
-        } catch (error) {
-          console.error(`Error loading context for at-bat ${atBatIndex}:`, error)
         }
       }
       
@@ -349,9 +386,20 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                 const atBatInfo = atBatContext?.matchup
                 // Get batter and pitcher data from the first prediction (they should all be the same for the same at-bat)
                 const prediction = atBatPredictions[0]
+                // Prioritize data from prediction records over cached context
                 const pitcher = prediction.pitcher || atBatInfo?.pitcher
                 const batter = prediction.batter || atBatInfo?.batter
                 const actualOutcome = prediction.actualOutcome
+                
+                // Debug logging
+                console.log(`At-bat ${atBatIndex} data:`, {
+                  predictionPitcher: prediction.pitcher,
+                  predictionBatter: prediction.batter,
+                  contextPitcher: atBatInfo?.pitcher,
+                  contextBatter: atBatInfo?.batter,
+                  finalPitcher: pitcher,
+                  finalBatter: batter
+                })
                 
                 return (
                   <div key={atBatIndex} className="space-y-3">

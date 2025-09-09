@@ -54,7 +54,7 @@ async function handleStartup(req: VercelRequest, res: VercelResponse) {
 
   console.log('Starting sync service on startup...')
   try {
-    const { eventService } = await import('../lib/EventService.js')
+    const { eventService } = await import('../lib/EventService.ts')
     await eventService.start()
   } catch (e) {
     res.status(500).json({ success: false, error: 'ImportError: EventService', message: (e as any)?.message, stack: (e as any)?.stack })
@@ -86,7 +86,7 @@ async function handleGetSyncStatus(req: VercelRequest, res: VercelResponse) {
 
     console.log('Sync status request:', { includeDetails })
 
-    const { eventService } = await import('../lib/EventService.js')
+    const { eventService } = await import('../lib/EventService.ts')
     const jobStatus = eventService.getJobStatus()
     const systemHealth = await eventService.getSystemHealthSummary()
 
@@ -176,7 +176,7 @@ async function handleGetEventStatus(req: VercelRequest, res: VercelResponse) {
 
     console.log('Event status request:', { includeDetails })
 
-    const { eventService } = await import('../lib/EventService.js')
+    const { eventService } = await import('../lib/EventService.ts')
     const jobStatus = eventService.getJobStatus()
     const systemHealth = await eventService.getSystemHealthSummary()
 
@@ -216,7 +216,7 @@ async function handleTriggerEvent(req: VercelRequest, res: VercelResponse) {
 
     let result: any
 
-    const { eventService } = await import('../lib/EventService.js')
+    const { eventService } = await import('../lib/EventService.ts')
     switch (action) {
       case 'start':
         await eventService.start()
@@ -305,7 +305,7 @@ async function handleStats(req: VercelRequest, res: VercelResponse) {
 
     if (includeDetails) {
       // Get detailed system health
-      const { eventService } = await import('../lib/EventService.js')
+      const { eventService } = await import('../lib/EventService.ts')
       const systemHealth = await eventService.getSystemHealthSummary()
       
       // Get prediction counts
