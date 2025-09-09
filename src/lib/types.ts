@@ -214,9 +214,11 @@ export interface AtBatPrediction {
   user?: {
     id: string
     email: string
+    avatar_url?: string
     raw_user_meta_data?: {
       full_name?: string
       preferred_username?: string
+      avatar_url?: string
       [key: string]: any
     }
   }
