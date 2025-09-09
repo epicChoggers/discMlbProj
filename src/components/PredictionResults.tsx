@@ -204,7 +204,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
       
       try {
         // Get game state data which contains all plays
-        const response = await fetch(`/api/game/state`)
+        const response = await fetch(`/api/game?action=state`)
         const data = await response.json()
         
         if (data.success && data.game?.liveData?.plays?.allPlays) {
