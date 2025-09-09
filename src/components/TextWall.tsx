@@ -92,12 +92,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           atBatIndex: 0, // First at-bat
           inning: 1,
           halfInning: 'Top',
-          isComplete: false,
-          isTopInning: true,
-          hasOut: false,
-          inningHalf: 'Top',
-          startTime: new Date().toISOString(),
-          endTime: null
+          isTopInning: true
         },
         count: {
           balls: 0,
@@ -108,12 +103,32 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           batter: {
             id: 0,
             fullName: 'TBD',
-            link: '/api/v1/people/0'
+            firstName: 'TBD',
+            lastName: 'TBD',
+            primaryNumber: '0',
+            currentTeam: {
+              id: 0,
+              name: 'TBD'
+            },
+            primaryPosition: {
+              code: 'UN',
+              name: 'Unknown'
+            }
           },
           pitcher: {
             id: 0,
             fullName: 'TBD',
-            link: '/api/v1/people/0'
+            firstName: 'TBD',
+            lastName: 'TBD',
+            primaryNumber: '0',
+            currentTeam: {
+              id: 0,
+              name: 'TBD'
+            },
+            primaryPosition: {
+              code: 'P',
+              name: 'Pitcher'
+            }
           },
           batSide: {
             code: 'R',
