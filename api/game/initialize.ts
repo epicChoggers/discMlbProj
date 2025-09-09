@@ -63,26 +63,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await gameCacheService.cacheGameState(gameState)
     console.log('Game state cached successfully')
 
-    // Get all plays and cache them
+    // Get play count for logging
     const plays = gameDataService.getGamePlays(detailedGame)
-    let cachedAtBats = 0
-    
-    if (plays && plays.length > 0) {
-      console.log(`Found ${plays.length} plays, caching at-bats...`)
-      for (const play of plays) {
-        if (play.about?.atBatIndex !== undefined) {
-          try {
-            await gameCacheService.cacheAtBat(game.gamePk, play.about.atBatIndex, play)
-            cachedAtBats++
-            console.log(`Cached at-bat ${play.about.atBatIndex}`)
-          } catch (error) {
-            console.error(`Failed to cache at-bat ${play.about.atBatIndex}:`, error)
-          }
-        }
-      }
-    } else {
-      console.log('No plays found in game data')
-    }
+    const playCount = plays?.length || 0
+    console.log(`Found ${playCount} plays in game data`)
 
     res.status(200).json({
       success: true,
@@ -93,8 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         homeTeam: detailedGame.teams.home.team.name,
         status: detailedGame.status.detailedState
       },
-      cachedAtBats,
-      totalPlays: plays?.length || 0,
+      totalPlays: playCount,
       timestamp: new Date().toISOString()
     })
 

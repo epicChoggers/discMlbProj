@@ -84,52 +84,6 @@ export class GameCacheService {
     }
   }
 
-  // Cache at-bat data
-  async cacheAtBat(gamePk: number, atBatIndex: number, atBatData: any): Promise<void> {
-    try {
-      const cachedData = {
-        game_pk: gamePk,
-        at_bat_index: atBatIndex,
-        at_bat_data: atBatData,
-        outcome: atBatData.result?.type || null,
-        is_resolved: !!(atBatData.result?.type && atBatData.result.type !== 'at_bat')
-      }
-
-      // Check if we already have this at-bat cached
-      const { data: existing } = await supabase
-        .from('cached_at_bats')
-        .select('id')
-        .eq('game_pk', gamePk)
-        .eq('at_bat_index', atBatIndex)
-        .single()
-
-      if (existing) {
-        // Update existing record
-        const { error } = await supabase
-          .from('cached_at_bats')
-          .update(cachedData)
-          .eq('id', existing.id)
-
-        if (error) {
-          throw error
-        }
-      } else {
-        // Insert new record
-        const { error } = await supabase
-          .from('cached_at_bats')
-          .insert([cachedData])
-
-        if (error) {
-          throw error
-        }
-      }
-
-      console.log(`Cached at-bat ${atBatIndex} for game ${gamePk}`)
-    } catch (error) {
-      console.error('Error caching at-bat:', error)
-      throw error
-    }
-  }
 
   // Get cache statistics
   async getCacheStats(): Promise<any> {

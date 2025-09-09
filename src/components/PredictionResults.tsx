@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AtBatPrediction } from '../lib/types'
 import { useRealtimePredictionsNew } from '../lib/useRealtimePredictions'
-import { gameCacheService } from '../lib/services/GameCacheService'
 
 interface PredictionResultsProps {
   gamePk: number
@@ -195,7 +194,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
   })
 
 
-  // Load at-bat context information for all predictions
+  // Load at-bat context information from game state data
   useEffect(() => {
     const loadAtBatContexts = async () => {
       if (!predictions.length) return
@@ -204,60 +203,39 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
       const contexts: Record<number, any> = {}
       
       try {
-        // Use the consolidated cached-at-bats API endpoint with context=true
-        const response = await fetch(`/api/game/cached-at-bats?gamePk=${gamePk}&context=true`)
+        // Get game state data which contains all plays
+        const response = await fetch(`/api/game/state`)
         const data = await response.json()
         
-        if (data.success && data.atBats) {
-          // Convert the processed data back to the expected format
-          data.atBats.forEach((atBat: any) => {
-            if (atBat.batter || atBat.pitcher) {
-              contexts[atBat.atBatIndex] = {
+        if (data.success && data.game?.liveData?.plays?.allPlays) {
+          const allPlays = data.game.liveData.plays.allPlays
+          console.log(`Found ${allPlays.length} plays in game state`)
+          
+          // Create contexts for each at-bat that has predictions
+          const atBatIndices = [...new Set(predictions.map(p => p.atBatIndex))]
+          
+          for (const atBatIndex of atBatIndices) {
+            const play = allPlays.find((p: any) => p.about?.atBatIndex === atBatIndex)
+            if (play && play.matchup) {
+              contexts[atBatIndex] = {
                 matchup: {
-                  batter: atBat.batter,
-                  pitcher: atBat.pitcher
+                  batter: play.matchup.batter,
+                  pitcher: play.matchup.pitcher
                 }
               }
+              console.log(`Found context for at-bat ${atBatIndex}:`, {
+                batter: play.matchup.batter?.fullName,
+                pitcher: play.matchup.pitcher?.fullName
+              })
             }
-          })
-          console.log('Loaded contexts from API:', contexts)
+          }
+          
+          console.log('Loaded contexts from game state:', contexts)
         } else {
-          console.warn('Failed to load at-bat contexts from API:', data.error)
+          console.warn('No plays found in game state data')
         }
       } catch (error) {
-        console.error('Error loading at-bat contexts from API:', error)
-        
-        // Fallback to individual cached at-bat lookups
-        const atBatIndices = [...new Set(predictions.map(p => p.atBatIndex))]
-        
-        for (const atBatIndex of atBatIndices) {
-          try {
-            console.log(`Fallback: Loading context for at-bat ${atBatIndex}...`)
-            const cachedAtBat = await gameCacheService.getCachedAtBat(gamePk, atBatIndex)
-            console.log(`Cached at-bat data for ${atBatIndex}:`, cachedAtBat)
-            
-            if (cachedAtBat && cachedAtBat.at_bat_data) {
-              // Extract matchup data from the cached at-bat data
-              const atBatData = cachedAtBat.at_bat_data
-              if (atBatData.matchup) {
-                contexts[atBatIndex] = { matchup: atBatData.matchup }
-              } else if (atBatData.batter || atBatData.pitcher) {
-                // Handle different data structures
-                contexts[atBatIndex] = { 
-                  matchup: {
-                    batter: atBatData.batter,
-                    pitcher: atBatData.pitcher
-                  }
-                }
-              }
-              console.log(`Context loaded for at-bat ${atBatIndex}:`, contexts[atBatIndex])
-            } else {
-              console.log(`No cached data found for at-bat ${atBatIndex}`)
-            }
-          } catch (error) {
-            console.error(`Error loading context for at-bat ${atBatIndex}:`, error)
-          }
-        }
+        console.error('Error loading at-bat contexts from game state:', error)
       }
       
       console.log('Final contexts:', contexts)

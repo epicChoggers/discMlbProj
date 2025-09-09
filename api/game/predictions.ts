@@ -140,46 +140,48 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
 
     console.log(`Creating prediction: user=${user.id}, gamePk=${gamePk}, atBatIndex=${atBatIndex}, prediction=${prediction}`)
 
-    // Get cached at-bat data to extract batter and pitcher information
+    // Get batter and pitcher information from game state data
     let batterData = null
     let pitcherData = null
     
     try {
-      const { data: cachedAtBat, error: atBatError } = await supabase
-        .from('cached_at_bats')
-        .select('at_bat_data')
-        .eq('game_pk', gamePk)
-        .eq('at_bat_index', atBatIndex)
-        .single()
-
-      if (!atBatError && cachedAtBat?.at_bat_data?.matchup) {
-        const matchup = cachedAtBat.at_bat_data.matchup
+      // Get current game state to find the at-bat data
+      const gameStateResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/game/state`)
+      const gameStateData = await gameStateResponse.json()
+      
+      if (gameStateData.success && gameStateData.game?.liveData?.plays?.allPlays) {
+        const allPlays = gameStateData.game.liveData.plays.allPlays
+        const play = allPlays.find((p: any) => p.about?.atBatIndex === atBatIndex)
         
-        // Extract batter data
-        if (matchup.batter) {
-          batterData = {
-            id: matchup.batter.id,
-            name: matchup.batter.fullName,
-            position: matchup.batter.primaryPosition?.abbreviation || 'Unknown',
-            bat_side: matchup.batSide?.code || 'Unknown'
+        if (play && play.matchup) {
+          // Extract batter data
+          if (play.matchup.batter) {
+            batterData = {
+              id: play.matchup.batter.id,
+              name: play.matchup.batter.fullName,
+              position: play.matchup.batter.primaryPosition?.abbreviation || 'Unknown',
+              bat_side: play.matchup.batSide?.code || 'Unknown'
+            }
           }
-        }
-        
-        // Extract pitcher data
-        if (matchup.pitcher) {
-          pitcherData = {
-            id: matchup.pitcher.id,
-            name: matchup.pitcher.fullName,
-            hand: matchup.pitchHand?.code || 'Unknown'
+          
+          // Extract pitcher data
+          if (play.matchup.pitcher) {
+            pitcherData = {
+              id: play.matchup.pitcher.id,
+              name: play.matchup.pitcher.fullName,
+              hand: play.matchup.pitchHand?.code || 'Unknown'
+            }
           }
+          
+          console.log('Extracted player data from game state:', { batterData, pitcherData })
+        } else {
+          console.warn('No play found for atBatIndex:', atBatIndex)
         }
-        
-        console.log('Extracted player data:', { batterData, pitcherData })
       } else {
-        console.warn('No cached at-bat data found for gamePk:', gamePk, 'atBatIndex:', atBatIndex)
+        console.warn('No game state data available')
       }
     } catch (error) {
-      console.warn('Error fetching cached at-bat data:', error)
+      console.warn('Error fetching game state data:', error)
       // Continue without batter/pitcher data rather than failing
     }
 
