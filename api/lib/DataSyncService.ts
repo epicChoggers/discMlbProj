@@ -236,7 +236,7 @@ export class DataSyncService {
     const startTime = Date.now()
     
     try {
-      // console.log(`Resolving predictions for game ${gamePk}...`)
+      console.log(`Resolving predictions for game ${gamePk}...`)
 
       // Get fresh game data
       const game = await gameDataService.getTodaysMarinersGame()
@@ -287,7 +287,7 @@ export class DataSyncService {
       }
 
       await this.logPredictionResolution(gamePk, 0, 'batch', predictionsResolved, pointsAwarded, Date.now() - startTime)
-      // console.log(`Resolved ${predictionsResolved} predictions for game ${gamePk}`)
+      console.log(`Resolved ${predictionsResolved} predictions for game ${gamePk}`)
       
       return result
     } catch (error) {

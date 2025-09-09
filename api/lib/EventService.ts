@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js'
 import { gameCacheService } from './gameCacheService.js'
 import { gameDataService } from './gameDataService.js'
-import { dataSyncService } from './DataSyncService'
+import { dataSyncService } from './DataSyncService.js'
 
 export interface EventJobConfig {
   name: string
