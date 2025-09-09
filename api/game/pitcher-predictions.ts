@@ -297,9 +297,20 @@ async function handleCreatePitcherPrediction(req: VercelRequest, res: VercelResp
     // Check if game has started (no longer accepting predictions)
     // Allow predictions during warmup, but not once the game is live, final, or postponed
     const gameStatus = game.status?.abstractGameState
-    if (gameStatus === 'Live' || gameStatus === 'Final' || gameStatus === 'Postponed') {
+    const detailedStatus = game.status?.detailedState
+    
+    // Block predictions if game is final or postponed
+    if (gameStatus === 'Final' || gameStatus === 'Postponed') {
       res.status(400).json({ 
-        error: `Game has started and pitcher predictions are no longer being accepted. Game status: ${gameStatus}` 
+        error: `Game has ended and pitcher predictions are no longer being accepted. Game status: ${gameStatus}` 
+      })
+      return
+    }
+    
+    // Block predictions if game is live AND not in warmup
+    if (gameStatus === 'Live' && detailedStatus !== 'Warmup') {
+      res.status(400).json({ 
+        error: `Game has started and pitcher predictions are no longer being accepted. Game status: ${gameStatus}, detailed status: ${detailedStatus}` 
       })
       return
     }

@@ -25,9 +25,14 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, game, onPredictionSubmi
   
   // Check if game has started (no longer accepting predictions)
   // Allow predictions during warmup, but not once the game is live, final, or postponed
-  const isGameStarted = game?.status?.abstractGameState === 'Live' || 
-                       game?.status?.abstractGameState === 'Final' ||
-                       game?.status?.abstractGameState === 'Postponed'
+  const gameStatus = game?.status?.abstractGameState
+  const detailedStatus = game?.status?.detailedState
+  
+  // Block predictions if game is final or postponed
+  const isGameEnded = gameStatus === 'Final' || gameStatus === 'Postponed'
+  
+  // Block predictions if game is live AND not in warmup
+  const isGameStarted = gameStatus === 'Live' && detailedStatus !== 'Warmup'
 
   // Check if user has already made a prediction for this pitcher
   useEffect(() => {
@@ -144,17 +149,19 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, game, onPredictionSubmi
     )
   }
 
-  if (isGameStarted) {
+  if (isGameStarted || isGameEnded) {
     return (
       <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 mb-4">
         <div className="text-center">
           <div className="text-red-300 text-lg mb-2">🚫</div>
-          <h3 className="text-red-300 font-semibold mb-1">Game Has Started!</h3>
+          <h3 className="text-red-300 font-semibold mb-1">
+            {isGameEnded ? 'Game Has Ended!' : 'Game Has Started!'}
+          </h3>
           <p className="text-red-400 text-sm">
-            The game has begun and pitcher predictions are no longer being accepted. 
-            {game?.status?.abstractGameState === 'Live' ? ' The game is currently in progress.' : 
-             game?.status?.abstractGameState === 'Final' ? ' The game has ended.' : 
-             ' The game has been postponed.'}
+            {isGameEnded 
+              ? `The game has ended and pitcher predictions are no longer being accepted. Game status: ${gameStatus}`
+              : `The game has begun and pitcher predictions are no longer being accepted. Game status: ${gameStatus}, detailed status: ${detailedStatus}`
+            }
           </p>
         </div>
       </div>

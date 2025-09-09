@@ -1,5 +1,5 @@
 import { supabase } from '../../supabaseClient'
-import { MLBPlay, GameState } from '../types'
+import { GameState } from '../types'
 
 export interface CachedGameState {
   id: string
@@ -12,21 +12,10 @@ export interface CachedGameState {
   updated_at: string
 }
 
-export interface CachedAtBat {
-  id: string
-  game_pk: number
-  at_bat_index: number
-  at_bat_data: any
-  outcome: string | null
-  is_resolved: boolean
-  created_at: string
-  updated_at: string
-}
 
 export class GameCacheService {
   private readonly GAME_STATE_TTL = 10000 // 10 seconds for live games
   private readonly STATIC_GAME_STATE_TTL = 300000 // 5 minutes for non-live games
-  private readonly AT_BAT_TTL = 60000 // 1 minute for at-bat data
 
   // Cache game state in database
   async cacheGameState(gameState: GameState): Promise<void> {
@@ -127,104 +116,8 @@ export class GameCacheService {
     }
   }
 
-  // Cache at-bat data
-  async cacheAtBat(gamePk: number, atBatIndex: number, atBatData: MLBPlay): Promise<void> {
-    try {
-      const cachedData: Partial<CachedAtBat> = {
-        game_pk: gamePk,
-        at_bat_index: atBatIndex,
-        at_bat_data: atBatData,
-        outcome: atBatData.result?.type || null,
-        is_resolved: !!(atBatData.result?.type && atBatData.result.type !== 'at_bat')
-      }
 
-      // Check if we already have this at-bat cached
-      const { data: existing } = await supabase
-        .from('cached_at_bats')
-        .select('id')
-        .eq('game_pk', gamePk)
-        .eq('at_bat_index', atBatIndex)
-        .single()
 
-      if (existing) {
-        // Update existing record
-        const { error } = await supabase
-          .from('cached_at_bats')
-          .update(cachedData)
-          .eq('id', existing.id)
-
-        if (error) {
-          throw error
-        }
-      } else {
-        // Insert new record
-        const { error } = await supabase
-          .from('cached_at_bats')
-          .insert([cachedData])
-
-        if (error) {
-          throw error
-        }
-      }
-
-      console.log(`Cached at-bat ${atBatIndex} for game ${gamePk}`)
-    } catch (error) {
-      console.error('Error caching at-bat:', error)
-      throw error
-    }
-  }
-
-  // Get cached at-bat data
-  async getCachedAtBat(gamePk: number, atBatIndex: number): Promise<CachedAtBat | null> {
-    try {
-      // Use API endpoint instead of direct database access to avoid RLS issues
-      const response = await fetch(`/api/game/cached-at-bats?gamePk=${gamePk}&atBatIndex=${atBatIndex}`)
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null
-        }
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch cached at-bat')
-      }
-
-      return result.atBat
-    } catch (error) {
-      console.error('Error getting cached at-bat:', error)
-      return null
-    }
-  }
-
-  // Get all cached at-bats for a game
-  async getCachedAtBatsForGame(gamePk: number): Promise<CachedAtBat[]> {
-    try {
-      // Use API endpoint instead of direct database access to avoid RLS issues
-      const response = await fetch(`/api/game/cached-at-bats?gamePk=${gamePk}`)
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          return []
-        }
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch cached at-bats')
-      }
-
-      return result.atBats || []
-    } catch (error) {
-      console.error('Error getting cached at-bats for game:', error)
-      return []
-    }
-  }
 
   // Invalidate cache for a specific game
   async invalidateGameCache(gamePk: number): Promise<void> {
@@ -235,11 +128,6 @@ export class GameCacheService {
         .delete()
         .eq('game_pk', gamePk)
 
-      // Delete cached at-bats
-      await supabase
-        .from('cached_at_bats')
-        .delete()
-        .eq('game_pk', gamePk)
 
       console.log(`Invalidated cache for game ${gamePk}`)
     } catch (error) {
@@ -259,11 +147,6 @@ export class GameCacheService {
         .delete()
         .lt('last_updated', new Date(Date.now() - this.STATIC_GAME_STATE_TTL).toISOString())
 
-      // Clean up stale at-bats
-      await supabase
-        .from('cached_at_bats')
-        .delete()
-        .lt('created_at', new Date(Date.now() - this.AT_BAT_TTL).toISOString())
 
       console.log('Cleaned up stale cache entries')
     } catch (error) {
@@ -275,27 +158,19 @@ export class GameCacheService {
   // Get cache statistics
   async getCacheStats(): Promise<{
     gameStates: number
-    atBats: number
     oldestGameState: string | null
     newestGameState: string | null
   }> {
     try {
-      const [gameStatesResult, atBatsResult] = await Promise.all([
-        supabase
-          .from('cached_game_states')
-          .select('last_updated')
-          .order('last_updated', { ascending: true }),
-        supabase
-          .from('cached_at_bats')
-          .select('id')
-      ])
+      const gameStatesResult = await supabase
+        .from('cached_game_states')
+        .select('last_updated')
+        .order('last_updated', { ascending: true })
 
       const gameStates = gameStatesResult.data || []
-      const atBats = atBatsResult.data || []
 
       return {
         gameStates: gameStates.length,
-        atBats: atBats.length,
         oldestGameState: gameStates.length > 0 ? gameStates[0].last_updated : null,
         newestGameState: gameStates.length > 0 ? gameStates[gameStates.length - 1].last_updated : null
       }
@@ -303,7 +178,6 @@ export class GameCacheService {
       console.error('Error getting cache stats:', error)
       return {
         gameStates: 0,
-        atBats: 0,
         oldestGameState: null,
         newestGameState: null
       }

@@ -9,28 +9,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const initializeApp = async () => {
-      // Initialize game data
-      try {
-        console.log('Initializing game data...')
-        const response = await fetch('/api/game/initialize', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          console.log('Game data initialized successfully:', data.message)
-        } else {
-          console.warn('Failed to initialize game data:', await response.text())
-        }
-      } catch (error) {
-        console.warn('Error initializing game data:', error)
-      }
-    }
-
     const checkAuth = async () => {
       try {
         // Check if we're running locally and should bypass authentication
@@ -106,9 +84,6 @@ function App() {
       }
     }
 
-    // Initialize the app (start sync service)
-    initializeApp()
-    
     checkAuth()
 
     // Listen for auth state changes
