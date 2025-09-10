@@ -444,15 +444,10 @@ export class PredictionServiceNew {
         return
       }
 
-      // CRITICAL: Only process truly completed at-bats
-      if (completedAtBat.about?.isComplete !== true) {
-        console.log(`Skipping at-bat ${atBatIndex} - not completed yet (isComplete: ${completedAtBat.about?.isComplete})`)
-        return
-      }
-
-      // Ensure the at-bat has a valid result
-      if (!completedAtBat.result || !completedAtBat.result.event) {
-        console.log(`Skipping at-bat ${atBatIndex} - no valid result found`)
+      // Only resolve if there's an actual outcome (not just an ongoing at-bat)
+      // We determine completion by having a valid result, not by isComplete flag
+      if (!completedAtBat.result || !completedAtBat.result.event || completedAtBat.result.event === 'at_bat') {
+        console.log(`Skipping at-bat ${atBatIndex} - no valid outcome yet (event: ${completedAtBat.result?.event})`)
         return
       }
 
@@ -480,6 +475,7 @@ export class PredictionServiceNew {
         console.log(`At-bat ${atBatIndex} already resolved, skipping`)
         return // Already resolved
       }
+
 
       console.log(`Found ${unresolvedPredictions.length} unresolved predictions for at-bat ${atBatIndex}`)
       console.log(`Unresolved prediction details:`, unresolvedPredictions.map(p => ({
@@ -550,11 +546,12 @@ export class PredictionServiceNew {
 
       const { allPlays } = game.liveData.plays
       
-      // Find all completed plays (those with isComplete: true and valid result)
+      // Find all plays with actual outcomes (not ongoing at-bats)
+      // We determine completion by having a valid outcome, not by isComplete flag
       const completedPlays = allPlays.filter((play: any) => 
-        play.about?.isComplete === true && 
         play.result && 
         play.result.event &&
+        play.result.event !== 'at_bat' && // Exclude ongoing at-bats
         play.about?.atBatIndex !== undefined
       )
       

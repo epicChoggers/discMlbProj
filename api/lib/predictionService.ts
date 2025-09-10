@@ -59,7 +59,7 @@ const getOutcomeCategory = (outcome: AtBatOutcome['type']): string => {
 }
 
 export interface AtBatOutcome {
-  type: 'single' | 'double' | 'triple' | 'home_run' | 'walk' | 'strikeout' | 'field_out' | 'ground_out' | 'fly_out' | 'pop_out' | 'line_out' | 'force_out' | 'fielders_choice' | 'sac_fly' | 'sac_bunt' | 'hit_by_pitch' | 'error' | 'field_error' | 'catcher_interference' | 'unknown'
+  type: 'single' | 'double' | 'triple' | 'home_run' | 'walk' | 'strikeout' | 'field_out' | 'ground_out' | 'fly_out' | 'pop_out' | 'line_out' | 'force_out' | 'fielders_choice' | 'sac_fly' | 'sac_bunt' | 'hit_by_pitch' | 'error' | 'field_error' | 'catcher_interference' | 'unknown' | 'intent_walk' | 'strike_out' | 'strikeout_double_play' | 'strikeout_triple_play' | 'fielders_choice_out' | 'grounded_into_double_play' | 'grounded_into_triple_play' | 'triple_play' | 'double_play' | 'sac_fly_double_play' | 'sac_bunt_double_play' | 'catcher_interf' | 'batter_interference' | 'fan_interference'
 }
 
 export interface Prediction {
@@ -76,10 +76,8 @@ export interface Prediction {
 }
 
 export class PredictionServiceNew {
-  private apiBaseUrl: string
-
   constructor() {
-    this.apiBaseUrl = process.env.VITE_MLB_API_BASE_URL || 'https://statsapi.mlb.com/api/v1'
+    // Constructor for future API base URL usage
   }
 
   // Auto-resolve all completed at-bats for a game
@@ -93,10 +91,13 @@ export class PredictionServiceNew {
       const { allPlays } = game.liveData.plays
       console.log(`Processing ${allPlays.length} plays for resolution`)
 
-      // Process each completed at-bat (only resolve predictions for actually completed at-bats)
+      // Process each at-bat with actual outcomes (not ongoing at-bats)
       let completedAtBats = 0
       for (const play of allPlays) {
-        if (play.about?.atBatIndex !== undefined && play.about?.isComplete === true) {
+        if (play.about?.atBatIndex !== undefined && 
+            play.result && 
+            play.result.event && 
+            play.result.event !== 'at_bat') {
           completedAtBats++
           await this.autoResolveCompletedAtBats(gamePk, play)
         }
@@ -118,6 +119,12 @@ export class PredictionServiceNew {
       const atBatIndex = completedAtBat.about?.atBatIndex
       if (atBatIndex === undefined) {
         console.log('No at-bat index found:', completedAtBat.about)
+        return
+      }
+
+      // Only resolve if there's an actual outcome (not just an ongoing at-bat)
+      if (!completedAtBat.result || !completedAtBat.result.event || completedAtBat.result.event === 'at_bat') {
+        console.log(`Skipping at-bat ${atBatIndex} - no valid outcome yet (event: ${completedAtBat.result?.event})`)
         return
       }
 
@@ -314,7 +321,7 @@ export class PredictionServiceNew {
         return null
       }
 
-      const { type, description } = play.result
+      const { type, event, eventType, description } = play.result
       
       // Map MLB API result types to our outcome types
       const outcomeMap: Record<string, AtBatOutcome['type']> = {
@@ -339,8 +346,66 @@ export class PredictionServiceNew {
         'catcher_interference': 'catcher_interference'
       }
 
-      // Try to match by type first
+      // Map MLB API event types to our outcome types
+      const eventTypeMap: Record<string, AtBatOutcome['type']> = {
+        'single': 'single',
+        'double': 'double',
+        'triple': 'triple',
+        'home_run': 'home_run',
+        'walk': 'walk',
+        'strikeout': 'strikeout',
+        'field_out': 'field_out',
+        'ground_out': 'ground_out',
+        'fly_out': 'fly_out',
+        'pop_out': 'pop_out',
+        'line_out': 'line_out',
+        'force_out': 'force_out',
+        'fielders_choice': 'fielders_choice',
+        'sac_fly': 'sac_fly',
+        'sac_bunt': 'sac_bunt',
+        'hit_by_pitch': 'hit_by_pitch',
+        'error': 'error',
+        'field_error': 'field_error',
+        'catcher_interference': 'catcher_interference'
+      }
+
+      // Map MLB API event names to our outcome types
+      const eventMap: Record<string, AtBatOutcome['type']> = {
+        'Single': 'single',
+        'Double': 'double',
+        'Triple': 'triple',
+        'Home Run': 'home_run',
+        'Walk': 'walk',
+        'Strikeout': 'strikeout',
+        'Lineout': 'line_out',
+        'Groundout': 'ground_out',
+        'Flyout': 'fly_out',
+        'Pop Out': 'pop_out',
+        'Forceout': 'force_out',
+        'Fielders Choice': 'fielders_choice',
+        'Sacrifice Fly': 'sac_fly',
+        'Sacrifice Bunt': 'sac_bunt',
+        'Hit By Pitch': 'hit_by_pitch',
+        'Error': 'error',
+        'Field Error': 'field_error',
+        'Catcher Interference': 'catcher_interference'
+      }
+
+      // Try to match by eventType first (most reliable)
+      if (eventType && eventTypeMap[eventType]) {
+        console.log(`Matched by eventType: ${eventType} -> ${eventTypeMap[eventType]}`)
+        return eventTypeMap[eventType]
+      }
+
+      // Try to match by event name (capitalized)
+      if (event && eventMap[event]) {
+        console.log(`Matched by event: ${event} -> ${eventMap[event]}`)
+        return eventMap[event]
+      }
+
+      // Try to match by type (legacy)
       if (type && outcomeMap[type]) {
+        console.log(`Matched by type: ${type} -> ${outcomeMap[type]}`)
         return outcomeMap[type]
       }
 
@@ -366,7 +431,7 @@ export class PredictionServiceNew {
         if (desc.includes('catcher interference')) return 'catcher_interference'
       }
 
-      console.warn('Could not determine outcome from play:', { type, description })
+      console.warn('Could not determine outcome from play:', { type, event, eventType, description })
       return 'unknown'
     } catch (error) {
       console.error('Error extracting outcome from play:', error)
@@ -396,7 +461,21 @@ export class PredictionServiceNew {
       'error': 1,
       'field_error': 1,
       'catcher_interference': 1,
-      'unknown': 0
+      'unknown': 0,
+      'intent_walk': 1,
+      'strike_out': 1,
+      'strikeout_double_play': 1,
+      'strikeout_triple_play': 1,
+      'fielders_choice_out': 1,
+      'grounded_into_double_play': 1,
+      'grounded_into_triple_play': 1,
+      'triple_play': 1,
+      'double_play': 1,
+      'sac_fly_double_play': 1,
+      'sac_bunt_double_play': 1,
+      'catcher_interf': 1,
+      'batter_interference': 1,
+      'fan_interference': 1
     }
 
     return pointValues[outcome] || 0

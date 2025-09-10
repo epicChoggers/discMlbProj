@@ -78,7 +78,7 @@ export class DataSyncService {
         results.push(predictionResult)
       }
 
-      const totalDuration = Date.now() - startTime
+      // const totalDuration = Date.now() - startTime
       // console.log(`Backend full sync completed in ${totalDuration}ms`)
 
       return results
@@ -208,10 +208,10 @@ export class DataSyncService {
       }
 
       const { allPlays } = game.liveData.plays
-      let syncedCount = 0
+      // let syncedCount = 0
 
       // Count plays for logging
-      syncedCount = allPlays.length
+      // syncedCount = allPlays.length
 
       const result: SyncResult = {
         success: true,
