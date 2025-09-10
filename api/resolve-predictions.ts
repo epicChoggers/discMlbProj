@@ -1,5 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
 import { supabase } from './lib/supabase.js'
+import { gameDataService } from './lib/gameDataService.js'
+import { predictionServiceNew } from './lib/predictionService.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
@@ -20,12 +22,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     console.log('Manual prediction resolution triggered...')
 
-    // Get all pending predictions
+    // Get fresh game data
+    const game = await gameDataService.getTodaysMarinersGame()
+    
+    if (!game) {
+      res.status(200).json({ 
+        success: true, 
+        message: 'No game found for today',
+        resolved: 0,
+        pointsAwarded: 0
+      })
+      return
+    }
+
+    const gamePk = game.gamePk
+    console.log(`Found game ${gamePk}, resolving predictions for completed at-bats...`)
+
+    // Get count of pending predictions before resolution
     const { data: pendingPredictions, error: fetchError } = await supabase
       .from('at_bat_predictions')
-      .select('*')
+      .select('id')
+      .eq('game_pk', gamePk)
       .is('resolved_at', null)
-      .order('created_at', { ascending: true })
 
     if (fetchError) {
       console.error('Error fetching pending predictions:', fetchError)
@@ -33,73 +51,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    if (!pendingPredictions || pendingPredictions.length === 0) {
+    const pendingCount = pendingPredictions?.length || 0
+    console.log(`Found ${pendingCount} pending predictions for game ${gamePk}`)
+
+    if (pendingCount === 0) {
       res.status(200).json({ 
         success: true, 
         message: 'No pending predictions found',
-        resolved: 0
+        resolved: 0,
+        pointsAwarded: 0
       })
       return
     }
 
-    console.log(`Found ${pendingPredictions.length} pending predictions`)
+    // Use the proper prediction resolution service
+    await predictionServiceNew.autoResolveAllCompletedAtBats(gamePk, game)
 
-    // Group predictions by at-bat
-    const predictionsByAtBat = pendingPredictions.reduce((acc, prediction) => {
-      const key = `${prediction.game_pk}_${prediction.at_bat_index}`
-      if (!acc[key]) {
-        acc[key] = []
-      }
-      acc[key].push(prediction)
-      return acc
-    }, {} as Record<string, any[]>)
+    // Get statistics about resolved predictions (last minute)
+    const { data: resolvedPredictions } = await supabase
+      .from('at_bat_predictions')
+      .select('points_earned')
+      .eq('game_pk', gamePk)
+      .not('resolved_at', 'is', null)
+      .gte('resolved_at', new Date(Date.now() - 60000).toISOString()) // Last minute
 
-    let totalResolved = 0
-    let totalPoints = 0
+    const predictionsResolved = resolvedPredictions?.length || 0
+    const pointsAwarded = resolvedPredictions?.reduce((sum, p) => sum + (p.points_earned || 0), 0) || 0
 
-    // Process each at-bat
-    for (const [atBatKey, predictions] of Object.entries(predictionsByAtBat)) {
-      const [gamePk, atBatIndex] = atBatKey.split('_').map(Number)
-      
-      console.log(`Processing at-bat ${atBatIndex} for game ${gamePk} with ${predictions.length} predictions`)
-
-      // ⚠️ WARNING: This is a TEST/DEBUG endpoint that hardcodes all outcomes as "field_out"
-      // This should NOT be used in production as it overrides proper prediction resolution
-      // The proper resolution is handled by predictionServiceNew.autoResolveAllCompletedAtBats()
-      // which only resolves predictions for actually completed at-bats
-      const actualOutcome = 'field_out'
-      
-      for (const prediction of predictions) {
-        const isCorrect = prediction.prediction === actualOutcome
-        const pointsEarned = isCorrect ? 1 : 0
-
-        const { error: updateError } = await supabase
-          .from('at_bat_predictions')
-          .update({
-            actual_outcome: actualOutcome,
-            is_correct: isCorrect,
-            points_earned: pointsEarned,
-            resolved_at: new Date().toISOString()
-          })
-          .eq('id', prediction.id)
-
-        if (updateError) {
-          console.error(`Error updating prediction ${prediction.id}:`, updateError)
-        } else {
-          totalResolved++
-          totalPoints += pointsEarned
-          console.log(`Resolved prediction ${prediction.id}: ${prediction.prediction} -> ${actualOutcome} (${isCorrect ? 'correct' : 'incorrect'})`)
-        }
-      }
-    }
-
-    console.log(`Resolution complete: ${totalResolved} predictions resolved, ${totalPoints} points awarded`)
+    console.log(`Resolution complete: ${predictionsResolved} predictions resolved, ${pointsAwarded} points awarded`)
 
     res.status(200).json({
       success: true,
-      message: `Resolved ${totalResolved} predictions`,
-      resolved: totalResolved,
-      pointsAwarded: totalPoints
+      message: `Resolved ${predictionsResolved} predictions`,
+      resolved: predictionsResolved,
+      pointsAwarded: pointsAwarded
     })
 
   } catch (error) {
