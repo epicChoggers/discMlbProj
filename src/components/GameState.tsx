@@ -81,9 +81,6 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
 
   return (
     <div className="space-y-4">
-      {/* Recent Games */}
-      <RecentGames />
-      
       {/* Current Game */}
       <div className={`bg-gray-800 rounded-lg p-6 mb-4 ${isLoading ? 'opacity-75' : ''} transition-opacity duration-200`}>
         {/* Subtle updating indicator */}
@@ -197,6 +194,9 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
           </div>
         )}
       </div>
+      
+      {/* Recent Games */}
+      <RecentGames />
     </div>
   )
 }
