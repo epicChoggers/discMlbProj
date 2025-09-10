@@ -187,7 +187,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
   const [atBatContexts, setAtBatContexts] = useState<Record<number, any>>({})
   
   // Use the new real-time predictions hook to get ALL predictions for the game
-  const { predictions, isLoading, isUpdating, error } = useRealtimePredictionsNew({
+  const { predictions, isLoading, error } = useRealtimePredictionsNew({
     gamePk,
     atBatIndex: undefined, // Get all predictions for the game
     onGameStateUpdate // Register for game state updates
@@ -380,7 +380,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                     </div>
                     
                     <div className="space-y-2">
-                      {atBatPredictions.map((prediction, index) => (
+                      {atBatPredictions.map((prediction) => (
                         <div 
                           key={prediction.id} 
                           className="transition-all duration-300"
