@@ -16,7 +16,6 @@ export class PerformanceOptimizationService {
   private requestQueue: Map<string, Promise<any>> = new Map()
   private cache = new Map<string, { data: any; timestamp: number; ttl: number }>()
   private activeRequests = 0
-  private readonly MAX_CONCURRENT_REQUESTS = 5
 
   constructor() {
     this.config = {

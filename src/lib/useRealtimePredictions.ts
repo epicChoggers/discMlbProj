@@ -100,7 +100,9 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
             },
             async (payload) => {
               // Create unique event identifier to prevent duplicate processing
-              const eventId = `${payload.eventType}_${payload.new?.id || payload.old?.id}_${Date.now()}`
+              const newId = payload.new && typeof payload.new === 'object' && 'id' in payload.new ? payload.new.id : 'unknown'
+              const oldId = payload.old && typeof payload.old === 'object' && 'id' in payload.old ? payload.old.id : 'unknown'
+              const eventId = `${payload.eventType}_${newId || oldId}_${Date.now()}`
               
               // Skip if we've already processed this event
               if (lastProcessedEvent.current === eventId || processingEvent.current) {
