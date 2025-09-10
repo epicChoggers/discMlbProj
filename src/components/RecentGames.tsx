@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RecentGame, RecentGamesResponse } from '../lib/types'
+import { RecentGame } from '../lib/types'
 import { recentGamesService } from '../lib/recentGamesService'
 
 export const RecentGames = () => {
