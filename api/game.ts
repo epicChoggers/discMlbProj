@@ -368,12 +368,12 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
             return
           }
           
-          // Check if count is not exactly 1-1
+          // Check if count is too advanced (2+ balls or 2+ strikes)
           const balls = currentAtBat.count?.balls || 0
           const strikes = currentAtBat.count?.strikes || 0
-          if (balls !== 1 || strikes !== 1) {
+          if (balls >= 2 || strikes >= 2) {
             res.status(400).json({ 
-              error: `Predictions are only accepted when the count is exactly 1-1. Current count: ${balls}-${strikes}` 
+              error: `Predictions are no longer accepted after the count reaches 2+ balls or 2+ strikes. Current count: ${balls}-${strikes}` 
             })
             return
           }
