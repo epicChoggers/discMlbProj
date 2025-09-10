@@ -22,10 +22,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     console.log('Manual prediction resolution triggered...')
 
-    // Get fresh game data
-    const game = await gameDataService.getTodaysMarinersGame()
+    // Get fresh game data - first get basic game info, then detailed data if live
+    const basicGame = await gameDataService.getTodaysMarinersGame()
     
-    if (!game) {
+    if (!basicGame) {
       res.status(200).json({ 
         success: true, 
         message: 'No game found for today',
@@ -35,8 +35,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    const gamePk = game.gamePk
+    const gamePk = basicGame.gamePk
     console.log(`Found game ${gamePk}, resolving predictions for completed at-bats...`)
+
+    // Get detailed game data with live plays for resolution
+    let game = basicGame
+    if (gameDataService.isGameLive(basicGame)) {
+      console.log(`Game ${gamePk} is live, fetching detailed game data for resolution...`)
+      const detailedGame = await gameDataService.getGameDetails(gamePk)
+      if (detailedGame) {
+        game = detailedGame
+        console.log(`Detailed game data fetched successfully, has ${game.liveData?.plays?.allPlays?.length || 0} plays`)
+      } else {
+        console.log(`Failed to fetch detailed game data, using basic game data`)
+      }
+    } else {
+      console.log(`Game ${gamePk} is not live, skipping detailed data fetch`)
+    }
 
     // Get count of pending predictions before resolution
     const { data: pendingPredictions, error: fetchError } = await supabase
@@ -54,6 +69,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const pendingCount = pendingPredictions?.length || 0
     console.log(`Found ${pendingCount} pending predictions for game ${gamePk}`)
 
+    // Debug: Also check total predictions for this game
+    const { data: allPredictions } = await supabase
+      .from('at_bat_predictions')
+      .select('id, at_bat_index, prediction, resolved_at')
+      .eq('game_pk', gamePk)
+    
+    console.log(`Total predictions for game ${gamePk}:`, allPredictions?.length || 0)
+    if (allPredictions && allPredictions.length > 0) {
+      console.log(`Prediction breakdown:`, allPredictions.map(p => ({
+        atBatIndex: p.at_bat_index,
+        prediction: p.prediction,
+        resolved: !!p.resolved_at
+      })))
+    }
+
     if (pendingCount === 0) {
       res.status(200).json({ 
         success: true, 
@@ -63,6 +93,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
       return
     }
+
+    // Debug: Log game data structure for troubleshooting
+    console.log(`Game data structure:`, {
+      hasLiveData: !!game.liveData,
+      hasPlays: !!game.liveData?.plays,
+      hasAllPlays: !!game.liveData?.plays?.allPlays,
+      allPlaysCount: game.liveData?.plays?.allPlays?.length || 0,
+      gameStatus: game.status?.abstractGameState,
+      gameDetailedState: game.status?.detailedState
+    })
 
     // Use the proper prediction resolution service
     await predictionServiceNew.autoResolveAllCompletedAtBats(gamePk, game)

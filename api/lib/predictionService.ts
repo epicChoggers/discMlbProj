@@ -83,6 +83,15 @@ export class PredictionServiceNew {
   // Auto-resolve all completed at-bats for a game
   async autoResolveAllCompletedAtBats(gamePk: number, game: any): Promise<void> {
     try {
+      console.log(`Starting auto-resolve for game ${gamePk}`)
+      console.log(`Game data structure:`, {
+        hasGame: !!game,
+        hasLiveData: !!game?.liveData,
+        hasPlays: !!game?.liveData?.plays,
+        hasAllPlays: !!game?.liveData?.plays?.allPlays,
+        allPlaysCount: game?.liveData?.plays?.allPlays?.length || 0
+      })
+
       if (!game?.liveData?.plays?.allPlays) {
         console.log('No plays data available for resolution')
         return
@@ -99,7 +108,18 @@ export class PredictionServiceNew {
             play.result.event && 
             play.result.event !== 'at_bat') {
           completedAtBats++
+          console.log(`Processing completed at-bat ${play.about.atBatIndex}: ${play.result.event}`)
           await this.autoResolveCompletedAtBats(gamePk, play)
+        } else {
+          console.log(`Skipping play:`, {
+            atBatIndex: play.about?.atBatIndex,
+            hasResult: !!play.result,
+            event: play.result?.event,
+            reason: !play.about?.atBatIndex ? 'no atBatIndex' : 
+                   !play.result ? 'no result' : 
+                   !play.result.event ? 'no event' : 
+                   play.result.event === 'at_bat' ? 'ongoing at-bat' : 'unknown'
+          })
         }
       }
       console.log(`Found ${completedAtBats} completed at-bats out of ${allPlays.length} total plays`)
