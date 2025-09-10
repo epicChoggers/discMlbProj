@@ -226,10 +226,10 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   // Check if the inning has ended (3 outs) - prevent predictions
   const isInningEnded = currentAtBat?.count?.outs >= 3
 
-  // Check if count is too advanced (more than 1 ball and 1 strike) - prevent predictions
+  // Check if count is not exactly 1-1 - prevent predictions
   const balls = currentAtBat?.count?.balls || 0
   const strikes = currentAtBat?.count?.strikes || 0
-  const isCountTooAdvanced = balls > 1 && strikes > 1
+  const isCountNotOneOne = balls !== 1 || strikes !== 1
 
   // Show a message if user has already predicted for this at-bat
   if (hasAlreadyPredicted) {
@@ -279,15 +279,15 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
     )
   }
 
-  // Show message when count is too advanced (more than 1 ball and 1 strike)
-  if (isCountTooAdvanced) {
+  // Show message when count is not exactly 1-1
+  if (isCountNotOneOne) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="text-center">
           <div className="text-red-400 text-lg mb-2">⏰</div>
-          <h3 className="text-red-300 font-semibold mb-1">Too Late to Predict</h3>
+          <h3 className="text-red-300 font-semibold mb-1">Count Not Right</h3>
           <p className="text-red-400 text-sm">
-            Predictions are no longer accepted after the count reaches more than 1 ball and 1 strike. 
+            Predictions are only accepted when the count is exactly 1-1. 
             Current count: {balls}-{strikes}
           </p>
         </div>

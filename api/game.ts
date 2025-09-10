@@ -350,7 +350,7 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    // Check if count is too advanced (more than 1 ball and 1 strike) - prevent predictions
+    // Check if count is not exactly 1-1 - prevent predictions
     try {
       const gameStateResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/game?action=state`)
       const gameStateData = await gameStateResponse.json()
@@ -360,10 +360,10 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
         const balls = currentAtBat.count?.balls || 0
         const strikes = currentAtBat.count?.strikes || 0
         
-        // Check if this is the current at-bat and count is too advanced
-        if (currentAtBat.about?.atBatIndex === atBatIndex && balls > 1 && strikes > 1) {
+        // Check if this is the current at-bat and count is not exactly 1-1
+        if (currentAtBat.about?.atBatIndex === atBatIndex && (balls !== 1 || strikes !== 1)) {
           res.status(400).json({ 
-            error: `Predictions are no longer accepted after the count reaches more than 1 ball and 1 strike. Current count: ${balls}-${strikes}` 
+            error: `Predictions are only accepted when the count is exactly 1-1. Current count: ${balls}-${strikes}` 
           })
           return
         }
