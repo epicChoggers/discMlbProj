@@ -291,48 +291,54 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
 
     console.log(`Creating prediction: user=${user.id}, gamePk=${gamePk}, atBatIndex=${atBatIndex}, prediction=${prediction}`)
 
-    // Get batter and pitcher information from game state data
-    let batterData = null
-    let pitcherData = null
+    // Get batter and pitcher information directly from game data service
+    let batterData: { id: any; name: any; position: any; bat_side: any } | null = null
+    let pitcherData: { id: any; name: any; hand: any } | null = null
     
     try {
-      // Get current game state to find the at-bat data
-      const gameStateResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/game?action=state`)
-      const gameStateData = await gameStateResponse.json()
+      // Get the current game data directly from the service
+      const game = await gameDataService.getTodaysMarinersGame()
       
-      if (gameStateData.success && gameStateData.game?.liveData?.plays?.allPlays) {
-        const allPlays = gameStateData.game.liveData.plays.allPlays
-        const play = allPlays.find((p: any) => p.about?.atBatIndex === atBatIndex)
+      if (game && game.gamePk) {
+        // Get detailed game data to access allPlays
+        const detailedGame = await gameDataService.getGameDetails(game.gamePk)
         
-        if (play && play.matchup) {
-          // Extract batter data
-          if (play.matchup.batter) {
-            batterData = {
-              id: play.matchup.batter.id,
-              name: play.matchup.batter.fullName,
-              position: play.matchup.batter.primaryPosition?.abbreviation || 'Unknown',
-              bat_side: play.matchup.batSide?.code || 'Unknown'
-            }
-          }
+        if (detailedGame?.liveData?.plays?.allPlays) {
+          const allPlays = detailedGame.liveData.plays.allPlays
+          const play = allPlays.find((p: any) => p.about?.atBatIndex === atBatIndex)
           
-          // Extract pitcher data
-          if (play.matchup.pitcher) {
-            pitcherData = {
-              id: play.matchup.pitcher.id,
-              name: play.matchup.pitcher.fullName,
-              hand: play.matchup.pitchHand?.code || 'Unknown'
+          if (play && play.matchup) {
+            // Extract batter data
+            if (play.matchup.batter) {
+              batterData = {
+                id: play.matchup.batter.id,
+                name: play.matchup.batter.fullName,
+                position: play.matchup.batter.primaryPosition?.abbreviation || 'Unknown',
+                bat_side: play.matchup.batSide?.code || 'Unknown'
+              }
             }
+            
+            // Extract pitcher data
+            if (play.matchup.pitcher) {
+              pitcherData = {
+                id: play.matchup.pitcher.id,
+                name: play.matchup.pitcher.fullName,
+                hand: play.matchup.pitchHand?.code || 'Unknown'
+              }
+            }
+            
+            console.log('Extracted player data from game state:', { batterData, pitcherData })
+          } else {
+            console.warn('No play found for atBatIndex:', atBatIndex)
           }
-          
-          console.log('Extracted player data from game state:', { batterData, pitcherData })
         } else {
-          console.warn('No play found for atBatIndex:', atBatIndex)
+          console.warn('No detailed game data available')
         }
       } else {
-        console.warn('No game state data available')
+        console.warn('No game data available')
       }
     } catch (error) {
-      console.warn('Error fetching game state data:', error)
+      console.warn('Error fetching game data:', error)
       // Continue without batter/pitcher data rather than failing
     }
 
@@ -352,30 +358,33 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
 
     // Check if at-bat is complete and count validation - prevent predictions
     try {
-      const gameStateResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/game?action=state`)
-      const gameStateData = await gameStateResponse.json()
+      // Get current at-bat data directly from game data service
+      const game = await gameDataService.getTodaysMarinersGame()
       
-      if (gameStateData.success && gameStateData.currentAtBat) {
-        const currentAtBat = gameStateData.currentAtBat
+      if (game && game.gamePk) {
+        const detailedGame = await gameDataService.getGameDetails(game.gamePk)
+        const currentAtBat = gameDataService.getCurrentAtBat(detailedGame)
         
-        // Check if this is the current at-bat
-        if (currentAtBat.about?.atBatIndex === atBatIndex) {
-          // Check if at-bat is already complete
-          if (currentAtBat.about?.isComplete === true) {
-            res.status(400).json({ 
-              error: 'This at-bat has already been completed. Predictions are no longer accepted.' 
-            })
-            return
-          }
-          
-          // Check if count is too advanced (2+ balls or 2+ strikes)
-          const balls = currentAtBat.count?.balls || 0
-          const strikes = currentAtBat.count?.strikes || 0
-          if (balls >= 2 || strikes >= 2) {
-            res.status(400).json({ 
-              error: `Predictions are no longer accepted after the count reaches 2+ balls or 2+ strikes. Current count: ${balls}-${strikes}` 
-            })
-            return
+        if (currentAtBat) {
+          // Check if this is the current at-bat
+          if (currentAtBat.about?.atBatIndex === atBatIndex) {
+            // Check if at-bat is already complete
+            if (currentAtBat.about?.isComplete === true) {
+              res.status(400).json({ 
+                error: 'This at-bat has already been completed. Predictions are no longer accepted.' 
+              })
+              return
+            }
+            
+            // Check if count is too advanced (2+ balls or 2+ strikes)
+            const balls = currentAtBat.count?.balls || 0
+            const strikes = currentAtBat.count?.strikes || 0
+            if (balls >= 2 || strikes >= 2) {
+              res.status(400).json({ 
+                error: `Predictions are no longer accepted after the count reaches 2+ balls or 2+ strikes. Current count: ${balls}-${strikes}` 
+              })
+              return
+            }
           }
         }
       }
