@@ -350,22 +350,33 @@ async function handleCreatePrediction(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    // Check if count is not exactly 1-1 - prevent predictions
+    // Check if at-bat is complete and count validation - prevent predictions
     try {
       const gameStateResponse = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/game?action=state`)
       const gameStateData = await gameStateResponse.json()
       
       if (gameStateData.success && gameStateData.currentAtBat) {
         const currentAtBat = gameStateData.currentAtBat
-        const balls = currentAtBat.count?.balls || 0
-        const strikes = currentAtBat.count?.strikes || 0
         
-        // Check if this is the current at-bat and count is not exactly 1-1
-        if (currentAtBat.about?.atBatIndex === atBatIndex && (balls !== 1 || strikes !== 1)) {
-          res.status(400).json({ 
-            error: `Predictions are only accepted when the count is exactly 1-1. Current count: ${balls}-${strikes}` 
-          })
-          return
+        // Check if this is the current at-bat
+        if (currentAtBat.about?.atBatIndex === atBatIndex) {
+          // Check if at-bat is already complete
+          if (currentAtBat.about?.isComplete === true) {
+            res.status(400).json({ 
+              error: 'This at-bat has already been completed. Predictions are no longer accepted.' 
+            })
+            return
+          }
+          
+          // Check if count is not exactly 1-1
+          const balls = currentAtBat.count?.balls || 0
+          const strikes = currentAtBat.count?.strikes || 0
+          if (balls !== 1 || strikes !== 1) {
+            res.status(400).json({ 
+              error: `Predictions are only accepted when the count is exactly 1-1. Current count: ${balls}-${strikes}` 
+            })
+            return
+          }
         }
       }
     } catch (error) {

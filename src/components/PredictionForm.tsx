@@ -231,6 +231,9 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   const strikes = currentAtBat?.count?.strikes || 0
   const isCountNotOneOne = balls !== 1 || strikes !== 1
 
+  // Check if at-bat is already complete - prevent predictions
+  const isAtBatComplete = currentAtBat?.about?.isComplete === true
+
   // Show a message if user has already predicted for this at-bat
   if (hasAlreadyPredicted) {
     return (
@@ -274,6 +277,21 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
           <div className="text-orange-400 text-lg mb-2">🏁</div>
           <h3 className="text-orange-300 font-semibold mb-1">Inning Ended</h3>
           <p className="text-orange-400 text-sm">This inning has ended with 3 outs. Predictions will be available for the next inning.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show message when at-bat is already complete
+  if (isAtBatComplete) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 mb-4">
+        <div className="text-center">
+          <div className="text-red-400 text-lg mb-2">✅</div>
+          <h3 className="text-red-300 font-semibold mb-1">At-Bat Complete</h3>
+          <p className="text-red-400 text-sm">
+            This at-bat has already been completed. Predictions are no longer accepted.
+          </p>
         </div>
       </div>
     )

@@ -82,40 +82,80 @@ export class GameDataService {
     return isLive
   }
 
-  // Get current at-bat from game (following GUMBO specification)
+  // Get current at-bat from game using at-bat index approach
   getCurrentAtBat(game: any): any {
-    console.log(`[GameDataService] Getting current at-bat from game data`)
+    console.log(`[GameDataService] Getting current at-bat using at-bat index approach`)
     console.log(`[GameDataService] Game has liveData:`, !!game.liveData)
     console.log(`[GameDataService] Game has plays:`, !!game.liveData?.plays)
     
-    // According to GUMBO spec, currentPlay should be in liveData.plays.currentPlay
-    if (game.liveData?.plays?.currentPlay) {
-      console.log(`[GameDataService] Found currentPlay in liveData.plays.currentPlay`)
-      console.log(`[GameDataService] Current play atBatIndex:`, game.liveData.plays.currentPlay.about?.atBatIndex)
-      return game.liveData.plays.currentPlay
+    if (!game.liveData?.plays?.allPlays || game.liveData.plays.allPlays.length === 0) {
+      console.log(`[GameDataService] No plays available`)
+      return null
     }
     
-    console.log(`[GameDataService] No currentPlay found in liveData.plays.currentPlay`)
+    const allPlays = game.liveData.plays.allPlays
+    console.log(`[GameDataService] Total plays available: ${allPlays.length}`)
     
-    // Fallback: Check if there are any plays and if the last one is still in progress
-    if (game.liveData?.plays?.allPlays && game.liveData.plays.allPlays.length > 0) {
-      const allPlays = game.liveData.plays.allPlays
-      const lastPlay = allPlays[allPlays.length - 1]
-      
-      console.log(`[GameDataService] Checking last play from allPlays (count: ${allPlays.length})`)
-      console.log(`[GameDataService] Last play atBatIndex:`, lastPlay?.about?.atBatIndex)
-      console.log(`[GameDataService] Last play isComplete:`, lastPlay?.about?.isComplete)
-      console.log(`[GameDataService] Last play has result:`, !!lastPlay?.result?.event)
-      
-      // Check if the last play is still in progress (not complete and no result)
-      if (lastPlay && !lastPlay.about?.isComplete && !lastPlay.result?.event) {
-        console.log(`[GameDataService] Using last play as current at-bat (still in progress)`)
-        return lastPlay
+    // Find all plays with valid at-bat indexes
+    const playsWithIndexes = allPlays.filter((play: any) => 
+      play.about?.atBatIndex !== undefined
+    )
+    
+    if (playsWithIndexes.length === 0) {
+      console.log(`[GameDataService] No plays with at-bat indexes found`)
+      return null
+    }
+    
+    // Sort by at-bat index to ensure chronological order
+    playsWithIndexes.sort((a: any, b: any) => a.about.atBatIndex - b.about.atBatIndex)
+    
+    // Find the highest at-bat index
+    const highestAtBatIndex = playsWithIndexes[playsWithIndexes.length - 1].about.atBatIndex
+    console.log(`[GameDataService] Highest at-bat index found: ${highestAtBatIndex}`)
+    
+    // Check if the highest indexed play is complete
+    const highestPlay = playsWithIndexes[playsWithIndexes.length - 1]
+    const isHighestComplete = highestPlay.about?.isComplete === true && 
+                             highestPlay.result && 
+                             highestPlay.result.event
+    
+    console.log(`[GameDataService] Highest play (index ${highestAtBatIndex}) is complete: ${isHighestComplete}`)
+    
+    if (isHighestComplete) {
+      // The highest indexed play is complete, so the current at-bat is the next one
+      if (game.status?.abstractGameState === 'Live') {
+        const currentAtBatIndex = highestAtBatIndex + 1
+        console.log(`[GameDataService] Game is live, current at-bat index: ${currentAtBatIndex}`)
+        
+        // Create a simulated current at-bat based on the most recent completed at-bat
+        const simulatedAtBat = {
+          ...highestPlay,
+          about: {
+            ...highestPlay.about,
+            atBatIndex: currentAtBatIndex,
+            isComplete: false // Explicitly mark as not complete
+          },
+          result: {
+            type: 'at_bat',
+            event: 'at_bat', 
+            description: 'At-bat in progress',
+            rbi: 0,
+            awayScore: highestPlay.result.awayScore,
+            homeScore: highestPlay.result.homeScore
+          }
+        }
+        
+        console.log(`[GameDataService] Created simulated current at-bat ${currentAtBatIndex}`)
+        return simulatedAtBat
+      } else {
+        console.log(`[GameDataService] Game is not live, no current at-bat`)
+        return null
       }
+    } else {
+      // The highest indexed play is not complete, so it's the current at-bat
+      console.log(`[GameDataService] Using highest play (index ${highestAtBatIndex}) as current at-bat`)
+      return highestPlay
     }
-    
-    console.log(`[GameDataService] No current at-bat found`)
-    return null
   }
 
   // Get all plays from a game
