@@ -333,6 +333,9 @@ export type AtBatOutcome =
   | 'pickoff_caught_stealing_2b'
   | 'pickoff_caught_stealing_3b'
   | 'pickoff_caught_stealing_home'
+  
+  // Unknown outcome (when resolution fails)
+  | 'unknown'
 
 export interface PredictionStats {
   totalPredictions: number
@@ -448,6 +451,9 @@ export const getOutcomeCategory = (outcome: AtBatOutcome): string => {
     case 'pickoff_caught_stealing_home':
       return 'administrative'
     
+    case 'unknown':
+      return 'unknown'
+    
     default:
       return 'unknown'
   }
@@ -548,6 +554,9 @@ export const getOutcomePoints = (outcome: AtBatOutcome): { base: number; withBon
       case 'pickoff_caught_stealing_3b':
       case 'pickoff_caught_stealing_home':
         return 0 // These should not be at-bat outcomes
+      
+      case 'unknown':
+        return 0 // Unknown outcomes get no points
       
       default:
         return 1

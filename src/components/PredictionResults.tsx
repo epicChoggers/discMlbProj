@@ -343,7 +343,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                         At-Bat #{atBatIndex} ({atBatPredictions.length} predictions)
                       </h4>
                       <div className="text-gray-500 text-xs">
-                        {actualOutcome ? 
+                        {actualOutcome && actualOutcome !== ('unknown' as any) ? 
                           (atBatPredictions[0].isCorrect ? 'Correct' : 'Incorrect') : 
                           'Pending'
                         }
@@ -366,7 +366,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                           </div>
                         </div>
                       </div>
-                      {actualOutcome && (
+                      {actualOutcome && actualOutcome !== ('unknown' as any) && (
                         <div className="mt-3 pt-3 border-t border-gray-600">
                           <div className="text-gray-400 text-xs mb-1">Actual Outcome</div>
                           <div className="flex items-center space-x-2">
@@ -431,7 +431,9 @@ const PredictionCard = ({ prediction }: PredictionCardProps) => {
     return null
   }
 
-  const isResolved = prediction.actualOutcome !== undefined && prediction.actualOutcome !== null
+  const isResolved = prediction.actualOutcome !== undefined && 
+                     prediction.actualOutcome !== null && 
+                     prediction.actualOutcome !== ('unknown' as any)
   const isCorrect = prediction.isCorrect
   const isPartialCredit = prediction.isPartialCredit
   const profilePicture = getUserProfilePicture(prediction)
