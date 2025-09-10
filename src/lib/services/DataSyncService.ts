@@ -34,17 +34,16 @@ export class DataSyncService {
     // Initial sync
     await this.performFullSync()
 
-    // Set up periodic sync (every 10 seconds)
+    // Set up periodic sync (every 30 seconds to reduce load)
     this.syncInterval = setInterval(async () => {
       if (!this.isRunning) return
       
       try {
         await this.performIncrementalSync()
       } catch (error) {
-        // console.error('Error in periodic sync:', error)
         await this.logSyncError(0, 'incremental', error as Error)
       }
-    }, 10000)
+    }, 30000)
 
     // console.log('Frontend data sync service started successfully')
   }

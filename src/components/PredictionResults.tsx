@@ -199,7 +199,6 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
     const loadAtBatContexts = async () => {
       if (!predictions.length) return
 
-      console.log('Loading at-bat contexts for predictions:', predictions.map(p => p.atBatIndex))
       const contexts: Record<number, any> = {}
       
       try {
@@ -209,7 +208,6 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
         
         if (data.success && data.game?.liveData?.plays?.allPlays) {
           const allPlays = data.game.liveData.plays.allPlays
-          console.log(`Found ${allPlays.length} plays in game state`)
           
           // Create contexts for each at-bat that has predictions
           const atBatIndices = [...new Set(predictions.map(p => p.atBatIndex))]
@@ -223,22 +221,12 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                   pitcher: play.matchup.pitcher
                 }
               }
-              console.log(`Found context for at-bat ${atBatIndex}:`, {
-                batter: play.matchup.batter?.fullName,
-                pitcher: play.matchup.pitcher?.fullName
-              })
             }
           }
-          
-          console.log('Loaded contexts from game state:', contexts)
-        } else {
-          console.warn('No plays found in game state data')
         }
       } catch (error) {
         console.error('Error loading at-bat contexts from game state:', error)
       }
-      
-      console.log('Final contexts:', contexts)
       setAtBatContexts(contexts)
     }
 

@@ -188,7 +188,7 @@ class MLBServiceNew {
       return // Already running
     }
 
-    // Update every 10 seconds for live games
+    // Update every 30 seconds for live games to reduce load
     this.updateInterval = setInterval(async () => {
       const gameState = await this.getGameState()
       
@@ -196,7 +196,7 @@ class MLBServiceNew {
       if (gameState.game && this.isGameLive(gameState.game)) {
         this.listeners.forEach(listener => listener(gameState))
       }
-    }, 10000)
+    }, 30000)
 
     // Initial update
     this.getGameState().then(gameState => {

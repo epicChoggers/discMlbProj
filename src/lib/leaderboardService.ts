@@ -4,6 +4,9 @@ import { supabase } from '../supabaseClient'
 export class LeaderboardServiceNew {
   private apiBaseUrl: string
   private isDevelopment: boolean
+  private cache = new Map<string, { data: LeaderboardType; timestamp: number }>()
+  private readonly CACHE_DURATION = 5000 // 5 seconds cache
+  private pendingRequests = new Map<string, Promise<LeaderboardType>>()
 
   constructor() {
     // Check if we're in development mode
@@ -13,23 +16,47 @@ export class LeaderboardServiceNew {
     
     if (forceProduction) {
       this.isDevelopment = false
-      console.log('🚀 Production mode forced locally for testing')
     }
     
     // Use full URL in production, relative URL in development
     this.apiBaseUrl = this.isDevelopment ? '/api' : `${window.location.origin}/api`
-    console.log(`Leaderboard Service initialized in ${this.isDevelopment ? 'development' : 'production'} mode with API base: ${this.apiBaseUrl}`)
   }
 
-  // Get leaderboard data using the unified API
+  // Get leaderboard data using the unified API with caching and deduplication
   async getLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
+    const cacheKey = `leaderboard_${gamePk || 'all'}_${limit}`
+    
+    // Check cache first
+    const cached = this.cache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data
+    }
+    
+    // Check if there's already a pending request for this key
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey)!
+    }
+    
+    // Create new request
+    const requestPromise = this.performLeaderboardRequest(gamePk, limit)
+    this.pendingRequests.set(cacheKey, requestPromise)
+    
+    try {
+      const result = await requestPromise
+      // Cache the result
+      this.cache.set(cacheKey, { data: result, timestamp: Date.now() })
+      return result
+    } finally {
+      this.pendingRequests.delete(cacheKey)
+    }
+  }
+  
+  private async performLeaderboardRequest(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
     try {
       let url = `${this.apiBaseUrl}/game?action=leaderboard&limit=${limit}`
       if (gamePk) {
         url += `&gamePk=${gamePk}`
       }
-
-      console.log('Fetching leaderboard from unified API:', url)
 
       const response = await fetch(url)
       
@@ -43,10 +70,8 @@ export class LeaderboardServiceNew {
         throw new Error(data.error || 'Failed to fetch leaderboard')
       }
 
-      console.log('Successfully fetched leaderboard from unified API')
       return data.leaderboard
     } catch (error) {
-      console.error('Error fetching leaderboard:', error)
       return {
         entries: [],
         total_users: 0,

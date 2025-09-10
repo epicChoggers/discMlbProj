@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AtBatPrediction } from './types'
 import { predictionServiceNew } from './predictionService'
 import { supabase } from '../supabaseClient'
 import { resolvePredictionsService } from './resolvePredictionsService'
+import { debounce } from './utils/debounce'
 
 interface UseRealtimePredictionsNewProps {
   gamePk: number
@@ -15,6 +16,8 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const lastProcessedEvent = useRef<string | null>(null)
+  const processingEvent = useRef(false)
 
   // Load initial predictions
   const loadPredictions = useCallback(async () => {
@@ -30,7 +33,7 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
         predictionsData = await predictionServiceNew.getAllGamePredictions(gamePk)
       }
       
-      console.log('Loaded predictions:', predictionsData.length)
+      // console.log('Loaded predictions:', predictionsData.length)
       setPredictions(predictionsData)
     } catch (err) {
       console.error('Error loading predictions:', err)
@@ -40,27 +43,33 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
     }
   }, [gamePk, atBatIndex])
 
-  // Refresh predictions when game state updates (for when at-bat outcomes are resolved)
-  const refreshPredictions = useCallback(async () => {
-    console.log('Game state updated, refreshing predictions...')
-    setIsUpdating(true)
-    try {
-      // Call the resolve-predictions API to resolve any pending predictions
-      await resolvePredictionsService.resolvePredictions()
+  // Debounced refresh predictions to prevent excessive calls
+  const refreshPredictions = useCallback(
+    debounce(async () => {
+      if (processingEvent.current) return
       
-      // Then reload the predictions to get the updated data
-      await loadPredictions()
-    } catch (err) {
-      console.error('Error refreshing predictions on game state update:', err)
-    } finally {
-      setTimeout(() => setIsUpdating(false), 500)
-    }
-  }, [loadPredictions])
+      processingEvent.current = true
+      setIsUpdating(true)
+      
+      try {
+        // Call the resolve-predictions API to resolve any pending predictions
+        await resolvePredictionsService.resolvePredictions()
+        
+        // Then reload the predictions to get the updated data
+        await loadPredictions()
+      } catch (err) {
+        console.error('Error refreshing predictions on game state update:', err)
+      } finally {
+        processingEvent.current = false
+        setTimeout(() => setIsUpdating(false), 500)
+      }
+    }, 1000), // Debounce for 1 second
+    [loadPredictions]
+  )
 
   // Register for game state updates
   useEffect(() => {
     if (onGameStateUpdate) {
-      console.log('Registering for game state updates to refresh predictions')
       const unsubscribe = onGameStateUpdate(refreshPredictions)
       return unsubscribe
     }
@@ -74,10 +83,7 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
 
     const setupRealtime = async () => {
       try {
-        console.log('Setting up prediction real-time subscription for game:', gamePk)
-        
         const channelName = `predictions_${gamePk}_${atBatIndex || 'all'}`
-        console.log('Channel name:', channelName)
 
         // Load initial predictions
         await loadPredictions()
@@ -93,45 +99,27 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
               filter: `game_pk=eq.${gamePk}`
             },
             async (payload) => {
-              console.log('Received prediction real-time update:', payload)
-              console.log('Event type:', payload.eventType)
-              console.log('New data:', payload.new)
-              console.log('Old data:', payload.old)
+              // Create unique event identifier to prevent duplicate processing
+              const eventId = `${payload.eventType}_${payload.new?.id || payload.old?.id}_${Date.now()}`
               
-              // If we're filtering by atBatIndex, check if this event is relevant
-              if (atBatIndex !== undefined && payload.new && (payload.new as any).at_bat_index !== atBatIndex) {
-                console.log('Event not relevant for current at-bat:', (payload.new as any).at_bat_index, 'vs', atBatIndex)
+              // Skip if we've already processed this event
+              if (lastProcessedEvent.current === eventId || processingEvent.current) {
                 return
               }
               
-              console.log('Processing real-time event for current at-bat')
+              lastProcessedEvent.current = eventId
               
-              // Show updating indicator
-              setIsUpdating(true)
-              
-              try {
-                // Add a small delay to ensure database consistency
-                await new Promise(resolve => setTimeout(resolve, 200))
-                
-                // Call the resolve-predictions API to resolve any pending predictions
-                await resolvePredictionsService.resolvePredictions()
-                
-                // Reload predictions
-                await loadPredictions()
-                console.log('Successfully updated predictions after real-time event')
-              } catch (err) {
-                console.error('Error handling real-time update:', err)
-              } finally {
-                // Hide updating indicator
-                setTimeout(() => setIsUpdating(false), 500)
+              // If we're filtering by atBatIndex, check if this event is relevant
+              if (atBatIndex !== undefined && payload.new && (payload.new as any).at_bat_index !== atBatIndex) {
+                return
               }
+              
+              // Use debounced refresh to prevent excessive API calls
+              refreshPredictions()
             }
           )
           .subscribe((status) => {
-            console.log('Prediction subscription status:', status)
-            if (status === 'SUBSCRIBED') {
-              console.log('Successfully subscribed to prediction updates')
-            } else if (status === 'CHANNEL_ERROR') {
+            if (status === 'CHANNEL_ERROR') {
               console.error('Prediction subscription error')
               setError('Connection error')
             }
@@ -146,7 +134,6 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
 
     return () => {
       if (channel) {
-        console.log('Unsubscribing from prediction updates')
         supabase.removeChannel(channel)
       }
     }
