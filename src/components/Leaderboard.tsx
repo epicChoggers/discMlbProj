@@ -42,12 +42,18 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
     loadStats()
 
     // Subscribe to real-time updates
-    const subscription = leaderboardServiceNew.subscribeToLeaderboard(gamePk, (newLeaderboard) => {
+    const leaderboardSubscription = leaderboardServiceNew.subscribeToLeaderboard(gamePk, (newLeaderboard) => {
       setLeaderboard(newLeaderboard)
     })
 
+    // Subscribe to user stats updates
+    const statsSubscription = predictionServiceNew.subscribeToUserStats((newStats) => {
+      setStats(newStats)
+    })
+
     return () => {
-      subscription.unsubscribe()
+      leaderboardSubscription.unsubscribe()
+      statsSubscription.unsubscribe()
     }
   }, [gamePk])
 

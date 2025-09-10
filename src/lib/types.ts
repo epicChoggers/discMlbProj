@@ -26,6 +26,29 @@ export interface RealtimeStatus {
   error?: string
 }
 
+// Recent Games Types
+export interface RecentGame {
+  gamePk: number
+  date: string
+  opponent: string
+  opponentAbbreviation: string
+  marinersScore: number
+  opponentScore: number
+  marinersWon: boolean
+  isMarinersHome: boolean
+  venue: string
+  gameType: string
+  status: string
+}
+
+export interface RecentGamesResponse {
+  success: boolean
+  recentGames: RecentGame[]
+  totalGames: number
+  lastUpdated: string
+  error?: string
+}
+
 // MLB Game Data Types
 export interface MLBGame {
   gamePk: number

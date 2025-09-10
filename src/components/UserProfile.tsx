@@ -71,6 +71,16 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
     }
 
     loadUserProfile()
+
+    // Subscribe to real-time user stats updates
+    const subscription = predictionServiceNew.subscribeToUserStats((newStats) => {
+      setStats(newStats)
+      setIsLoading(false) // Stop loading indicator when stats update
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   // Track when we've initially loaded data

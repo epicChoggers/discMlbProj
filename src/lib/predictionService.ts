@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory, getOutcomePoints } from './types'
+import { debounce } from './utils/debounce'
 
 export class PredictionServiceNew {
   private apiBaseUrl: string
@@ -389,6 +390,45 @@ export class PredictionServiceNew {
       )
       .subscribe((status) => {
         console.log('Prediction subscription status:', status)
+      })
+
+    return subscription
+  }
+
+  // Subscribe to user stats updates using Supabase real-time
+  subscribeToUserStats(callback: (stats: PredictionStats) => void) {
+    // Debounce the stats update to prevent excessive API calls
+    const debouncedUpdate = debounce(async () => {
+      try {
+        const stats = await this.getUserPredictionStats()
+        console.log('Updated user stats:', stats)
+        callback(stats)
+      } catch (error) {
+        console.error('Error in user stats subscription callback:', error)
+      }
+    }, 500) // Debounce for 500ms
+
+    const subscription = supabase
+      .channel('user_stats_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'at_bat_predictions'
+        },
+        async (payload) => {
+          console.log('User stats subscription triggered:', payload)
+          
+          // Add a small delay to ensure database transaction is committed
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Use debounced update to prevent excessive calls
+          debouncedUpdate()
+        }
+      )
+      .subscribe((status) => {
+        console.log('User stats subscription status:', status)
       })
 
     return subscription

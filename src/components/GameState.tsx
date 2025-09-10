@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
 import { getPlayerHeadshot } from '../lib/mlbHeadshots'
+import { RecentGames } from './RecentGames'
 
 interface GameStateProps {
   gameState: GameStateType
@@ -79,16 +80,21 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
   const opponentTeam = isMarinersHome ? awayTeam : homeTeam
 
   return (
-    <div className={`bg-gray-800 rounded-lg p-6 mb-4 ${isLoading ? 'opacity-75' : ''} transition-opacity duration-200`}>
-      {/* Subtle updating indicator */}
-      {isLoading && hasInitiallyLoaded && (
-        <div className="flex items-center justify-center py-2 mb-4">
-          <div className="flex items-center space-x-2 text-blue-400 text-sm">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-            <span>Updating game data...</span>
+    <div className="space-y-4">
+      {/* Recent Games */}
+      <RecentGames />
+      
+      {/* Current Game */}
+      <div className={`bg-gray-800 rounded-lg p-6 mb-4 ${isLoading ? 'opacity-75' : ''} transition-opacity duration-200`}>
+        {/* Subtle updating indicator */}
+        {isLoading && hasInitiallyLoaded && (
+          <div className="flex items-center justify-center py-2 mb-4">
+            <div className="flex items-center space-x-2 text-blue-400 text-sm">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+              <span>Updating game data...</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
       {/* Game Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
@@ -180,16 +186,17 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
         <FinalPlay game={game} />
       )}
 
-      {/* Game Status Message */}
-      {!isLive && (
-        <div className="text-center text-gray-400">
-          {game.status?.abstractGameState === 'Final' 
-            ? 'Game has ended - View predictions from this game' 
-            : game.status?.abstractGameState === 'Scheduled'
-            ? 'Game has not started yet'
-            : 'Most recent game'}
-        </div>
-      )}
+        {/* Game Status Message */}
+        {!isLive && (
+          <div className="text-center text-gray-400">
+            {game.status?.abstractGameState === 'Final' 
+              ? 'Game has ended - View predictions from this game' 
+              : game.status?.abstractGameState === 'Scheduled'
+              ? 'Game has not started yet'
+              : 'Most recent game'}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

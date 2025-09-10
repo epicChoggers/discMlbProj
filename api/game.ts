@@ -33,8 +33,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'pitcher-predictions':
         await handlePitcherPredictions(req, res)
         break
+      case 'recent-games':
+        await handleRecentGames(req, res)
+        break
       default:
-        res.status(400).json({ error: 'Invalid action. Supported actions: state, predictions, leaderboard, pitcher-info, pitcher-predictions' })
+        res.status(400).json({ error: 'Invalid action. Supported actions: state, predictions, leaderboard, pitcher-info, pitcher-predictions, recent-games' })
     }
   } catch (error) {
     console.error('Error in game API:', error)
@@ -1057,6 +1060,107 @@ async function handleUpdatePitcherPrediction(req: VercelRequest, res: VercelResp
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update pitcher prediction'
+    })
+  }
+}
+
+// Recent Games Handler
+async function handleRecentGames(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const apiBaseUrl = gameDataService.getApiBaseUrl()
+    const teamId = gameDataService.getTeamId()
+    
+    // Call the MLB API to get recent games with previousSchedule hydration
+    const url = `${apiBaseUrl}/teams/${teamId}?hydrate=previousSchedule`
+    console.log('[Recent Games API] Fetching recent games:', url)
+    
+    const response = await fetch(url)
+    
+    if (!response.ok) {
+      throw new Error(`MLB API error: ${response.status} ${response.statusText}`)
+    }
+    
+    const data = await response.json()
+    
+    if (!data.teams || data.teams.length === 0) {
+      throw new Error('No team data found')
+    }
+    
+    const team = data.teams[0]
+    const previousSchedule = team.previousGameSchedule
+    
+    if (!previousSchedule || !previousSchedule.dates) {
+      throw new Error('No previous schedule data found')
+    }
+    
+    // Extract the last 5 games from the schedule
+    const recentGames: any[] = []
+    
+    // Flatten all games from all dates and sort by date (most recent first)
+    const allGames: any[] = []
+    for (const date of previousSchedule.dates) {
+      if (date.games) {
+        for (const game of date.games) {
+          allGames.push({
+            ...game,
+            gameDate: date.date
+          })
+        }
+      }
+    }
+    
+    // Sort by game date (most recent first)
+    allGames.sort((a, b) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime())
+    
+    // Take the first 5 games
+    const lastFiveGames = allGames.slice(0, 5)
+    
+    // Process each game to extract relevant information
+    for (const game of lastFiveGames) {
+      const homeTeam = game.teams.home
+      const awayTeam = game.teams.away
+      
+      // Determine if Mariners won or lost
+      const marinersTeam = homeTeam.team.id === parseInt(teamId) ? homeTeam : awayTeam
+      const opponentTeam = homeTeam.team.id === parseInt(teamId) ? awayTeam : homeTeam
+      const isMarinersHome = homeTeam.team.id === parseInt(teamId)
+      
+      const marinersScore = marinersTeam.score
+      const opponentScore = opponentTeam.score
+      const marinersWon = marinersTeam.isWinner
+      
+      recentGames.push({
+        gamePk: game.gamePk,
+        date: game.gameDate,
+        opponent: opponentTeam.team.name,
+        opponentAbbreviation: opponentTeam.team.abbreviation,
+        marinersScore,
+        opponentScore,
+        marinersWon,
+        isMarinersHome,
+        venue: game.venue.name,
+        gameType: game.gameType,
+        status: game.status.abstractGameState
+      })
+    }
+    
+    res.status(200).json({
+      success: true,
+      recentGames,
+      totalGames: previousSchedule.totalGames,
+      lastUpdated: new Date().toISOString()
+    })
+    
+  } catch (error) {
+    console.error('Error fetching recent games:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch recent games'
     })
   }
 }
