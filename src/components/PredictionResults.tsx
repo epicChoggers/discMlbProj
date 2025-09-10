@@ -284,16 +284,8 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
   }
 
   return (
-    <div className={`space-y-4 ${isUpdating ? 'opacity-75' : ''} transition-opacity duration-200`}>
-      {/* Subtle updating indicator */}
-      {isUpdating && (
-        <div className="flex items-center justify-center py-2">
-          <div className="flex items-center space-x-2 text-blue-400 text-sm">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-            <span>Updating predictions...</span>
-          </div>
-        </div>
-      )}
+    <div className="space-y-4">
+      {/* Removed updating animation for seamless experience */}
 
       {/* All Game Predictions */}
       <div className="bg-gray-800 rounded-lg p-6">
@@ -301,12 +293,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
           <h3 className="text-white text-lg font-semibold">
             All Predictions for This Game ({predictions.length})
           </h3>
-          {isUpdating && (
-            <div className="flex items-center space-x-2 text-blue-400 text-sm">
-              <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-              <span>Updating...</span>
-            </div>
-          )}
+          {/* Removed updating indicator for seamless experience */}
         </div>
         
         {predictions.length === 0 ? (
@@ -396,12 +383,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
                       {atBatPredictions.map((prediction, index) => (
                         <div 
                           key={prediction.id} 
-                          className={`transition-all duration-300 ${
-                            isUpdating ? 'opacity-90' : 'opacity-100'
-                          }`}
-                          style={{
-                            animationDelay: `${index * 50}ms`
-                          }}
+                          className="transition-all duration-300"
                         >
                           <PredictionCard prediction={prediction} />
                         </div>

@@ -102,9 +102,8 @@ export class DataSyncService {
         const gameStateResult = await this.syncGameState()
         results.push(gameStateResult)
         
-        // Still call resolve-predictions even when no live game
-        // in case there are predictions from previous games to resolve
-        await this.callResolvePredictionsAPI()
+        // Note: Removed hardcoded resolve-predictions API call
+        // The proper prediction resolution is handled by predictionServiceNew.autoResolveAllCompletedAtBats()
         
         return results
       }
@@ -112,8 +111,8 @@ export class DataSyncService {
       // We have a live game, perform full sync
       const fullSyncResults = await this.performFullSync()
       
-      // Also call the resolve-predictions API endpoint
-      await this.callResolvePredictionsAPI()
+      // Note: Removed hardcoded resolve-predictions API call
+      // The proper prediction resolution is handled by predictionServiceNew.autoResolveAllCompletedAtBats()
       
       return fullSyncResults
     } catch (error) {
@@ -524,33 +523,9 @@ export class DataSyncService {
     return await this.performFullSync()
   }
 
-  // Call the resolve-predictions API endpoint
-  private async callResolvePredictionsAPI(): Promise<void> {
-    try {
-      // console.log('Calling resolve-predictions API...')
-      
-      const response = await fetch('https://www.choggers.com/api/resolve-predictions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        console.error(`Resolve-predictions API call failed: ${response.status} ${response.statusText}`)
-        return
-      }
-
-      const result = await response.json()
-      // console.log('Resolve-predictions API response:', result)
-      
-      if (result.success && result.resolved > 0) {
-        console.log(`Resolved ${result.resolved} predictions via API, ${result.pointsAwarded || 0} points awarded`)
-      }
-    } catch (error) {
-      console.error('Error calling resolve-predictions API:', error)
-    }
-  }
+  // Note: Removed callResolvePredictionsAPI method
+  // The hardcoded resolve-predictions API endpoint was overriding proper resolution
+  // Now only the proper predictionServiceNew.autoResolveAllCompletedAtBats() is used
 }
 
 // Export singleton instance

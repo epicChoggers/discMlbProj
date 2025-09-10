@@ -1,5 +1,63 @@
 import { supabase } from './supabase.js'
 
+// Helper function to determine the category of an outcome
+const getOutcomeCategory = (outcome: AtBatOutcome['type']): string => {
+  switch (outcome) {
+    // Hits
+    case 'single':
+    case 'double':
+    case 'triple':
+    case 'home_run':
+      return 'hit'
+    
+    // Walks
+    case 'walk':
+    case 'intent_walk':
+      return 'walk'
+    
+    // Strikeouts (all outs)
+    case 'strikeout':
+    case 'strike_out':
+    case 'strikeout_double_play':
+    case 'strikeout_triple_play':
+      return 'out'
+    
+    // Field Outs (all outs)
+    case 'field_out':
+    case 'fielders_choice':
+    case 'fielders_choice_out':
+    case 'force_out':
+    case 'grounded_into_double_play':
+    case 'grounded_into_triple_play':
+    case 'triple_play':
+    case 'double_play':
+      return 'out'
+    
+    // Sacrifice Plays
+    case 'sac_fly':
+    case 'sac_bunt':
+    case 'sac_fly_double_play':
+    case 'sac_bunt_double_play':
+      return 'sacrifice'
+    
+    // Errors and Interference
+    case 'field_error':
+    case 'catcher_interf':
+    case 'batter_interference':
+    case 'fan_interference':
+      return 'error'
+    
+    // Hit by Pitch
+    case 'hit_by_pitch':
+      return 'hit_by_pitch'
+    
+    // Unknown
+    case 'unknown':
+    default:
+      return 'unknown'
+  }
+}
+
 export interface AtBatOutcome {
   type: 'single' | 'double' | 'triple' | 'home_run' | 'walk' | 'strikeout' | 'field_out' | 'ground_out' | 'fly_out' | 'pop_out' | 'line_out' | 'force_out' | 'fielders_choice' | 'sac_fly' | 'sac_bunt' | 'hit_by_pitch' | 'error' | 'field_error' | 'catcher_interference' | 'unknown'
 }
@@ -35,12 +93,15 @@ export class PredictionServiceNew {
       const { allPlays } = game.liveData.plays
       console.log(`Processing ${allPlays.length} plays for resolution`)
 
-      // Process each completed at-bat
+      // Process each completed at-bat (only resolve predictions for actually completed at-bats)
+      let completedAtBats = 0
       for (const play of allPlays) {
-        if (play.about?.atBatIndex !== undefined) {
+        if (play.about?.atBatIndex !== undefined && play.about?.isComplete === true) {
+          completedAtBats++
           await this.autoResolveCompletedAtBats(gamePk, play)
         }
       }
+      console.log(`Found ${completedAtBats} completed at-bats out of ${allPlays.length} total plays`)
     } catch (error) {
       console.error('Error auto-resolving at-bat predictions:', error)
     }
@@ -174,12 +235,28 @@ export class PredictionServiceNew {
   ): Promise<void> {
     const updates = predictions.map(prediction => {
       const isCorrect = prediction.prediction === actualOutcome
-      const pointsEarned = isCorrect ? this.calculatePoints(actualOutcome) : 0
+      const predictedCategory = getOutcomeCategory(prediction.prediction)
+      const actualCategory = getOutcomeCategory(actualOutcome)
+      const isPartialCredit = !isCorrect && predictedCategory === actualCategory
+      
+      // Calculate points: full points for exact match, partial points for category match
+      let pointsEarned = 0
+      if (isCorrect) {
+        pointsEarned = this.calculatePoints(actualOutcome)
+        console.log(`✅ Exact match: ${prediction.prediction} = ${actualOutcome} (+${pointsEarned} points)`)
+      } else if (isPartialCredit) {
+        // Give partial credit - typically 1 point for getting the category right
+        pointsEarned = 1
+        console.log(`⚠️ Partial credit: ${prediction.prediction} (${predictedCategory}) vs ${actualOutcome} (${actualCategory}) (+${pointsEarned} points)`)
+      } else {
+        console.log(`❌ Incorrect: ${prediction.prediction} (${predictedCategory}) vs ${actualOutcome} (${actualCategory}) (0 points)`)
+      }
 
       return {
         id: prediction.id,
         actual_outcome: actualOutcome,
         is_correct: isCorrect,
+        is_partial_credit: isPartialCredit,
         points_earned: pointsEarned,
         resolved_at: new Date().toISOString()
       }
@@ -201,13 +278,25 @@ export class PredictionServiceNew {
     actualOutcome: AtBatOutcome['type']
   ): Promise<void> {
     const isCorrect = prediction.prediction === actualOutcome
-    const pointsEarned = isCorrect ? this.calculatePoints(actualOutcome) : 0
+    const predictedCategory = getOutcomeCategory(prediction.prediction)
+    const actualCategory = getOutcomeCategory(actualOutcome)
+    const isPartialCredit = !isCorrect && predictedCategory === actualCategory
+    
+    // Calculate points: full points for exact match, partial points for category match
+    let pointsEarned = 0
+    if (isCorrect) {
+      pointsEarned = this.calculatePoints(actualOutcome)
+    } else if (isPartialCredit) {
+      // Give partial credit - typically 1 point for getting the category right
+      pointsEarned = 1
+    }
 
     const { error } = await supabase
       .from('at_bat_predictions')
       .update({
         actual_outcome: actualOutcome,
         is_correct: isCorrect,
+        is_partial_credit: isPartialCredit,
         points_earned: pointsEarned,
         resolved_at: new Date().toISOString()
       })

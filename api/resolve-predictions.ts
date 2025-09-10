@@ -63,8 +63,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       console.log(`Processing at-bat ${atBatIndex} for game ${gamePk} with ${predictions.length} predictions`)
 
-      // For now, let's resolve them as "field_out" to test the system
-      // In a real implementation, we'd fetch the actual game data
+      // ⚠️ WARNING: This is a TEST/DEBUG endpoint that hardcodes all outcomes as "field_out"
+      // This should NOT be used in production as it overrides proper prediction resolution
+      // The proper resolution is handled by predictionServiceNew.autoResolveAllCompletedAtBats()
+      // which only resolves predictions for actually completed at-bats
       const actualOutcome = 'field_out'
       
       for (const prediction of predictions) {
