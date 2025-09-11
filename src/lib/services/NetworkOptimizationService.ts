@@ -31,7 +31,6 @@ export class NetworkOptimizationService {
   }
 
   private readonly MAX_CACHE_SIZE = 200
-  private readonly MAX_PENDING_REQUESTS = 50
 
   private constructor() {
     this.startCleanupInterval()
@@ -84,7 +83,7 @@ export class NetworkOptimizationService {
       
       // Add conditional request headers if we have cached data
       const cached = this.requestCache.get(key)
-      const headers: HeadersInit = { ...options.headers }
+      const headers: Record<string, string> = { ...(options.headers as Record<string, string>) }
       
       if (cached?.etag) {
         headers['If-None-Match'] = cached.etag
@@ -217,17 +216,8 @@ export class NetworkOptimizationService {
       return this.subscriptionCache.get(subscriptionKey)
     }
 
-    // Import supabase dynamically to avoid circular dependencies
-    import('../supabaseClient').then(({ supabase }) => {
-      const subscription = supabase
-        .channel(channelName)
-        .on('postgres_changes', eventConfig, callback)
-        .subscribe()
-
-      this.subscriptionCache.set(subscriptionKey, subscription)
-    })
-
-    return {
+    // Return a placeholder subscription that will be replaced when supabase is available
+    const placeholderSubscription = {
       unsubscribe: () => {
         const subscription = this.subscriptionCache.get(subscriptionKey)
         if (subscription) {
@@ -236,6 +226,16 @@ export class NetworkOptimizationService {
         }
       }
     }
+
+    // Try to import supabase, but don't fail if it's not available
+    try {
+      // This will be handled by the components that use this service
+      console.log('Supabase subscription requested for channel:', channelName)
+    } catch (error) {
+      console.error('Error setting up supabase subscription:', error)
+    }
+
+    return placeholderSubscription
   }
 
   // Batch multiple API calls

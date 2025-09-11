@@ -72,7 +72,7 @@ export const useSharedData = () => {
 }
 
 // Hook for components that need to share leaderboard data
-export const useSharedLeaderboard = (gamePk?: number) => {
+export const useSharedLeaderboard = () => {
   const { leaderboard, setLeaderboard } = useSharedData()
   
   const updateLeaderboard = useCallback((newLeaderboard: any) => {
