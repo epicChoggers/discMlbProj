@@ -1,5 +1,5 @@
 import { supabase } from '../supabaseClient'
-import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory, getOutcomePoints } from './types'
+import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory, getOutcomePoints, getCategoryPoints } from './types'
 import { debounce } from './utils/debounce'
 
 export class PredictionServiceNew {
@@ -195,7 +195,7 @@ export class PredictionServiceNew {
     }
   }
 
-  // Calculate points for a prediction based on accuracy
+  // Calculate points for a prediction based on accuracy using new unified system
   calculatePoints(
     predictedOutcome: AtBatOutcome,
     predictedCategory: string | undefined,
@@ -213,56 +213,19 @@ export class PredictionServiceNew {
     let bonusInfo = ''
     
     if (isExact) {
-      // Base points for exact predictions
-      const basePoints = this.getBasePointsForOutcome(actualOutcome)
-      
-      // Apply risk/reward multipliers
-      const multiplier = this.getRiskMultiplier(actualOutcome)
-      points = Math.round(basePoints * multiplier)
-      
-      if (multiplier > 1) {
-        bonusInfo = `+${Math.round((multiplier - 1) * 100)}% risk bonus`
-      }
+      // Get exact points for correct prediction
+      const { exact } = getOutcomePoints(actualOutcome)
+      points = exact
+      bonusInfo = 'Exact prediction!'
     } else if (isCategoryCorrect) {
-      // Points for correct category predictions
-      points = this.getCategoryPoints(predictedCategory, actualCategory)
+      // Get category points for partial credit
+      points = getCategoryPoints(actualCategory)
+      bonusInfo = 'Category correct!'
     }
     
     return { points, isExact, isCategoryCorrect, bonusInfo }
   }
 
-  // Get base points for each outcome type
-  private getBasePointsForOutcome(outcome: AtBatOutcome): number {
-    // Use the centralized point calculation from types.ts
-    const { base } = getOutcomePoints(outcome)
-    return base
-  }
-
-  // Get risk multiplier for outcomes (higher risk = higher reward)
-  private getRiskMultiplier(outcome: AtBatOutcome): number {
-    // Use the centralized multiplier calculation from types.ts
-    const { withBonus, base } = getOutcomePoints(outcome)
-    return base > 0 ? withBonus / base : 1.0
-  }
-
-  // Get points for category predictions
-  private getCategoryPoints(predictedCategory: string, actualCategory: string): number {
-    if (predictedCategory === actualCategory) {
-      switch (actualCategory) {
-        case 'hit': return 3        // Hit category (single, double, triple, home run)
-        case 'out': return 1        // Out category (strikeout, field_out, fielders_choice, etc.)
-        case 'walk': return 2       // Walk category
-        case 'sacrifice': return 2  // Sacrifice category
-        case 'error': return 1      // Error category
-        case 'hit_by_pitch': return 2 // Hit by pitch category
-        case 'baserunning': return 0 // Baserunning events (should not be at-bat outcomes)
-        case 'administrative': return 0 // Administrative events (should not be at-bat outcomes)
-        case 'unknown': return 0    // Unknown events
-        default: return 1
-      }
-    }
-    return 0
-  }
 
 
   // Get user's prediction stats

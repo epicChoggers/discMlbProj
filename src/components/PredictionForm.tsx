@@ -15,7 +15,7 @@ const MAIN_CATEGORIES = [
     label: 'Out', 
     emoji: '⚾', 
     description: 'Batter makes an out',
-    basePoints: 1,
+    categoryPoints: 1,
     category: 'out'
   },
   { 
@@ -23,23 +23,23 @@ const MAIN_CATEGORIES = [
     label: 'Hit', 
     emoji: '🏃', 
     description: 'Batter gets a hit or reaches base',
-    basePoints: 2,
+    categoryPoints: 2,
     category: 'hit'
   }
 ]
 
-// Specific outcomes for each main category - simplified to essential options
-const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string; points: number; bonusPercent: number; description: string }[]> = {
+// Specific outcomes for each main category - using new unified point system
+const SPECIFIC_OUTCOMES: Record<string, { value: AtBatOutcome; label: string; emoji: string; exactPoints: number; categoryPoints: number; description: string }[]> = {
   out: [
-    { value: 'strikeout', label: 'Strikeout', emoji: '❌', points: 3, bonusPercent: 10, description: 'Three strikes' },
-    { value: 'field_out', label: 'Field Out', emoji: '⚾', points: 1, bonusPercent: 0, description: 'Any field out' }
+    { value: 'strikeout', label: 'Strikeout', emoji: '❌', exactPoints: 3, categoryPoints: 1, description: 'Three strikes' },
+    { value: 'field_out', label: 'Field Out', emoji: '⚾', exactPoints: 2, categoryPoints: 1, description: 'Any field out' }
   ],
   hit: [
-    { value: 'single', label: 'Single', emoji: '🏃', points: 6, bonusPercent: 20, description: 'One base hit' },
-    { value: 'double', label: 'Double', emoji: '🏃🏃', points: 15, bonusPercent: 50, description: 'Two base hit' },
-    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', points: 27, bonusPercent: 80, description: 'Three base hit' },
-    { value: 'home_run', label: 'Home Run', emoji: '💥', points: 40, bonusPercent: 100, description: 'Over the fence' },
-    { value: 'walk', label: 'Walk', emoji: '🚶', points: 4, bonusPercent: 10, description: 'Four balls or hit by pitch' }
+    { value: 'single', label: 'Single', emoji: '🏃', exactPoints: 3, categoryPoints: 2, description: 'One base hit' },
+    { value: 'double', label: 'Double', emoji: '🏃🏃', exactPoints: 4, categoryPoints: 2, description: 'Two base hit' },
+    { value: 'triple', label: 'Triple', emoji: '🏃🏃🏃', exactPoints: 5, categoryPoints: 2, description: 'Three base hit' },
+    { value: 'home_run', label: 'Home Run', emoji: '💥', exactPoints: 6, categoryPoints: 2, description: 'Over the fence' },
+    { value: 'walk', label: 'Walk', emoji: '🚶', exactPoints: 3, categoryPoints: 2, description: 'Four balls or hit by pitch' }
   ]
 }
 
@@ -338,7 +338,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
                   <div className="text-lg font-semibold mb-2">{category.label}</div>
                   <div className="text-sm text-gray-400 mb-2">{category.description}</div>
                   <div className="text-sm text-yellow-400 font-bold">
-                    {category.basePoints} pts base
+                    {category.categoryPoints} pts category
                   </div>
                 </button>
               ))}
@@ -377,10 +377,10 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
                   <div className="text-sm font-medium mb-1">{option.label}</div>
                   <div className="text-xs text-gray-400 mb-2">{option.description}</div>
                   <div className="text-xs text-yellow-400 font-bold">
-                    {option.points} pts
-                    {option.bonusPercent > 0 && (
-                      <span className="text-green-400 ml-1">+{option.bonusPercent}%</span>
-                    )}
+                    {option.exactPoints} pts exact
+                  </div>
+                  <div className="text-xs text-blue-400 font-bold">
+                    {option.categoryPoints} pts category
                   </div>
                 </button>
               ))}

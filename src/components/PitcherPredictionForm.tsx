@@ -339,12 +339,12 @@ export const PitcherPredictionForm = ({ gamePk, pitcher, game, onPredictionSubmi
       {/* Scoring Info */}
       <div className="mt-4 pt-4 border-t border-gray-700">
         <div className="text-gray-400 text-xs">
-          <div className="font-medium mb-1">Scoring:</div>
-          <div>• Exact IP: 10 pts • Within 0.1 IP: 5 pts • Within 0.2 IP: 2 pts</div>
-          <div>• Exact Hits: 8 pts • Within 1: 4 pts • Within 2: 2 pts</div>
-          <div>• Exact ER: 10 pts • Within 1: 5 pts</div>
-          <div>• Exact BB: 6 pts • Within 1: 3 pts</div>
-          <div>• Exact K: 8 pts • Within 2: 4 pts • Within 4: 2 pts</div>
+          <div className="font-medium mb-1">New Scoring System:</div>
+          <div>• Exact IP: 6 pts • Within 0.1 IP: 4 pts • Within 0.2 IP: 2 pts • Within 0.5 IP: 1 pt</div>
+          <div>• Exact Hits: 4 pts • Within 1: 2 pts • Within 2: 1 pt</div>
+          <div>• Exact ER: 4 pts • Within 1: 2 pts • Within 2: 1 pt</div>
+          <div>• Exact BB: 3 pts • Within 1: 1 pt</div>
+          <div>• Exact K: 3 pts • Within 1: 1 pt</div>
         </div>
       </div>
     </div>

@@ -53,7 +53,7 @@ export const ScoringSystem = () => {
         <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
           <h4 className="text-blue-300 font-medium mb-2">📊 Exact Predictions</h4>
           <p className="text-gray-300 text-sm mb-3">
-            Predict the exact outcome to earn base points + risk bonuses for rare outcomes!
+            Predict the exact outcome to earn maximum points! Rare outcomes are worth more.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {outcomes.map((outcome) => {
@@ -63,10 +63,10 @@ export const ScoringSystem = () => {
                   <div className="text-lg mb-1">{getOutcomeEmoji(outcome)}</div>
                   <div className="text-xs font-medium text-white mb-1">{getOutcomeLabel(outcome)}</div>
                   <div className="text-xs text-yellow-400 font-bold">
-                    {points.withBonus} pts
-                    {points.bonusPercent > 0 && (
-                      <div className="text-green-400 text-xs">+{points.bonusPercent}%</div>
-                    )}
+                    {points.exact} pts exact
+                  </div>
+                  <div className="text-xs text-blue-400 font-bold">
+                    {points.category} pts category
                   </div>
                 </div>
               )
@@ -75,7 +75,7 @@ export const ScoringSystem = () => {
         </div>
 
         <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
-          <h4 className="text-green-300 font-medium mb-2">🎯 Category Predictions</h4>
+          <h4 className="text-green-300 font-medium mb-2">🎯 Category Predictions (Partial Credit)</h4>
           <p className="text-gray-300 text-sm mb-3">
             Predict the general category for fewer points but higher accuracy.
           </p>
@@ -93,7 +93,7 @@ export const ScoringSystem = () => {
             <div className="bg-gray-700 rounded p-3 text-center">
               <div className="text-lg mb-1">🚶</div>
               <div className="text-sm font-medium text-white mb-1">Walk</div>
-              <div className="text-xs text-yellow-400 font-bold">3 pts</div>
+              <div className="text-xs text-yellow-400 font-bold">2 pts</div>
             </div>
             <div className="bg-gray-700 rounded p-3 text-center">
               <div className="text-lg mb-1">❌</div>

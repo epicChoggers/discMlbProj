@@ -272,8 +272,8 @@ export class PredictionServiceNew {
         pointsEarned = this.calculatePoints(actualOutcome)
         console.log(`✅ Exact match: ${prediction.prediction} = ${actualOutcome} (+${pointsEarned} points)`)
       } else if (isPartialCredit) {
-        // Give partial credit - typically 1 point for getting the category right
-        pointsEarned = 1
+        // Give partial credit based on category
+        pointsEarned = this.calculateCategoryPoints(actualCategory)
         console.log(`⚠️ Partial credit: ${prediction.prediction} (${predictedCategory}) vs ${actualOutcome} (${actualCategory}) (+${pointsEarned} points)`)
       } else {
         console.log(`❌ Incorrect: ${prediction.prediction} (${predictedCategory}) vs ${actualOutcome} (${actualCategory}) (0 points)`)
@@ -459,46 +459,76 @@ export class PredictionServiceNew {
     }
   }
 
-  // Calculate points for a correct prediction
+  // Calculate points for a correct prediction using new unified system
   private calculatePoints(outcome: AtBatOutcome['type']): number {
+    // Use the same point system as the frontend
     const pointValues: Record<AtBatOutcome['type'], number> = {
-      'single': 1,
-      'double': 2,
-      'triple': 3,
-      'home_run': 4,
-      'walk': 1,
-      'strikeout': 1,
-      'field_out': 1,
-      'ground_out': 1,
-      'fly_out': 1,
-      'pop_out': 1,
-      'line_out': 1,
-      'force_out': 1,
-      'fielders_choice': 1,
-      'sac_fly': 1,
-      'sac_bunt': 1,
-      'hit_by_pitch': 1,
-      'error': 1,
-      'field_error': 1,
-      'catcher_interference': 1,
-      'unknown': 0,
-      'intent_walk': 1,
-      'strike_out': 1,
-      'strikeout_double_play': 1,
-      'strikeout_triple_play': 1,
-      'fielders_choice_out': 1,
+      // RARE OUTCOMES (4-6 points)
+      'home_run': 6,
+      'triple': 5,
+      
+      // MODERATE OUTCOMES (2-4 points)
+      'double': 4,
+      'single': 3,
+      'walk': 3,
+      'intent_walk': 3,
+      'hit_by_pitch': 3,
+      'strikeout': 3,
+      'strike_out': 3,
+      
+      // COMMON OUTCOMES (1-2 points)
+      'field_out': 2,
+      'fielders_choice': 2,
+      'fielders_choice_out': 2,
+      'force_out': 2,
+      'sac_fly': 2,
+      'sac_bunt': 2,
+      'catcher_interf': 2,
+      
+      // SPECIAL OUTCOMES (1-3 points)
+      'strikeout_double_play': 2,
+      'strikeout_triple_play': 3,
       'grounded_into_double_play': 1,
-      'grounded_into_triple_play': 1,
-      'triple_play': 1,
+      'grounded_into_triple_play': 2,
+      'triple_play': 3,
       'double_play': 1,
       'sac_fly_double_play': 1,
       'sac_bunt_double_play': 1,
-      'catcher_interf': 1,
-      'batter_interference': 1,
-      'fan_interference': 1
+      
+      // ERROR OUTCOMES (1-2 points)
+      'field_error': 2,
+      'batter_interference': 2,
+      'fan_interference': 2,
+      
+      // LEGACY OUTCOMES (map to new system)
+      'ground_out': 2,
+      'fly_out': 2,
+      'pop_out': 2,
+      'line_out': 2,
+      'error': 2,
+      'catcher_interference': 2,
+      
+      // NON-PLATE APPEARANCE EVENTS (0 points)
+      'unknown': 0
     }
 
     return pointValues[outcome] || 0
+  }
+
+  // Calculate category points for partial credit
+  private calculateCategoryPoints(category: string): number {
+    switch (category) {
+      case 'hit': return 2      // Hit category (single, double, triple, home run)
+      case 'out': return 1       // Out category (strikeout, field_out, etc.)
+      case 'walk': return 2      // Walk category
+      case 'sacrifice': return 1 // Sacrifice category
+      case 'error': return 1     // Error category
+      case 'hit_by_pitch': return 2 // Hit by pitch category
+      case 'baserunning': return 0 // Baserunning events (should not be at-bat outcomes)
+      case 'administrative': return 0 // Administrative events (should not be at-bat outcomes)
+      case 'unknown': return 0   // Unknown events
+      default: return 1
+    }
   }
 }
 
