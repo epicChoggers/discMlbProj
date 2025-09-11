@@ -15,7 +15,6 @@
       "maxDuration": 30
     }
   },
-  "ignoreCommand": "echo 'Ignoring api-shared directory'",
   "rewrites": [
     {
       "source": "/api/(.*)",
