@@ -315,7 +315,7 @@ class MLBServiceNew {
   // Get API health status
   async getHealthStatus(): Promise<any> {
     try {
-      const response = await fetch('/api/system/health')
+      const response = await fetch('/api/game?action=system-health')
       
       if (!response.ok) {
         throw new Error(`Health check failed: ${response.status}`)
@@ -336,7 +336,7 @@ class MLBServiceNew {
   // Get system statistics
   async getSystemStats(timeframe: string = '24h'): Promise<any> {
     try {
-      const response = await fetch(`/api/system?action=stats&timeframe=${timeframe}`)
+      const response = await fetch(`/api/game?action=cache-stats&timeframe=${timeframe}`)
       
       if (!response.ok) {
         throw new Error(`Stats request failed: ${response.status}`)

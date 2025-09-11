@@ -117,13 +117,13 @@ async function handleGameState(req: VercelRequest, res: VercelResponse) {
         console.log(`[State API] AllPlays count:`, detailedGame.liveData?.plays?.allPlays?.length || 0)
         
         currentAtBat = gameDataService.getCurrentAtBat(detailedGame)
-        console.log(`[State API] Current at-bat result:`, currentAtBat ? `At-bat ${currentAtBat.about?.atBatIndex}` : 'No current at-bat')
+        console.log(`[State API] Current at-bat result:`, currentAtBat ? `At-bat ${(currentAtBat as any).about?.atBatIndex}` : 'No current at-bat')
         if (currentAtBat) {
           console.log(`[State API] Current at-bat details:`, {
-            atBatIndex: currentAtBat.about?.atBatIndex,
-            batter: currentAtBat.matchup?.batter?.fullName,
-            pitcher: currentAtBat.matchup?.pitcher?.fullName,
-            count: currentAtBat.count
+            atBatIndex: (currentAtBat as any).about?.atBatIndex,
+            batter: (currentAtBat as any).matchup?.batter?.fullName,
+            pitcher: (currentAtBat as any).matchup?.pitcher?.fullName,
+            count: (currentAtBat as any).count
           })
         }
       } else {
@@ -1231,7 +1231,7 @@ async function handleResolvePredictions(req: VercelRequest, res: VercelResponse)
     }
 
     // Get current at-bat
-    const currentAtBat = gameDataService.getCurrentAtBat(detailedGame)
+    const currentAtBat: any = gameDataService.getCurrentAtBat(detailedGame)
     console.log(`[Resolve Predictions] Current at-bat:`, currentAtBat ? `Index ${currentAtBat.about?.atBatIndex}` : 'None')
 
     // Get all unresolved predictions for this game
@@ -1261,7 +1261,7 @@ async function handleResolvePredictions(req: VercelRequest, res: VercelResponse)
     console.log(`[Resolve Predictions] Found ${allPlays.length} plays in game data`)
 
     let resolvedCount = 0
-    const resolutionResults = []
+    const resolutionResults: any[] = []
 
     for (const prediction of unresolvedPredictions) {
       try {

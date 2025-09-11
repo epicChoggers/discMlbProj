@@ -57,7 +57,7 @@ export class ResolvePredictionsService {
   
   private async performResolveCall(): Promise<ResolvePredictionsResponse | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/resolve-predictions`, {
+      const response = await fetch(`${this.baseUrl}/api/game?action=resolve-predictions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
