@@ -1,19 +1,3 @@
-export interface Message {
-  id: string
-  created_at: string
-  author?: string
-  text: string
-}
-
-export interface PendingMessage {
-  id: string
-  text: string
-  author?: string
-  isPending: true
-}
-
-export type MessageOrPending = Message | PendingMessage
-
 export interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
