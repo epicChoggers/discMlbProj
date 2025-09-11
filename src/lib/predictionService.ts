@@ -7,6 +7,9 @@ export class PredictionServiceNew {
   private isDevelopment: boolean
   // Cache for tracking resolved at-bats to avoid redundant processing
   private resolvedAtBatsCache = new Map<number, Set<number>>()
+  // Cache for user stats to prevent excessive API calls
+  private userStatsCache: { data: PredictionStats | null; timestamp: number } = { data: null, timestamp: 0 }
+  private readonly USER_STATS_CACHE_DURATION = 30000 // 30 seconds
 
   constructor() {
     // Check if we're in development mode
@@ -228,13 +231,18 @@ export class PredictionServiceNew {
 
 
 
-  // Get user's prediction stats
+  // Get user's prediction stats with caching
   async getUserPredictionStats(): Promise<PredictionStats> {
+    // Check cache first
+    if (this.userStatsCache.data && Date.now() - this.userStatsCache.timestamp < this.USER_STATS_CACHE_DURATION) {
+      return this.userStatsCache.data
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
       if (!user) {
-        return {
+        const defaultStats = {
           totalPredictions: 0,
           correctPredictions: 0,
           accuracy: 0,
@@ -244,6 +252,8 @@ export class PredictionServiceNew {
           exactPredictions: 0,
           categoryPredictions: 0
         }
+        this.userStatsCache = { data: defaultStats, timestamp: Date.now() }
+        return defaultStats
       }
 
       const { data, error } = await supabase
@@ -289,7 +299,7 @@ export class PredictionServiceNew {
         streak = currentStreak
       }
 
-      return {
+      const stats = {
         totalPredictions,
         correctPredictions,
         accuracy,
@@ -299,9 +309,13 @@ export class PredictionServiceNew {
         exactPredictions,
         categoryPredictions
       }
+      
+      // Cache the result
+      this.userStatsCache = { data: stats, timestamp: Date.now() }
+      return stats
     } catch (error) {
       console.error('Error fetching prediction stats:', error)
-      return {
+      const defaultStats = {
         totalPredictions: 0,
         correctPredictions: 0,
         accuracy: 0,
@@ -311,6 +325,8 @@ export class PredictionServiceNew {
         exactPredictions: 0,
         categoryPredictions: 0
       }
+      this.userStatsCache = { data: defaultStats, timestamp: Date.now() }
+      return defaultStats
     }
   }
 
@@ -358,6 +374,11 @@ export class PredictionServiceNew {
     return subscription
   }
 
+  // Clear user stats cache (useful when user makes new predictions)
+  clearUserStatsCache(): void {
+    this.userStatsCache = { data: null, timestamp: 0 }
+  }
+
   // Subscribe to user stats updates using Supabase real-time with improved efficiency
   subscribeToUserStats(callback: (stats: PredictionStats) => void) {
     // Debounce the stats update to prevent excessive API calls
@@ -369,7 +390,7 @@ export class PredictionServiceNew {
       } catch (error) {
         console.error('Error in user stats subscription callback:', error)
       }
-    }, 300) // Reduced debounce to 300ms for better responsiveness
+    }, 2000) // Increased debounce to 2 seconds to reduce API calls
 
     const subscription = supabase
       .channel('user_stats_updates')

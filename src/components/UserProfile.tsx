@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { UserProfile as UserProfileType, PredictionStats } from '../lib/types'
+import { UserProfile as UserProfileType } from '../lib/types'
 import { supabase } from '../supabaseClient'
 import { predictionServiceNew } from '../lib/predictionService'
+import { useSharedData } from '../lib/contexts/SharedDataContext'
 
 interface UserProfileProps {
   onSignOut: () => void
@@ -9,9 +10,9 @@ interface UserProfileProps {
 
 export const UserProfile = ({ onSignOut }: UserProfileProps) => {
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null)
-  const [stats, setStats] = useState<PredictionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false)
+  const { userStats, setUserStats } = useSharedData()
 
   useEffect(() => {
     const loadUserProfile = async () => {
@@ -60,9 +61,11 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
           setUserProfile(profile)
         }
 
-        // Load prediction stats
-        const userStats = await predictionServiceNew.getUserPredictionStats()
-        setStats(userStats)
+        // Load prediction stats only if not already loaded
+        if (!userStats) {
+          const stats = await predictionServiceNew.getUserPredictionStats()
+          setUserStats(stats)
+        }
       } catch (error) {
         console.error('Error loading user profile:', error)
       } finally {
@@ -72,9 +75,9 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
 
     loadUserProfile()
 
-    // Subscribe to real-time user stats updates
+    // Subscribe to real-time user stats updates only if not already subscribed
     const subscription = predictionServiceNew.subscribeToUserStats((newStats) => {
-      setStats(newStats)
+      setUserStats(newStats)
       setIsLoading(false) // Stop loading indicator when stats update
     })
 
@@ -91,7 +94,7 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
   }, [isLoading, hasInitiallyLoaded])
 
   // Memoize stats to prevent unnecessary re-renders
-  const memoizedStats = useMemo(() => stats, [stats?.totalPoints, stats?.accuracy, stats?.streak])
+  const memoizedStats = useMemo(() => userStats, [userStats?.totalPoints, userStats?.accuracy, userStats?.streak])
 
   const handleSignOut = async () => {
     try {

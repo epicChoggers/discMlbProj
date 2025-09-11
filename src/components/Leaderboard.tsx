@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType, PredictionStats } from '../lib/types'
 import { leaderboardServiceNew } from '../lib/leaderboardService'
 import { predictionServiceNew } from '../lib/predictionService'
+import { useSharedData } from '../lib/contexts/SharedDataContext'
 
 interface LeaderboardProps {
   gamePk?: number
@@ -9,13 +10,13 @@ interface LeaderboardProps {
 
 export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardType | null>(null)
-  const [stats, setStats] = useState<PredictionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { userStats, setUserStats } = useSharedData()
 
   // Memoize leaderboard data to prevent unnecessary re-renders
   const memoizedLeaderboard = useMemo(() => leaderboard, [leaderboard?.entries?.length, leaderboard?.last_updated])
-  const memoizedStats = useMemo(() => stats, [stats?.totalPoints, stats?.accuracy, stats?.streak])
+  const memoizedStats = useMemo(() => userStats, [userStats?.totalPoints, userStats?.accuracy, userStats?.streak])
 
   // Optimized leaderboard update callback
   const handleLeaderboardUpdate = useCallback((newLeaderboard: LeaderboardType) => {
@@ -24,8 +25,8 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
 
   // Optimized stats update callback
   const handleStatsUpdate = useCallback((newStats: PredictionStats) => {
-    setStats(newStats)
-  }, [])
+    setUserStats(newStats)
+  }, [setUserStats])
 
   useEffect(() => {
     const loadLeaderboard = async () => {
@@ -45,8 +46,11 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
 
     const loadStats = async () => {
       try {
-        const statsData = await predictionServiceNew.getUserPredictionStats()
-        setStats(statsData)
+        // Only load stats if not already loaded
+        if (!userStats) {
+          const statsData = await predictionServiceNew.getUserPredictionStats()
+          setUserStats(statsData)
+        }
       } catch (err) {
         console.error('Error loading stats:', err)
       }
