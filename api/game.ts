@@ -36,19 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'recent-games':
         await handleRecentGames(req, res)
         break
-      case 'resolve-predictions':
-        await handleResolvePredictions(req, res)
-        break
-      case 'system-health':
-        await handleSystemHealth(req, res)
-        break
-      case 'cache-stats':
-        await handleCacheStats(req, res)
-        break
       default:
-        res.status(400).json({ 
-          error: 'Invalid action. Supported actions: state, predictions, leaderboard, pitcher-info, pitcher-predictions, recent-games, resolve-predictions, system-health, cache-stats' 
-        })
+        res.status(400).json({ error: 'Invalid action. Supported actions: state, predictions, leaderboard, pitcher-info, pitcher-predictions, recent-games' })
     }
   } catch (error) {
     console.error('Error in game API:', error)
@@ -117,13 +106,13 @@ async function handleGameState(req: VercelRequest, res: VercelResponse) {
         console.log(`[State API] AllPlays count:`, detailedGame.liveData?.plays?.allPlays?.length || 0)
         
         currentAtBat = gameDataService.getCurrentAtBat(detailedGame)
-        console.log(`[State API] Current at-bat result:`, currentAtBat ? `At-bat ${(currentAtBat as any).about?.atBatIndex}` : 'No current at-bat')
+        console.log(`[State API] Current at-bat result:`, currentAtBat ? `At-bat ${currentAtBat.about?.atBatIndex}` : 'No current at-bat')
         if (currentAtBat) {
           console.log(`[State API] Current at-bat details:`, {
-            atBatIndex: (currentAtBat as any).about?.atBatIndex,
-            batter: (currentAtBat as any).matchup?.batter?.fullName,
-            pitcher: (currentAtBat as any).matchup?.pitcher?.fullName,
-            count: (currentAtBat as any).count
+            atBatIndex: currentAtBat.about?.atBatIndex,
+            batter: currentAtBat.matchup?.batter?.fullName,
+            pitcher: currentAtBat.matchup?.pitcher?.fullName,
+            count: currentAtBat.count
           })
         }
       } else {
@@ -1189,198 +1178,6 @@ async function handleRecentGames(req: VercelRequest, res: VercelResponse) {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch recent games'
-    })
-  }
-}
-
-// Consolidated handlers for other endpoints
-
-// Resolve predictions handler (from resolve-predictions.ts)
-async function handleResolvePredictions(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST' && req.method !== 'GET') {
-    res.status(405).json({ error: 'Method not allowed' })
-    return
-  }
-
-  try {
-    console.log('Manual prediction resolution triggered...')
-
-    // Get fresh game data - first get basic game info, then detailed data if live
-    const basicGame = await gameDataService.getTodaysMarinersGame()
-    
-    if (!basicGame) {
-      res.status(200).json({ 
-        success: true, 
-        message: 'No Mariners game found for today',
-        resolvedCount: 0
-      })
-      return
-    }
-
-    const isLive = gameDataService.isGameLive(basicGame)
-    console.log(`[Resolve Predictions] Game ${basicGame.gamePk} is live: ${isLive}`)
-
-    let detailedGame = basicGame
-    if (isLive) {
-      // Get detailed game data for live games
-      detailedGame = await gameDataService.getGameDetails(basicGame.gamePk)
-      if (!detailedGame) {
-        console.log('[Resolve Predictions] Failed to get detailed game data')
-        detailedGame = basicGame
-      }
-    }
-
-    // Get current at-bat
-    const currentAtBat: any = gameDataService.getCurrentAtBat(detailedGame)
-    console.log(`[Resolve Predictions] Current at-bat:`, currentAtBat ? `Index ${currentAtBat.about?.atBatIndex}` : 'None')
-
-    // Get all unresolved predictions for this game
-    const { data: unresolvedPredictions, error: fetchError } = await supabase
-      .from('at_bat_predictions')
-      .select('*')
-      .eq('game_pk', basicGame.gamePk)
-      .eq('is_resolved', false)
-
-    if (fetchError) {
-      throw new Error(`Failed to fetch unresolved predictions: ${fetchError.message}`)
-    }
-
-    console.log(`[Resolve Predictions] Found ${unresolvedPredictions?.length || 0} unresolved predictions`)
-
-    if (!unresolvedPredictions || unresolvedPredictions.length === 0) {
-      res.status(200).json({ 
-        success: true, 
-        message: 'No unresolved predictions found',
-        resolvedCount: 0
-      })
-      return
-    }
-
-    // Get all plays from the game
-    const allPlays = gameDataService.getGamePlays(detailedGame)
-    console.log(`[Resolve Predictions] Found ${allPlays.length} plays in game data`)
-
-    let resolvedCount = 0
-    const resolutionResults: any[] = []
-
-    for (const prediction of unresolvedPredictions) {
-      try {
-        // Find the play for this at-bat index
-        const play = allPlays.find(p => p.about?.atBatIndex === prediction.at_bat_index)
-        
-        if (!play) {
-          console.log(`[Resolve Predictions] No play found for at-bat index ${prediction.at_bat_index}`)
-          continue
-        }
-
-        // Check if this play is complete
-        const isComplete = play.about?.isComplete === true && play.result?.event
-        console.log(`[Resolve Predictions] At-bat ${prediction.at_bat_index} is complete: ${isComplete}`)
-
-        if (!isComplete) {
-          console.log(`[Resolve Predictions] At-bat ${prediction.at_bat_index} is not complete yet`)
-          continue
-        }
-
-        // Resolve the prediction
-        const actualOutcome = play.result.event
-        const isCorrect = prediction.prediction === actualOutcome
-        const isExact = isCorrect
-
-        console.log(`[Resolve Predictions] Resolving prediction ${prediction.id}: predicted=${prediction.prediction}, actual=${actualOutcome}, correct=${isCorrect}`)
-
-        // Update the prediction
-        const { error: updateError } = await supabase
-          .from('at_bat_predictions')
-          .update({
-            actual_outcome: actualOutcome,
-            is_correct: isCorrect,
-            is_exact: isExact,
-            is_resolved: true,
-            resolved_at: new Date().toISOString()
-          })
-          .eq('id', prediction.id)
-
-        if (updateError) {
-          console.error(`[Resolve Predictions] Failed to update prediction ${prediction.id}:`, updateError)
-          continue
-        }
-
-        resolvedCount++
-        resolutionResults.push({
-          predictionId: prediction.id,
-          atBatIndex: prediction.at_bat_index,
-          predicted: prediction.prediction,
-          actual: actualOutcome,
-          correct: isCorrect
-        })
-
-      } catch (error) {
-        console.error(`[Resolve Predictions] Error resolving prediction ${prediction.id}:`, error)
-      }
-    }
-
-    console.log(`[Resolve Predictions] Successfully resolved ${resolvedCount} predictions`)
-
-    res.status(200).json({
-      success: true,
-      message: `Successfully resolved ${resolvedCount} predictions`,
-      resolvedCount,
-      results: resolutionResults,
-      gamePk: basicGame.gamePk,
-      isLive
-    })
-
-  } catch (error) {
-    console.error('Error in prediction resolution:', error)
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to resolve predictions'
-    })
-  }
-}
-
-// System health handler
-async function handleSystemHealth(req: VercelRequest, res: VercelResponse) {
-  try {
-    const healthData = {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      version: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
-      environment: process.env.NODE_ENV || 'development',
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      mlbApi: gameDataService.getApiBaseUrl()
-    }
-
-    res.status(200).json({
-      success: true,
-      health: healthData
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Health check failed'
-    })
-  }
-}
-
-// Cache stats handler
-async function handleCacheStats(req: VercelRequest, res: VercelResponse) {
-  try {
-    // Import the cache service dynamically to avoid circular dependencies
-    const { mlbCacheService } = await import('./lib/MLBCacheService.js')
-    const stats = await mlbCacheService.getCacheStats()
-    
-    res.status(200).json({
-      success: true,
-      cache: stats
-    })
-  } catch (error) {
-    console.error('Error getting cache stats:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get cache stats'
     })
   }
 }

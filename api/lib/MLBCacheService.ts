@@ -25,11 +25,6 @@ export class MLBCacheService {
         .single()
 
       if (error || !data) {
-        // If table doesn't exist, return null gracefully
-        if (error?.code === 'PGRST116') {
-          console.log('[MLBCacheService] Cache table not found, skipping cache')
-          return null
-        }
         return null
       }
 
@@ -64,11 +59,6 @@ export class MLBCacheService {
         })
 
       if (error) {
-        // If table doesn't exist, skip caching gracefully
-        if (error?.code === 'PGRST116') {
-          console.log('[MLBCacheService] Cache table not found, skipping cache write')
-          return
-        }
         console.error('Error caching game data:', error)
       } else {
         console.log(`[MLBCacheService] Cached game ${gamePk} on ${gameDate}, expires at ${expiresAt.toISOString()}`)
@@ -90,11 +80,6 @@ export class MLBCacheService {
         .single()
 
       if (error || !data) {
-        // If table doesn't exist, return null gracefully
-        if (error?.code === 'PGRST116') {
-          console.log('[MLBCacheService] Schedule cache table not found, skipping cache')
-          return null
-        }
         return null
       }
 
@@ -128,11 +113,6 @@ export class MLBCacheService {
         })
 
       if (error) {
-        // If table doesn't exist, skip caching gracefully
-        if (error?.code === 'PGRST116') {
-          console.log('[MLBCacheService] Schedule cache table not found, skipping cache write')
-          return
-        }
         console.error('Error caching schedule data:', error)
       } else {
         console.log(`[MLBCacheService] Cached schedule for team ${teamId} on ${date}, expires at ${expiresAt.toISOString()}`)
@@ -160,20 +140,10 @@ export class MLBCacheService {
         .lt('expires_at', now)
 
       if (gameError) {
-        // If table doesn't exist, skip cleanup gracefully
-        if (gameError?.code === 'PGRST116') {
-          console.log('[MLBCacheService] Game cache table not found, skipping cleanup')
-        } else {
-          console.error('Error cleaning up game cache:', gameError)
-        }
+        console.error('Error cleaning up game cache:', gameError)
       }
       if (scheduleError) {
-        // If table doesn't exist, skip cleanup gracefully
-        if (scheduleError?.code === 'PGRST116') {
-          console.log('[MLBCacheService] Schedule cache table not found, skipping cleanup')
-        } else {
-          console.error('Error cleaning up schedule cache:', scheduleError)
-        }
+        console.error('Error cleaning up schedule cache:', scheduleError)
       }
 
       console.log('[MLBCacheService] Cleaned up expired cache entries')
@@ -189,22 +159,13 @@ export class MLBCacheService {
     totalCacheSize: number
   }> {
     try {
-      const { data: gameData, error: gameError } = await supabase
+      const { data: gameData } = await supabase
         .from('mlb_game_cache')
         .select('*', { count: 'exact' })
 
-      const { data: scheduleData, error: scheduleError } = await supabase
+      const { data: scheduleData } = await supabase
         .from('mlb_schedule_cache')
         .select('*', { count: 'exact' })
-
-      // If tables don't exist, return zero stats
-      if (gameError?.code === 'PGRST116' && scheduleError?.code === 'PGRST116') {
-        return {
-          gameCacheEntries: 0,
-          scheduleCacheEntries: 0,
-          totalCacheSize: 0
-        }
-      }
 
       return {
         gameCacheEntries: gameData?.length || 0,
