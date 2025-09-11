@@ -230,7 +230,7 @@ export class NetworkOptimizationService {
     // Try to import supabase, but don't fail if it's not available
     try {
       // This will be handled by the components that use this service
-      console.log('Supabase subscription requested for channel:', channelName)
+      console.log('Supabase subscription requested for channel:', channelName, 'with callback:', typeof callback)
     } catch (error) {
       console.error('Error setting up supabase subscription:', error)
     }
