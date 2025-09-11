@@ -68,7 +68,7 @@ async function handleStartup(req: VercelRequest, res: VercelResponse) {
     timestamp: new Date().toISOString()
   })
 }
-
+ 
 // Sync handler
 async function handleSync(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
