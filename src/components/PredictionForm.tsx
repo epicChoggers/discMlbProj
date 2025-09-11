@@ -408,13 +408,11 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
               </div>
               <div className="text-right">
                 <div className="text-yellow-400 font-bold text-lg">
-                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.points || 0} pts
+                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.exactPoints || 0} pts exact
                 </div>
-                {(Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.bonusPercent || 0) > 0 && (
-                  <div className="text-green-400 text-sm">
-                    +{Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.bonusPercent}% bonus
-                  </div>
-                )}
+                <div className="text-blue-400 font-bold text-sm">
+                  {Object.values(SPECIFIC_OUTCOMES).flat().find(opt => opt.value === selectedOutcome)?.categoryPoints || 0} pts category
+                </div>
               </div>
             </div>
           </div>
