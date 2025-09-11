@@ -73,17 +73,18 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           ...lastPlay,
           about: {
             ...lastPlay.about,
-            atBatIndex: lastPlay.about.atBatIndex + 1 // Make it the "next" at-bat
+            atBatIndex: lastPlay.about.atBatIndex + 1, // Make it the "next" at-bat
+            isComplete: false // Ensure this is marked as incomplete
           },
           count: {
-            balls: 0,
-            strikes: 0,
-            outs: lastPlay.count.outs
+            balls: 0, // Reset count for new at-bat
+            strikes: 0, // Reset count for new at-bat
+            outs: lastPlay.count.outs // Keep outs from previous at-bat
           },
           result: {
             type: 'at_bat',
-            event: '',
-            description: '',
+            event: 'at_bat',
+            description: 'At-bat in progress',
             rbi: 0,
             awayScore: lastPlay.result.awayScore,
             homeScore: lastPlay.result.homeScore
@@ -100,7 +101,8 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           atBatIndex: 0, // First at-bat
           inning: 1,
           halfInning: 'Top',
-          isTopInning: true
+          isTopInning: true,
+          isComplete: false // Ensure this is marked as incomplete
         },
         count: {
           balls: 0,

@@ -1,12 +1,10 @@
 import { Leaderboard as LeaderboardType } from './types'
 import { supabase } from '../supabaseClient'
+import { networkOptimizationService } from './services/NetworkOptimizationService'
 
 export class LeaderboardServiceNew {
   private apiBaseUrl: string
   private isDevelopment: boolean
-  private cache = new Map<string, { data: LeaderboardType; timestamp: number }>()
-  private readonly CACHE_DURATION = 3000 // Reduced to 3 seconds for better responsiveness
-  private pendingRequests = new Map<string, Promise<LeaderboardType>>()
   private subscriptionCache = new Map<string, any>() // Cache subscriptions to prevent duplicates
 
   constructor() {
@@ -23,49 +21,22 @@ export class LeaderboardServiceNew {
     this.apiBaseUrl = this.isDevelopment ? '/api' : `${window.location.origin}/api`
   }
 
-  // Get leaderboard data using the unified API with caching and deduplication
+  // Get leaderboard data using the unified API with optimized caching
   async getLeaderboard(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
     const cacheKey = `leaderboard_${gamePk || 'all'}_${limit}`
     
-    // Check cache first
-    const cached = this.cache.get(cacheKey)
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data
+    let url = `${this.apiBaseUrl}/game?action=leaderboard&limit=${limit}`
+    if (gamePk) {
+      url += `&gamePk=${gamePk}`
     }
-    
-    // Check if there's already a pending request for this key
-    if (this.pendingRequests.has(cacheKey)) {
-      return this.pendingRequests.get(cacheKey)!
-    }
-    
-    // Create new request
-    const requestPromise = this.performLeaderboardRequest(gamePk, limit)
-    this.pendingRequests.set(cacheKey, requestPromise)
-    
-    try {
-      const result = await requestPromise
-      // Cache the result
-      this.cache.set(cacheKey, { data: result, timestamp: Date.now() })
-      return result
-    } finally {
-      this.pendingRequests.delete(cacheKey)
-    }
-  }
-  
-  private async performLeaderboardRequest(gamePk?: number, limit: number = 10): Promise<LeaderboardType> {
-    try {
-      let url = `${this.apiBaseUrl}/game?action=leaderboard&limit=${limit}`
-      if (gamePk) {
-        url += `&gamePk=${gamePk}`
-      }
 
-      const response = await fetch(url)
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
-      }
-
-      const data = await response.json()
+    try {
+      const data = await networkOptimizationService.fetchWithOptimization(
+        url,
+        {},
+        cacheKey,
+        60000 // 1 minute cache duration
+      )
       
       if (!data.success) {
         throw new Error(data.error || 'Failed to fetch leaderboard')
@@ -73,6 +44,7 @@ export class LeaderboardServiceNew {
 
       return data.leaderboard
     } catch (error) {
+      console.error('Error fetching leaderboard:', error)
       return {
         entries: [],
         total_users: 0,
@@ -80,8 +52,9 @@ export class LeaderboardServiceNew {
       }
     }
   }
+  
 
-  // Subscribe to leaderboard updates using Supabase real-time with improved caching
+  // Subscribe to leaderboard updates using optimized Supabase real-time
   subscribeToLeaderboard(
     gamePk: number | undefined,
     callback: (leaderboard: LeaderboardType) => void
@@ -93,6 +66,17 @@ export class LeaderboardServiceNew {
       return this.subscriptionCache.get(subscriptionKey)
     }
 
+    // Use debounced callback to prevent excessive updates
+    const debouncedCallback = (() => {
+      let timeout: NodeJS.Timeout | null = null
+      return () => {
+        if (timeout) clearTimeout(timeout)
+        timeout = setTimeout(() => {
+          this.getLeaderboard(gamePk).then(callback)
+        }, 500) // 500ms debounce
+      }
+    })()
+
     const subscription = supabase
       .channel(`leaderboard_updates_${subscriptionKey}`)
       .on(
@@ -102,11 +86,7 @@ export class LeaderboardServiceNew {
           schema: 'public',
           table: 'at_bat_predictions'
         },
-        () => {
-          // Clear cache to force refresh
-          this.cache.delete(`leaderboard_${gamePk || 'all'}_10`)
-          this.getLeaderboard(gamePk).then(callback)
-        }
+        debouncedCallback
       )
       .on(
         'postgres_changes',
@@ -115,11 +95,7 @@ export class LeaderboardServiceNew {
           schema: 'public',
           table: 'user_profiles'
         },
-        () => {
-          // Clear cache to force refresh
-          this.cache.delete(`leaderboard_${gamePk || 'all'}_10`)
-          this.getLeaderboard(gamePk).then(callback)
-        }
+        debouncedCallback
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {

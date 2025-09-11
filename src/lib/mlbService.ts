@@ -130,7 +130,13 @@ class MLBServiceNew {
         ...mostRecentCompleted,
         about: {
           ...mostRecentCompleted.about,
-          atBatIndex: nextAtBatIndex
+          atBatIndex: nextAtBatIndex,
+          isComplete: false // Ensure this is marked as incomplete
+        },
+        count: {
+          balls: 0, // Reset count for new at-bat
+          strikes: 0, // Reset count for new at-bat
+          outs: mostRecentCompleted.count.outs // Keep outs from previous at-bat
         },
         result: {
           type: 'at_bat', // This indicates it's an ongoing at-bat
@@ -180,7 +186,7 @@ class MLBServiceNew {
     return await this.getGameState()
   }
 
-  // Start real-time updates for live games with improved efficiency
+  // Start real-time updates for live games with intelligent polling
   startLiveUpdates(callback: (gameState: GameState) => void) {
     this.listeners.push(callback)
     
@@ -188,13 +194,29 @@ class MLBServiceNew {
       return // Already running
     }
 
-    // Update every 15 seconds for live games for better responsiveness
-    this.updateInterval = setInterval(async () => {
+    let lastGameState: GameState | null = null
+    let isGameLive = false
+
+    // Intelligent polling based on game state
+    const pollGameState = async () => {
       try {
         const gameState = await this.getGameState()
+        const currentIsLive = gameState.game ? this.isGameLive(gameState.game) : false
         
-        // Only send updates if game is live and state has changed
-        if (gameState.game && this.isGameLive(gameState.game)) {
+        // Update polling frequency based on game state
+        if (currentIsLive !== isGameLive) {
+          isGameLive = currentIsLive
+          this.adjustPollingFrequency(isGameLive)
+        }
+        
+        // Only send updates if state has actually changed
+        const hasChanged = !lastGameState || 
+          lastGameState.game?.gamePk !== gameState.game?.gamePk ||
+          lastGameState.currentAtBat?.about?.atBatIndex !== gameState.currentAtBat?.about?.atBatIndex ||
+          lastGameState.lastUpdated !== gameState.lastUpdated
+        
+        if (hasChanged) {
+          lastGameState = gameState
           this.listeners.forEach(listener => {
             try {
               listener(gameState)
@@ -206,22 +228,37 @@ class MLBServiceNew {
       } catch (error) {
         console.error('Error in live update interval:', error)
       }
-    }, 15000) // Reduced to 15 seconds for better responsiveness
+    }
+
+    // Start with faster polling, will adjust based on game state
+    this.updateInterval = setInterval(pollGameState, 10000) // Start with 10 seconds
 
     // Initial update
-    this.getGameState().then(gameState => {
-      if (gameState.game && this.isGameLive(gameState.game)) {
-        this.listeners.forEach(listener => {
-          try {
-            listener(gameState)
-          } catch (error) {
-            console.error('Error in initial game state listener:', error)
-          }
-        })
-      }
-    }).catch(error => {
-      console.error('Error in initial game state update:', error)
-    })
+    pollGameState()
+  }
+
+  private adjustPollingFrequency(isLive: boolean) {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval)
+      
+      // Adjust frequency based on game state
+      const interval = isLive ? 10000 : 60000 // 10s for live, 60s for non-live
+      
+      this.updateInterval = setInterval(async () => {
+        try {
+          const gameState = await this.getGameState()
+          this.listeners.forEach(listener => {
+            try {
+              listener(gameState)
+            } catch (error) {
+              console.error('Error in game state listener:', error)
+            }
+          })
+        } catch (error) {
+          console.error('Error in live update interval:', error)
+        }
+      }, interval)
+    }
   }
 
   // Stop real-time updates

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AtBatOutcome, MLBPlay, getOutcomeCategory } from '../lib/types'
 import { predictionServiceNew } from '../lib/predictionService'
+import { getCountData, isCountTooAdvanced, isInningEnded, formatCount } from '../lib/utils/countUtils'
 
 interface PredictionFormProps {
   gamePk: number
@@ -223,13 +224,15 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
     )
   }
 
+  // Get consistent count data using utility function
+  const countData = getCountData(currentAtBat)
+  const { balls, strikes, outs } = countData
+  
   // Check if the inning has ended (3 outs) - prevent predictions
-  const isInningEnded = currentAtBat?.count?.outs >= 3
-
+  const inningEnded = isInningEnded(countData)
+  
   // Check if count is too advanced (2+ balls or 2+ strikes) - prevent predictions
-  const balls = currentAtBat?.count?.balls || 0
-  const strikes = currentAtBat?.count?.strikes || 0
-  const isCountTooAdvanced = balls >= 2 || strikes >= 2
+  const countTooAdvanced = isCountTooAdvanced(countData)
 
   // Check if at-bat is already complete - prevent predictions
   const isAtBatComplete = currentAtBat?.about?.isComplete === true
@@ -270,7 +273,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   }
 
   // Show message when inning has ended (3 outs)
-  if (isInningEnded) {
+  if (inningEnded) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="text-center">
@@ -298,7 +301,7 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
   }
 
   // Show message when count is too advanced (2+ balls or 2+ strikes)
-  if (isCountTooAdvanced) {
+  if (countTooAdvanced) {
     return (
       <div className="bg-gray-800 rounded-lg p-6 mb-4">
         <div className="text-center">
@@ -445,8 +448,8 @@ export const PredictionForm = ({ gamePk, currentAtBat, onPredictionSubmitted }: 
             <span>Pitcher: {currentAtBat.matchup.pitcher.fullName}</span>
           </div>
           <div className="flex justify-between mt-1">
-            <span>Count: {currentAtBat.count.balls}-{currentAtBat.count.strikes}</span>
-            <span>Outs: {currentAtBat.count.outs}</span>
+            <span>Count: {formatCount(countData)}</span>
+            <span>Outs: {outs}</span>
           </div>
         </div>
       </div>

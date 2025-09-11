@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient'
 import { AtBatPrediction, AtBatOutcome, PredictionStats, getOutcomeCategory, getOutcomePoints, getCategoryPoints } from './types'
 import { debounce } from './utils/debounce'
+import { networkOptimizationService } from './services/NetworkOptimizationService'
 
 export class PredictionServiceNew {
   private apiBaseUrl: string

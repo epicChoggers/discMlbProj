@@ -59,8 +59,13 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
       }
       
       try {
-        // Call the resolve-predictions API to resolve any pending predictions
-        await resolvePredictionsService.resolvePredictions()
+        // Only resolve predictions if we're in a live game context
+        // This prevents unnecessary API calls for completed games
+        const shouldResolve = atBatIndex !== undefined // Only resolve for specific at-bats
+        
+        if (shouldResolve) {
+          await resolvePredictionsService.resolvePredictions()
+        }
         
         // Then reload the predictions to get the updated data
         await loadPredictions()
@@ -71,8 +76,8 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
         // Use a shorter timeout for better responsiveness
         updateTimeoutRef.current = setTimeout(() => setIsUpdating(false), 200)
       }
-    }, 500), // Reduced debounce to 500ms for better responsiveness
-    [loadPredictions]
+    }, 1000), // Increased debounce to 1 second to reduce API calls
+    [loadPredictions, atBatIndex]
   )
 
   // Register for game state updates

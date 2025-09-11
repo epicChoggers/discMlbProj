@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { GameState as GameStateType, MLBPlay, MLBGame } from '../lib/types'
 import { getPlayerHeadshot } from '../lib/mlbHeadshots'
 import { RecentGames } from './RecentGames'
+import { getCountData } from '../lib/utils/countUtils'
 
 interface GameStateProps {
   gameState: GameStateType
@@ -114,19 +115,19 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
                       gameDataDatetime: (game.gameData as any)?.datetime?.originalDate,
                       gameKeys: Object.keys(game)
                     })
-                    return 'Date TBD'
+                    return new Date().toLocaleDateString()
                   }
                   
                   const date = new Date(dateValue)
                   if (isNaN(date.getTime())) {
                     console.log('Invalid date value:', dateValue)
-                    return 'Date TBD'
+                    return new Date().toLocaleDateString()
                   }
                   
                   return date.toLocaleDateString()
                 } catch (error) {
                   console.error('Error formatting game date:', error, 'Game data:', game)
-                  return 'Date TBD'
+                  return new Date().toLocaleDateString()
                 }
               })()}
             </p>
@@ -206,7 +207,8 @@ interface CurrentAtBatProps {
 }
 
 const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
-  const { matchup, count, about } = atBat
+  const { matchup, about } = atBat
+  const count = getCountData(atBat)
   const { batter, pitcher } = matchup
 
   return (

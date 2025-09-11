@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { LockScreen } from './components/LockScreen'
 import { TextWall } from './components/TextWall'
 import { AuthCallback } from './components/AuthCallback'
+import { SharedDataProvider } from './lib/contexts/SharedDataContext'
 import { getCurrentSession, supabase } from './supabaseClient'
 
 function App() {
@@ -127,15 +128,17 @@ function App() {
   const isAuthCallback = window.location.pathname === '/auth/callback'
 
   return (
-    <div className="App">
-      {isAuthCallback ? (
-        <AuthCallback onAuthenticated={handleAuthenticated} />
-      ) : isAuthenticated ? (
-        <TextWall onSignOut={handleSignOut} />
-      ) : (
-        <LockScreen onAuthenticated={handleAuthenticated} />
-      )}
-    </div>
+    <SharedDataProvider>
+      <div className="App">
+        {isAuthCallback ? (
+          <AuthCallback onAuthenticated={handleAuthenticated} />
+        ) : isAuthenticated ? (
+          <TextWall onSignOut={handleSignOut} />
+        ) : (
+          <LockScreen onAuthenticated={handleAuthenticated} />
+        )}
+      </div>
+    </SharedDataProvider>
   )
 }
 
