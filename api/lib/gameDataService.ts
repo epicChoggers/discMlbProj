@@ -1,4 +1,6 @@
-// Server-side GameDataService for API functions
+import { mlbCacheService } from './MLBCacheService'
+
+// Server-side GameDataService for API functions with caching
 export class GameDataService {
   private apiBaseUrl: string
   private teamId: string
@@ -30,13 +32,28 @@ export class GameDataService {
     return pacificDate
   }
 
-  // Get today's Mariners game with probable pitcher
+  // Get today's Mariners game with probable pitcher (with caching)
   async getTodaysMarinersGameWithPitcher(): Promise<any | null> {
     try {
       // Use Pacific Time to avoid timezone issues
       const today = this.getPacificDateString()
+      
+      // Check cache first
+      const cachedData = await mlbCacheService.getCachedScheduleData(this.teamId, today)
+      if (cachedData) {
+        console.log('[GameDataService] Using cached schedule data for today')
+        if (cachedData.dates && cachedData.dates.length > 0 && cachedData.dates[0].games) {
+          const games = cachedData.dates[0].games
+          if (games.length > 0) {
+            return games[0]
+          }
+        }
+        return null
+      }
+
+      // If not cached, fetch from MLB API
       const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&hydrate=probablePitcher&date=${today}`
-      console.log('[GameDataService] Requesting schedule URL with probable pitcher:', url)
+      console.log('[GameDataService] Fetching fresh schedule data from MLB API:', url)
       const response = await fetch(url)
       
       if (!response.ok) {
@@ -49,6 +66,9 @@ export class GameDataService {
         console.error('[GameDataService] JSON parse failed:', err)
         throw new Error('Failed to parse MLB API response')
       })
+      
+      // Cache the response
+      await mlbCacheService.cacheScheduleData(this.teamId, today, data)
       
       if (data.dates && data.dates.length > 0 && data.dates[0].games) {
         const games = data.dates[0].games
@@ -199,10 +219,10 @@ export class GameDataService {
     }
   }
 
-  // Get game with probable pitcher info using schedule endpoint
+  // Get game with probable pitcher info using schedule endpoint (with caching)
   async getGameWithProbablePitcher(gamePk: number): Promise<any | null> {
     try {
-      // First get the game date from the game feed
+      // First get the game date from the game feed (this is usually small and fast)
       const gameResponse = await fetch(`${this.apiBaseUrl.replace('/v1', '/v1.1')}/game/${gamePk}/feed/live`)
       if (!gameResponse.ok) {
         throw new Error(`HTTP error! status: ${gameResponse.status}`)
@@ -214,7 +234,6 @@ export class GameDataService {
       }
 
       // Extract the date from the game and convert to Pacific Time
-      // Vercel runs in UTC, so we need to explicitly convert to Pacific Time
       const gameDateTime = new Date(gameData.gameData.datetime.originalDate)
       const pacificYear = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
       const pacificMonth = gameDateTime.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
@@ -224,16 +243,28 @@ export class GameDataService {
       console.log(`[GameDataService] Game original date: ${gameData.gameData.datetime.originalDate}`)
       console.log(`[GameDataService] Game Pacific date: ${gameDate}`)
       
-      // Now get the schedule with probable pitcher hydration
-      const scheduleUrl = `${this.apiBaseUrl}/schedule?sportId=1&hydrate=probablePitcher&startDate=${gameDate}&endDate=${gameDate}`
-      console.log('[GameDataService] Requesting schedule with probable pitcher:', scheduleUrl)
+      // Check cache first for schedule data
+      const cachedScheduleData = await mlbCacheService.getCachedScheduleData('all', gameDate)
+      let scheduleData
       
-      const scheduleResponse = await fetch(scheduleUrl)
-      if (!scheduleResponse.ok) {
-        throw new Error(`HTTP error! status: ${scheduleResponse.status}`)
+      if (cachedScheduleData) {
+        console.log('[GameDataService] Using cached schedule data for game date')
+        scheduleData = cachedScheduleData
+      } else {
+        // If not cached, fetch from MLB API
+        const scheduleUrl = `${this.apiBaseUrl}/schedule?sportId=1&hydrate=probablePitcher&startDate=${gameDate}&endDate=${gameDate}`
+        console.log('[GameDataService] Fetching fresh schedule data from MLB API:', scheduleUrl)
+        
+        const scheduleResponse = await fetch(scheduleUrl)
+        if (!scheduleResponse.ok) {
+          throw new Error(`HTTP error! status: ${scheduleResponse.status}`)
+        }
+        
+        scheduleData = await scheduleResponse.json()
+        
+        // Cache the response
+        await mlbCacheService.cacheScheduleData('all', gameDate, scheduleData)
       }
-      
-      const scheduleData = await scheduleResponse.json()
       
       // Find the specific game in the schedule
       if (scheduleData.dates && scheduleData.dates.length > 0) {
