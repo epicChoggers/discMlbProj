@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node'
-import { supabase } from './lib/supabase.js'
-import { gameDataService } from './lib/gameDataService.js'
+import { supabase } from '../api-shared/lib/supabase.js'
+import { gameDataService } from '../api-shared/lib/gameDataService.js'
 import { AtBatPrediction } from '../src/lib/types'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
