@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Leaderboard as LeaderboardType, LeaderboardEntry as LeaderboardEntryType, PredictionStats } from '../lib/types'
 import { leaderboardServiceNew } from '../lib/leaderboardService'
 import { predictionServiceNew } from '../lib/predictionService'
@@ -12,6 +12,20 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
   const [stats, setStats] = useState<PredictionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Memoize leaderboard data to prevent unnecessary re-renders
+  const memoizedLeaderboard = useMemo(() => leaderboard, [leaderboard?.entries?.length, leaderboard?.last_updated])
+  const memoizedStats = useMemo(() => stats, [stats?.totalPoints, stats?.accuracy, stats?.streak])
+
+  // Optimized leaderboard update callback
+  const handleLeaderboardUpdate = useCallback((newLeaderboard: LeaderboardType) => {
+    setLeaderboard(newLeaderboard)
+  }, [])
+
+  // Optimized stats update callback
+  const handleStatsUpdate = useCallback((newStats: PredictionStats) => {
+    setStats(newStats)
+  }, [])
 
   useEffect(() => {
     const loadLeaderboard = async () => {
@@ -41,21 +55,17 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
     loadLeaderboard()
     loadStats()
 
-    // Subscribe to real-time updates
-    const leaderboardSubscription = leaderboardServiceNew.subscribeToLeaderboard(gamePk, (newLeaderboard) => {
-      setLeaderboard(newLeaderboard)
-    })
+    // Subscribe to real-time updates with optimized callbacks
+    const leaderboardSubscription = leaderboardServiceNew.subscribeToLeaderboard(gamePk, handleLeaderboardUpdate)
 
-    // Subscribe to user stats updates
-    const statsSubscription = predictionServiceNew.subscribeToUserStats((newStats) => {
-      setStats(newStats)
-    })
+    // Subscribe to user stats updates with optimized callbacks
+    const statsSubscription = predictionServiceNew.subscribeToUserStats(handleStatsUpdate)
 
     return () => {
       leaderboardSubscription.unsubscribe()
       statsSubscription.unsubscribe()
     }
-  }, [gamePk])
+  }, [gamePk, handleLeaderboardUpdate, handleStatsUpdate])
 
   if (isLoading) {
     return (
@@ -90,7 +100,7 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
     )
   }
 
-  if (!leaderboard || leaderboard.entries.length === 0) {
+  if (!memoizedLeaderboard || memoizedLeaderboard.entries.length === 0) {
     return (
       <div className="bg-gray-800 rounded-lg p-6">
         <h3 className="text-white text-lg font-semibold mb-4">🏆 Leaderboard</h3>
@@ -106,24 +116,24 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
   return (
     <div className="space-y-4">
       {/* User Stats */}
-      {stats && (
+      {memoizedStats && (
         <div className="bg-gray-800 rounded-lg p-6">
           <h3 className="text-white text-lg font-semibold mb-4">Your Stats</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400">{stats.totalPoints}</div>
+              <div className="text-2xl font-bold text-yellow-400">{memoizedStats.totalPoints}</div>
               <div className="text-gray-400 text-sm">Points</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">{stats.exactPredictions}</div>
+              <div className="text-2xl font-bold text-green-400">{memoizedStats.exactPredictions}</div>
               <div className="text-gray-400 text-sm">Exact (3pts)</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">{stats.categoryPredictions}</div>
+              <div className="text-2xl font-bold text-blue-400">{memoizedStats.categoryPredictions}</div>
               <div className="text-gray-400 text-sm">Category (1pt)</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">{stats.streak}</div>
+              <div className="text-2xl font-bold text-purple-400">{memoizedStats.streak}</div>
               <div className="text-gray-400 text-sm">Streak</div>
             </div>
           </div>
@@ -140,14 +150,14 @@ export const Leaderboard = ({ gamePk }: LeaderboardProps) => {
         </div>
 
         <div className="space-y-3">
-          {leaderboard.entries.map((entry, index) => (
+          {memoizedLeaderboard.entries.map((entry, index) => (
             <LeaderboardEntryComponent key={entry.user_id} entry={entry} rank={index + 1} />
           ))}
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-700 text-center">
           <p className="text-gray-400 text-sm">
-            {leaderboard.total_users} total players
+            {memoizedLeaderboard.total_users} total players
           </p>
         </div>
       </div>

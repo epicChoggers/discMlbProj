@@ -180,7 +180,7 @@ class MLBServiceNew {
     return await this.getGameState()
   }
 
-  // Start real-time updates for live games
+  // Start real-time updates for live games with improved efficiency
   startLiveUpdates(callback: (gameState: GameState) => void) {
     this.listeners.push(callback)
     
@@ -188,21 +188,39 @@ class MLBServiceNew {
       return // Already running
     }
 
-    // Update every 30 seconds for live games to reduce load
+    // Update every 15 seconds for live games for better responsiveness
     this.updateInterval = setInterval(async () => {
-      const gameState = await this.getGameState()
-      
-      // Only send updates if game is live
-      if (gameState.game && this.isGameLive(gameState.game)) {
-        this.listeners.forEach(listener => listener(gameState))
+      try {
+        const gameState = await this.getGameState()
+        
+        // Only send updates if game is live and state has changed
+        if (gameState.game && this.isGameLive(gameState.game)) {
+          this.listeners.forEach(listener => {
+            try {
+              listener(gameState)
+            } catch (error) {
+              console.error('Error in game state listener:', error)
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Error in live update interval:', error)
       }
-    }, 30000)
+    }, 15000) // Reduced to 15 seconds for better responsiveness
 
     // Initial update
     this.getGameState().then(gameState => {
       if (gameState.game && this.isGameLive(gameState.game)) {
-        this.listeners.forEach(listener => listener(gameState))
+        this.listeners.forEach(listener => {
+          try {
+            listener(gameState)
+          } catch (error) {
+            console.error('Error in initial game state listener:', error)
+          }
+        })
       }
+    }).catch(error => {
+      console.error('Error in initial game state update:', error)
     })
   }
 

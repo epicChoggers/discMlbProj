@@ -18,6 +18,8 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
   const [error, setError] = useState<string | null>(null)
   const lastProcessedEvent = useRef<string | null>(null)
   const processingEvent = useRef(false)
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const subscriptionRef = useRef<any>(null)
 
   // Load initial predictions
   const loadPredictions = useCallback(async () => {
@@ -43,13 +45,18 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
     }
   }, [gamePk, atBatIndex])
 
-  // Debounced refresh predictions to prevent excessive calls
+  // Optimized refresh predictions with better state management
   const refreshPredictions = useCallback(
     debounce(async () => {
       if (processingEvent.current) return
       
       processingEvent.current = true
       setIsUpdating(true)
+      
+      // Clear any existing timeout
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current)
+      }
       
       try {
         // Call the resolve-predictions API to resolve any pending predictions
@@ -61,9 +68,10 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
         console.error('Error refreshing predictions on game state update:', err)
       } finally {
         processingEvent.current = false
-        setTimeout(() => setIsUpdating(false), 500)
+        // Use a shorter timeout for better responsiveness
+        updateTimeoutRef.current = setTimeout(() => setIsUpdating(false), 200)
       }
-    }, 1000), // Debounce for 1 second
+    }, 500), // Reduced debounce to 500ms for better responsiveness
     [loadPredictions]
   )
 
@@ -75,11 +83,9 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
     }
   }, [onGameStateUpdate, refreshPredictions])
 
-  // Set up real-time subscription
+  // Set up real-time subscription with improved error handling and cleanup
   useEffect(() => {
     if (!gamePk) return
-
-    let channel: any
 
     const setupRealtime = async () => {
       try {
@@ -88,7 +94,12 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
         // Load initial predictions
         await loadPredictions()
         
-        channel = supabase
+        // Clean up existing subscription
+        if (subscriptionRef.current) {
+          supabase.removeChannel(subscriptionRef.current)
+        }
+        
+        subscriptionRef.current = supabase
           .channel(channelName)
           .on(
             'postgres_changes',
@@ -124,6 +135,8 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
             if (status === 'CHANNEL_ERROR') {
               console.error('Prediction subscription error')
               setError('Connection error')
+            } else if (status === 'SUBSCRIBED') {
+              setError(null) // Clear any previous errors
             }
           })
       } catch (err) {
@@ -135,11 +148,17 @@ export const useRealtimePredictionsNew = ({ gamePk, atBatIndex, onGameStateUpdat
     setupRealtime()
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel)
+      // Clean up subscription and timeouts
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current)
+        subscriptionRef.current = null
+      }
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current)
+        updateTimeoutRef.current = null
       }
     }
-  }, [gamePk, atBatIndex, loadPredictions])
+  }, [gamePk, atBatIndex, loadPredictions, refreshPredictions])
 
   return {
     predictions,

@@ -5,8 +5,9 @@ export class LeaderboardServiceNew {
   private apiBaseUrl: string
   private isDevelopment: boolean
   private cache = new Map<string, { data: LeaderboardType; timestamp: number }>()
-  private readonly CACHE_DURATION = 5000 // 5 seconds cache
+  private readonly CACHE_DURATION = 3000 // Reduced to 3 seconds for better responsiveness
   private pendingRequests = new Map<string, Promise<LeaderboardType>>()
+  private subscriptionCache = new Map<string, any>() // Cache subscriptions to prevent duplicates
 
   constructor() {
     // Check if we're in development mode
@@ -80,13 +81,20 @@ export class LeaderboardServiceNew {
     }
   }
 
-  // Subscribe to leaderboard updates using Supabase real-time
+  // Subscribe to leaderboard updates using Supabase real-time with improved caching
   subscribeToLeaderboard(
     gamePk: number | undefined,
     callback: (leaderboard: LeaderboardType) => void
   ) {
+    const subscriptionKey = `leaderboard_${gamePk || 'all'}`
+    
+    // Return existing subscription if available
+    if (this.subscriptionCache.has(subscriptionKey)) {
+      return this.subscriptionCache.get(subscriptionKey)
+    }
+
     const subscription = supabase
-      .channel('leaderboard_updates')
+      .channel(`leaderboard_updates_${subscriptionKey}`)
       .on(
         'postgres_changes',
         {
@@ -95,6 +103,8 @@ export class LeaderboardServiceNew {
           table: 'at_bat_predictions'
         },
         () => {
+          // Clear cache to force refresh
+          this.cache.delete(`leaderboard_${gamePk || 'all'}_10`)
           this.getLeaderboard(gamePk).then(callback)
         }
       )
@@ -106,11 +116,20 @@ export class LeaderboardServiceNew {
           table: 'user_profiles'
         },
         () => {
+          // Clear cache to force refresh
+          this.cache.delete(`leaderboard_${gamePk || 'all'}_10`)
           this.getLeaderboard(gamePk).then(callback)
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Leaderboard subscription active for game ${gamePk || 'all'}`)
+        }
+      })
 
+    // Cache the subscription
+    this.subscriptionCache.set(subscriptionKey, subscription)
+    
     return subscription
   }
 

@@ -1,161 +1,150 @@
-/**
- * Centralized performance optimization service
- * Manages API call throttling, caching, and resource optimization
- */
+import { debounce } from '../utils/debounce'
 
-export interface PerformanceConfig {
-  leaderboardCacheDuration: number
-  predictionResolutionThrottle: number
-  realtimeEventDebounce: number
-  maxConcurrentRequests: number
+export interface PerformanceMetrics {
+  apiCalls: number
+  renderCount: number
+  memoryUsage: number
+  lastUpdate: Date
 }
 
 export class PerformanceOptimizationService {
-  private static instance: PerformanceOptimizationService
-  private config: PerformanceConfig
-  private requestQueue: Map<string, Promise<any>> = new Map()
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>()
-  private activeRequests = 0
-
-  constructor() {
-    this.config = {
-      leaderboardCacheDuration: 5000, // 5 seconds
-      predictionResolutionThrottle: 2000, // 2 seconds
-      realtimeEventDebounce: 1000, // 1 second
-      maxConcurrentRequests: 5
-    }
+  private metrics: PerformanceMetrics = {
+    apiCalls: 0,
+    renderCount: 0,
+    memoryUsage: 0,
+    lastUpdate: new Date()
   }
-
-  static getInstance(): PerformanceOptimizationService {
-    if (!PerformanceOptimizationService.instance) {
-      PerformanceOptimizationService.instance = new PerformanceOptimizationService()
-    }
-    return PerformanceOptimizationService.instance
-  }
-
-  /**
-   * Throttle API calls to prevent excessive requests
-   */
-  async throttleRequest<T>(
-    key: string,
-    requestFn: () => Promise<T>,
-    throttleMs: number = 1000
-  ): Promise<T> {
-    const now = Date.now()
-    const lastCall = this.getLastCallTime(key)
+  
+  private apiCallCache = new Map<string, { data: any; timestamp: number }>()
+  private readonly CACHE_DURATION = 2000 // 2 seconds
+  private readonly MAX_CACHE_SIZE = 100
+  
+  // Debounced functions for common operations
+  public debouncedApiCall = debounce(async (url: string, options?: RequestInit) => {
+    return this.makeApiCall(url, options)
+  }, 300)
+  
+  public debouncedStateUpdate = debounce((callback: () => void) => {
+    callback()
+    this.incrementRenderCount()
+  }, 100)
+  
+  // Optimized API call with caching
+  async makeApiCall(url: string, options?: RequestInit): Promise<any> {
+    const cacheKey = `${url}_${JSON.stringify(options || {})}`
     
-    if (now - lastCall < throttleMs) {
-      // Return cached result if available
-      const cached = this.getCached(key)
-      if (cached) {
-        return cached
+    // Check cache first
+    const cached = this.apiCallCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data
+    }
+    
+    try {
+      this.incrementApiCalls()
+      const response = await fetch(url, options)
+      const data = await response.json()
+      
+      // Cache the result
+      this.cacheResult(cacheKey, data)
+      
+      return data
+    } catch (error) {
+      console.error('API call failed:', error)
+      throw error
+    }
+  }
+  
+  // Cache management
+  private cacheResult(key: string, data: any): void {
+    // Prevent cache overflow
+    if (this.apiCallCache.size >= this.MAX_CACHE_SIZE) {
+      const oldestKey = this.apiCallCache.keys().next().value
+      if (oldestKey) {
+        this.apiCallCache.delete(oldestKey)
+      }
+    }
+    
+    this.apiCallCache.set(key, {
+      data,
+      timestamp: Date.now()
+    })
+  }
+  
+  // Clear cache
+  clearCache(): void {
+    this.apiCallCache.clear()
+  }
+  
+  // Metrics tracking
+  incrementApiCalls(): void {
+    this.metrics.apiCalls++
+    this.metrics.lastUpdate = new Date()
+  }
+  
+  incrementRenderCount(): void {
+    this.metrics.renderCount++
+    this.metrics.lastUpdate = new Date()
+  }
+  
+  updateMemoryUsage(): void {
+    if ('memory' in performance) {
+      this.metrics.memoryUsage = (performance as any).memory.usedJSHeapSize
+    }
+  }
+  
+  getMetrics(): PerformanceMetrics {
+    this.updateMemoryUsage()
+    return { ...this.metrics }
+  }
+  
+  // Reset metrics
+  resetMetrics(): void {
+    this.metrics = {
+      apiCalls: 0,
+      renderCount: 0,
+      memoryUsage: 0,
+      lastUpdate: new Date()
+    }
+  }
+  
+  // Optimize component updates
+  optimizeComponentUpdate<T>(
+    state: T,
+    setState: (newState: T) => void
+  ): void {
+    this.debouncedStateUpdate(() => {
+      setState(state)
+    })
+  }
+  
+  // Batch multiple state updates
+  batchStateUpdates(updates: (() => void)[]): void {
+    this.debouncedStateUpdate(() => {
+      updates.forEach(update => update())
+    })
+  }
+  
+  // Monitor performance
+  startPerformanceMonitoring(): () => void {
+    const interval = setInterval(() => {
+      this.updateMemoryUsage()
+      
+      // Log performance warnings
+      if (this.metrics.apiCalls > 100) {
+        console.warn('High API call count detected:', this.metrics.apiCalls)
       }
       
-      // Wait for throttle period
-      await new Promise(resolve => setTimeout(resolve, throttleMs - (now - lastCall)))
-    }
-    
-    this.setLastCallTime(key, now)
-    return requestFn()
-  }
-
-  /**
-   * Deduplicate identical requests
-   */
-  async deduplicateRequest<T>(
-    key: string,
-    requestFn: () => Promise<T>
-  ): Promise<T> {
-    if (this.requestQueue.has(key)) {
-      return this.requestQueue.get(key)!
-    }
-
-    const promise = requestFn().finally(() => {
-      this.requestQueue.delete(key)
-    })
-
-    this.requestQueue.set(key, promise)
-    return promise
-  }
-
-  /**
-   * Cache data with TTL
-   */
-  setCache(key: string, data: any, ttl: number = 5000): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    })
-  }
-
-  /**
-   * Get cached data if not expired
-   */
-  getCached(key: string): any | null {
-    const cached = this.cache.get(key)
-    if (!cached) return null
-
-    if (Date.now() - cached.timestamp > cached.ttl) {
-      this.cache.delete(key)
-      return null
-    }
-
-    return cached.data
-  }
-
-  /**
-   * Clear expired cache entries
-   */
-  clearExpiredCache(): void {
-    const now = Date.now()
-    for (const [key, cached] of this.cache.entries()) {
-      if (now - cached.timestamp > cached.ttl) {
-        this.cache.delete(key)
+      if (this.metrics.renderCount > 1000) {
+        console.warn('High render count detected:', this.metrics.renderCount)
       }
-    }
-  }
-
-  /**
-   * Clear all cache
-   */
-  clearCache(): void {
-    this.cache.clear()
-  }
-
-  /**
-   * Get performance metrics
-   */
-  getMetrics() {
-    return {
-      cacheSize: this.cache.size,
-      activeRequests: this.activeRequests,
-      queuedRequests: this.requestQueue.size,
-      config: this.config
-    }
-  }
-
-  /**
-   * Update configuration
-   */
-  updateConfig(newConfig: Partial<PerformanceConfig>): void {
-    this.config = { ...this.config, ...newConfig }
-  }
-
-  private lastCallTimes = new Map<string, number>()
-  
-  private getLastCallTime(key: string): number {
-    return this.lastCallTimes.get(key) || 0
-  }
-  
-  private setLastCallTime(key: string, time: number): void {
-    this.lastCallTimes.set(key, time)
+      
+      if (this.metrics.memoryUsage > 50 * 1024 * 1024) { // 50MB
+        console.warn('High memory usage detected:', this.metrics.memoryUsage)
+      }
+    }, 5000) // Check every 5 seconds
+    
+    return () => clearInterval(interval)
   }
 }
 
-export const performanceService = PerformanceOptimizationService.getInstance()
-
-// Auto-cleanup expired cache every 30 seconds
-setInterval(() => {
-  performanceService.clearExpiredCache()
-}, 30000)
+export const performanceOptimizationService = new PerformanceOptimizationService()

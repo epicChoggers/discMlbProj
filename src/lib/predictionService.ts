@@ -358,7 +358,7 @@ export class PredictionServiceNew {
     return subscription
   }
 
-  // Subscribe to user stats updates using Supabase real-time
+  // Subscribe to user stats updates using Supabase real-time with improved efficiency
   subscribeToUserStats(callback: (stats: PredictionStats) => void) {
     // Debounce the stats update to prevent excessive API calls
     const debouncedUpdate = debounce(async () => {
@@ -369,7 +369,7 @@ export class PredictionServiceNew {
       } catch (error) {
         console.error('Error in user stats subscription callback:', error)
       }
-    }, 500) // Debounce for 500ms
+    }, 300) // Reduced debounce to 300ms for better responsiveness
 
     const subscription = supabase
       .channel('user_stats_updates')
@@ -383,8 +383,14 @@ export class PredictionServiceNew {
         async (payload) => {
           console.log('User stats subscription triggered:', payload)
           
+          // Only process if this affects the current user
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user && payload.new && (payload.new as any).user_id !== user.id) {
+            return // Skip if not the current user's data
+          }
+          
           // Add a small delay to ensure database transaction is committed
-          await new Promise(resolve => setTimeout(resolve, 100))
+          await new Promise(resolve => setTimeout(resolve, 50)) // Reduced delay
           
           // Use debounced update to prevent excessive calls
           debouncedUpdate()

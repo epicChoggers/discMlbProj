@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useGameStateNew } from '../lib/useGameState'
 import { GameState } from './GameState'
 import { PredictionForm } from './PredictionForm'
@@ -27,32 +27,40 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
     duration?: number
   }>>([])
 
-  const handleSignOut = async () => {
+  // Memoize game state to prevent unnecessary re-renders
+  const memoizedGameState = useMemo(() => gameState, [
+    gameState?.game?.gamePk,
+    gameState?.currentAtBat?.about?.atBatIndex,
+    gameState?.lastUpdated
+  ])
+
+  // Optimized callbacks
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut()
       onSignOut()
     } catch (error) {
       console.error('Error signing out:', error)
     }
-  }
+  }, [onSignOut])
 
-  const handlePredictionSubmitted = () => {
+  const handlePredictionSubmitted = useCallback(() => {
     // Add a toast notification for successful prediction submission
     addToast('Prediction submitted! Good luck! 🍀', 'success')
-  }
+  }, [])
 
-  const addToast = (message: string, type: 'success' | 'error' | 'info', duration?: number) => {
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info', duration?: number) => {
     const id = Date.now().toString()
     setToasts(prev => [...prev, { id, message, type, duration }])
-  }
+  }, [])
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
-  }
+  }, [])
 
-  const handleToggleLiveMode = (isLive: boolean) => {
+  const handleToggleLiveMode = useCallback((isLive: boolean) => {
     setIsLiveMode(isLive)
-  }
+  }, [])
 
   // Create a simulated at-bat for test mode
   const createSimulatedAtBat = (game: MLBGame): MLBPlay | null => {
@@ -157,7 +165,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
   }
 
   // Determine if we should show live features
-  const shouldShowLiveFeatures = isGameLive || isLiveMode
+  const shouldShowLiveFeatures = useMemo(() => isGameLive || isLiveMode, [isGameLive, isLiveMode])
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -182,11 +190,11 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
           {/* Left Sidebar - Game State - Hidden on mobile */}
           <div className="hidden lg:block w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
             <GameState 
-              gameState={gameState} 
+              gameState={memoizedGameState} 
               onToggleLiveMode={handleToggleLiveMode}
               isLiveMode={isLiveMode}
             />
-            <Leaderboard gamePk={gameState.game?.gamePk} />
+            <Leaderboard gamePk={memoizedGameState.game?.gamePk} />
           </div>
 
           {/* Right Side - Predictions - Full width on mobile */}
@@ -245,30 +253,30 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
             <div className="flex-1 overflow-hidden">
               {activeTab === 'predictions' && (
                 <div className="h-full overflow-y-auto p-2 sm:p-4">
-                  {gameState.game ? (
+                  {memoizedGameState.game ? (
                     <div className="space-y-4">
-                      {shouldShowLiveFeatures && (gameState.currentAtBat || isLiveMode) ? (
+                      {shouldShowLiveFeatures && (memoizedGameState.currentAtBat || isLiveMode) ? (
                         <>
-                          {gameState.currentAtBat && gameState.game.gamePk ? (
+                          {memoizedGameState.currentAtBat && memoizedGameState.game.gamePk ? (
                             <PredictionForm
-                              gamePk={gameState.game.gamePk}
-                              currentAtBat={gameState.currentAtBat}
+                              gamePk={memoizedGameState.game.gamePk}
+                              currentAtBat={memoizedGameState.currentAtBat}
                               onPredictionSubmitted={handlePredictionSubmitted}
                             />
-                          ) : isLiveMode && gameState.game.gamePk ? (() => {
-                            const simulatedAtBat = createSimulatedAtBat(gameState.game)
+                          ) : isLiveMode && memoizedGameState.game.gamePk ? (() => {
+                            const simulatedAtBat = createSimulatedAtBat(memoizedGameState.game)
                             return simulatedAtBat ? (
                               <PredictionForm
-                                gamePk={gameState.game.gamePk}
+                                gamePk={memoizedGameState.game.gamePk}
                                 currentAtBat={simulatedAtBat}
                                 onPredictionSubmitted={handlePredictionSubmitted}
                               />
                             ) : null
                           })() : null}
-                          {gameState.game.gamePk && (
+                          {memoizedGameState.game.gamePk && (
                             <PredictionResults
-                              gamePk={gameState.game.gamePk}
-                              currentAtBatIndex={gameState.currentAtBat?.about.atBatIndex}
+                              gamePk={memoizedGameState.game.gamePk}
+                              currentAtBatIndex={memoizedGameState.currentAtBat?.about.atBatIndex}
                               onGameStateUpdate={addGameStateUpdateCallback}
                             />
                           )}
@@ -277,21 +285,21 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
                         <div className="space-y-4">
                           <div className="bg-gray-800 rounded-lg p-6">
                             <h3 className="text-white text-lg font-semibold mb-4">
-                              {gameState.game.status?.abstractGameState === 'Final' 
+                              {memoizedGameState.game.status?.abstractGameState === 'Final' 
                                 ? 'Game Results' 
                                 : 'Game Information'}
                             </h3>
                             <div className="text-gray-400">
-                              {gameState.game.status?.abstractGameState === 'Final' 
+                              {memoizedGameState.game.status?.abstractGameState === 'Final' 
                                 ? 'This game has ended. You can view predictions that were made during the game.'
                                 : 'This game has not started yet or is not currently live.'}
                             </div>
                           </div>
                           
                           {/* Show predictions from this game if it's completed */}
-                          {gameState.game.status?.abstractGameState === 'Final' && (
+                          {memoizedGameState.game.status?.abstractGameState === 'Final' && (
                             <PredictionResults
-                              gamePk={gameState.game.gamePk}
+                              gamePk={memoizedGameState.game.gamePk}
                               currentAtBatIndex={0} // Show all predictions for the game
                               onGameStateUpdate={addGameStateUpdateCallback}
                             />
@@ -311,8 +319,8 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
 
               {activeTab === 'pitcher-predictions' && (
                 <div className="h-full overflow-y-auto p-2 sm:p-4">
-                  {gameState.game ? (
-                    <PitcherPredictions gamePk={gameState.game.gamePk} game={gameState.game} />
+                  {memoizedGameState.game ? (
+                    <PitcherPredictions gamePk={memoizedGameState.game.gamePk} game={memoizedGameState.game} />
                   ) : (
                     <div className="text-center text-gray-400 mt-8">
                       <div className="text-4xl mb-2">⚾</div>
@@ -325,7 +333,7 @@ export const TextWall = ({ onSignOut }: TextWallProps) => {
 
               {activeTab === 'leaderboard' && (
                 <div className="h-full overflow-y-auto p-2 sm:p-4">
-                  <Leaderboard gamePk={gameState.game?.gamePk} />
+                  <Leaderboard gamePk={memoizedGameState.game?.gamePk} />
                 </div>
               )}
 

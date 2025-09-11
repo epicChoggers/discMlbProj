@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { UserProfile as UserProfileType, PredictionStats } from '../lib/types'
 import { supabase } from '../supabaseClient'
 import { predictionServiceNew } from '../lib/predictionService'
@@ -90,6 +90,9 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
     }
   }, [isLoading, hasInitiallyLoaded])
 
+  // Memoize stats to prevent unnecessary re-renders
+  const memoizedStats = useMemo(() => stats, [stats?.totalPoints, stats?.accuracy, stats?.streak])
+
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut()
@@ -155,9 +158,9 @@ export const UserProfile = ({ onSignOut }: UserProfileProps) => {
         <div className="text-white font-medium truncate">
           {userProfile.username}
         </div>
-        {stats && (
+        {memoizedStats && (
           <div className="text-gray-400 text-sm">
-            {stats.totalPoints} pts • {stats.accuracy.toFixed(1)}% accuracy • {stats.streak} streak
+            {memoizedStats.totalPoints} pts • {memoizedStats.accuracy.toFixed(1)}% accuracy • {memoizedStats.streak} streak
           </div>
         )}
       </div>

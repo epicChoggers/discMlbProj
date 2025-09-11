@@ -187,7 +187,7 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
   const [atBatContexts, setAtBatContexts] = useState<Record<number, any>>({})
   
   // Use the new real-time predictions hook to get ALL predictions for the game
-  const { predictions, isLoading, error } = useRealtimePredictionsNew({
+  const { predictions, isLoading, error, isUpdating } = useRealtimePredictionsNew({
     gamePk,
     atBatIndex: undefined, // Get all predictions for the game
     onGameStateUpdate // Register for game state updates
@@ -273,15 +273,19 @@ export const PredictionResults = ({ gamePk, onGameStateUpdate }: PredictionResul
 
   return (
     <div className="space-y-4">
-      {/* Removed updating animation for seamless experience */}
-
       {/* All Game Predictions */}
       <div className="bg-gray-800 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-white text-lg font-semibold">
             All Predictions for This Game ({predictions.length})
           </h3>
-          {/* Removed updating indicator for seamless experience */}
+          {/* Subtle live indicator */}
+          {isUpdating && (
+            <div className="flex items-center space-x-2 text-gray-400 text-sm">
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-400"></div>
+              <span>Updating...</span>
+            </div>
+          )}
         </div>
         
         {predictions.length === 0 ? (
