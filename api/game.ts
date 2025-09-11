@@ -881,7 +881,24 @@ async function handleCreatePitcherPrediction(req: VercelRequest, res: VercelResp
     }
 
     // Check if the game has started - if so, reject the prediction
-    const game = await gameDataService.getGameWithProbablePitcher(gamePk)
+    // Use the reliable schedule-based approach instead of the problematic game feed approach
+    let game: any = null
+
+    try {
+      // Always get today's Mariners game first (this works reliably)
+      game = await gameDataService.getTodaysMarinersGameWithPitcher()
+      
+      // If we got a game but it's not the right gamePk, try the specific gamePk method
+      if (game && game.gamePk !== gamePk) {
+        console.log(`[Pitcher Prediction] Today's game (${game.gamePk}) doesn't match requested gamePk (${gamePk}), trying specific lookup`)
+        game = await gameDataService.getGameWithProbablePitcher(gamePk)
+      }
+    } catch (error) {
+      console.error('[Pitcher Prediction] Error getting game data:', error)
+      // Fallback to the original method
+      game = await gameDataService.getGameWithProbablePitcher(gamePk)
+    }
+    
     if (!game) {
       res.status(404).json({ error: 'Game not found' })
       return
