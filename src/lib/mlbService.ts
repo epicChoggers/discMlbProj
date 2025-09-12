@@ -178,7 +178,20 @@ class MLBServiceNew {
 
   // Check if game is currently live (backward compatibility)
   isGameLive(game: MLBGame): boolean {
-    return game.status?.abstractGameState === 'Live'
+    // Handle both schedule data and detailed game data structures
+    const abstractState = game.status?.abstractGameState || (game as any).gameData?.status?.abstractGameState
+    const detailedState = game.status?.detailedState || (game as any).gameData?.status?.detailedState
+    const codedState = game.status?.codedGameState || (game as any).gameData?.status?.codedGameState
+    
+    // Also check if we have live data (indicates game is active)
+    const hasLiveData = !!(game as any).liveData
+    
+    // Game is live if it's in progress, warmup, or has live data
+    return abstractState === 'Live' || 
+           detailedState === 'In Progress' || 
+           detailedState === 'Warmup' ||
+           codedState === 'I' || // In Progress
+           hasLiveData // Has live data indicates active game
   }
 
   // Get cached game state (backward compatibility)

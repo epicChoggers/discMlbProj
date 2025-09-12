@@ -51,7 +51,19 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
     )
   }
 
-  const isLive = isLiveMode || game.status?.abstractGameState === 'Live'
+  // Use the same live detection logic as the backend
+  const isLive = isLiveMode || (() => {
+    const abstractState = game.status?.abstractGameState || (game as any).gameData?.status?.abstractGameState
+    const detailedState = game.status?.detailedState || (game as any).gameData?.status?.detailedState
+    const codedState = game.status?.codedGameState || (game as any).gameData?.status?.codedGameState
+    const hasLiveData = !!(game as any).liveData
+    
+    return abstractState === 'Live' || 
+           detailedState === 'In Progress' || 
+           detailedState === 'Warmup' ||
+           codedState === 'I' || // In Progress
+           hasLiveData // Has live data indicates active game
+  })()
   
   // Handle different data structures from schedule vs detailed game API
   const homeTeam = game.teams?.home || game.gameData?.teams?.home
