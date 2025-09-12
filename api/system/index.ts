@@ -54,7 +54,7 @@ async function handleStartup(req: VercelRequest, res: VercelResponse) {
 
   console.log('Starting sync service on startup...')
   try {
-    const { eventService } = await import('../lib/EventService.js')
+    const { eventService } = await import('../../api-shared/lib/EventService.js')
     await eventService.start()
     console.log('EventService started with automatic prediction resolution')
   } catch (e) {
@@ -87,7 +87,7 @@ async function handleGetSyncStatus(req: VercelRequest, res: VercelResponse) {
 
     console.log('Sync status request:', { includeDetails })
 
-    const { eventService } = await import('../lib/EventService.ts')
+    const { eventService } = await import('../../api-shared/lib/EventService.js')
     const jobStatus = eventService.getJobStatus()
     const systemHealth = await eventService.getSystemHealthSummary()
 
@@ -124,15 +124,15 @@ async function handleTriggerSync(req: VercelRequest, res: VercelResponse) {
 
     switch (syncType) {
       case 'game_state':
-        result = await (await import('../lib/EventService.js')).eventService.triggerGameStateSync()
+        result = await (await import('../../api-shared/lib/EventService.js')).eventService.triggerGameStateSync()
         break
 
       case 'predictions':
-        result = await (await import('../lib/EventService.js')).eventService.triggerPredictionResolution()
+        result = await (await import('../../api-shared/lib/EventService.js')).eventService.triggerPredictionResolution()
         break
 
       case 'all':
-        result = await (await import('../lib/EventService.js')).eventService.triggerAllEventDrivenJobs()
+        result = await (await import('../../api-shared/lib/EventService.js')).eventService.triggerAllEventDrivenJobs()
         break
 
       default:
@@ -177,7 +177,7 @@ async function handleGetEventStatus(req: VercelRequest, res: VercelResponse) {
 
     console.log('Event status request:', { includeDetails })
 
-    const { eventService } = await import('../lib/EventService.ts')
+    const { eventService } = await import('../../api-shared/lib/EventService.js')
     const jobStatus = eventService.getJobStatus()
     const systemHealth = await eventService.getSystemHealthSummary()
 
@@ -217,7 +217,7 @@ async function handleTriggerEvent(req: VercelRequest, res: VercelResponse) {
 
     let result: any
 
-    const { eventService } = await import('../lib/EventService.ts')
+    const { eventService } = await import('../../api-shared/lib/EventService.js')
     switch (action) {
       case 'start':
         await eventService.start()
@@ -306,7 +306,7 @@ async function handleStats(req: VercelRequest, res: VercelResponse) {
 
     if (includeDetails) {
       // Get detailed system health
-      const { eventService } = await import('../lib/EventService.ts')
+      const { eventService } = await import('../../api-shared/lib/EventService.js')
       const systemHealth = await eventService.getSystemHealthSummary()
       
       // Get prediction counts
