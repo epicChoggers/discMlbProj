@@ -102,7 +102,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
               {(marinersTeam as any)?.team?.name || (marinersTeam as any)?.name} vs {(opponentTeam as any)?.team?.name || (opponentTeam as any)?.name}
             </h3>
             <p className="text-gray-400 text-sm">
-              {game.venue.name} •               {(() => {
+              {game.venue?.name || 'Unknown Venue'} •               {(() => {
                 try {
                   // Try different possible date fields and formats
                   const dateValue = game.gameDate || (game.gameData as any)?.game?.gameDate || (game.gameData as any)?.datetime?.originalDate
@@ -153,21 +153,21 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
             <div className="text-center">
               <div className="text-gray-400 text-sm">{(opponentTeam as any)?.team?.abbreviation || (opponentTeam as any)?.abbreviation}</div>
               <div className="text-white text-2xl font-bold">
-                {game.liveData.linescore.teams.away.runs}
+                {game.liveData.linescore?.teams?.away?.runs || 0}
               </div>
             </div>
             <div className="text-center">
               <div className="text-gray-400 text-sm">
-                {game.liveData.linescore.currentInningOrdinal}
+                {game.liveData.linescore?.currentInningOrdinal || 'TBD'}
               </div>
               <div className="text-white text-lg">
-                {game.liveData.linescore.inningState}
+                {game.liveData.linescore?.inningState || 'Unknown'}
               </div>
             </div>
             <div className="text-center">
               <div className="text-gray-400 text-sm">{(marinersTeam as any)?.team?.abbreviation || (marinersTeam as any)?.abbreviation}</div>
               <div className="text-white text-2xl font-bold">
-                {game.liveData.linescore.teams.home.runs}
+                {game.liveData.linescore?.teams?.home?.runs || 0}
               </div>
             </div>
           </div>
