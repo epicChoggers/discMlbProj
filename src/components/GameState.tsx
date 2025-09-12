@@ -115,19 +115,19 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
                       gameDataDatetime: (game.gameData as any)?.datetime?.originalDate,
                       gameKeys: Object.keys(game)
                     })
-                    return new Date().toLocaleDateString()
+                    return new Date().toLocaleDateString("en-US", {timeZone: "America/Los_Angeles"})
                   }
                   
                   const date = new Date(dateValue)
                   if (isNaN(date.getTime())) {
                     console.log('Invalid date value:', dateValue)
-                    return new Date().toLocaleDateString()
+                    return new Date().toLocaleDateString("en-US", {timeZone: "America/Los_Angeles"})
                   }
                   
-                  return date.toLocaleDateString()
+                  return date.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles"})
                 } catch (error) {
                   console.error('Error formatting game date:', error, 'Game data:', game)
-                  return new Date().toLocaleDateString()
+                  return new Date().toLocaleDateString("en-US", {timeZone: "America/Los_Angeles"})
                 }
               })()}
             </p>

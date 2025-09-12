@@ -81,10 +81,23 @@ export class GameDataService {
     return this.teamId
   }
 
+  // Helper method to get Pacific Time date string to avoid timezone issues
+  private getPacificDateString(): string {
+    const now = new Date()
+    // Get Pacific Time components directly - this works correctly even on Vercel UTC
+    const pacificYear = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric"})
+    const pacificMonth = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", month: "2-digit"})
+    const pacificDay = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", day: "2-digit"})
+    
+    const pacificDate = `${pacificYear}-${pacificMonth}-${pacificDay}`
+    console.log(`[GameDataService] Pacific date: ${pacificDate} (UTC time: ${now.toISOString()})`)
+    return pacificDate
+  }
+
   // Get today's Mariners game
   async getTodaysMarinersGame(): Promise<MLBGame | null> {
     try {
-      const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+      const today = this.getPacificDateString() // Use Pacific Time to avoid timezone issues
       const response = await fetch(`${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&date=${today}`)
       
       if (!response.ok) {
