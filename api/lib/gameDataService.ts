@@ -96,24 +96,30 @@ export class GameDataService {
 
   // Check if game is live
   isGameLive(game: any): boolean {
-    const abstractState = game.status?.abstractGameState
-    const detailedState = game.status?.detailedState
-    const codedState = game.status?.codedGameState
+    // Handle both schedule data and detailed game data structures
+    const abstractState = game.status?.abstractGameState || game.gameData?.status?.abstractGameState
+    const detailedState = game.status?.detailedState || game.gameData?.status?.detailedState
+    const codedState = game.status?.codedGameState || game.gameData?.status?.codedGameState
+    
+    // Also check if we have live data (indicates game is active)
+    const hasLiveData = !!game.liveData
     
     // Log the game status for debugging
     console.log(`[GameDataService] Checking if game is live:`, {
-      gamePk: game.gamePk,
+      gamePk: game.gamePk || game.gameData?.game?.pk,
       abstractState,
       detailedState,
       codedState,
-      gameDate: game.gameDate
+      hasLiveData,
+      gameDate: game.gameDate || game.gameData?.datetime?.originalDate
     })
     
-    // Game is live if it's in progress or in warmup
+    // Game is live if it's in progress, warmup, or has live data
     const isLive = abstractState === 'Live' || 
                    detailedState === 'In Progress' || 
                    detailedState === 'Warmup' ||
-                   codedState === 'I' // In Progress
+                   codedState === 'I' || // In Progress
+                   hasLiveData // Has live data indicates active game
                    
     console.log(`[GameDataService] Game live status: ${isLive}`)
     return isLive
