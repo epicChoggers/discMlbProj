@@ -29,20 +29,60 @@ export class GameDataService {
     return pacificDate
   }
 
+  // Helper method to get current Pacific Time for debugging
+  private getCurrentPacificTime(): string {
+    const now = new Date()
+    return now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"})
+  }
+
   // Get today's Mariners game with probable pitcher
   async getTodaysMarinersGameWithPitcher(): Promise<any | null> {
     try {
       const today = this.getPacificDateString() // Use Pacific Time to avoid timezone issues
+      const currentTime = this.getCurrentPacificTime()
       const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&hydrate=probablePitcher&date=${today}`
+      
+      console.log(`[GameDataService] Fetching Mariners game for date: ${today} (Pacific time: ${currentTime})`)
+      console.log(`[GameDataService] API URL: ${url}`)
+      
       const response = await fetch(url)
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`)
       }
       const data = await response.json()
+      
+      console.log(`[GameDataService] API response:`, {
+        totalDates: data.dates?.length || 0,
+        totalGames: data.dates?.[0]?.games?.length || 0,
+        gameDate: data.dates?.[0]?.date,
+        games: data.dates?.[0]?.games?.map((g: any) => ({
+          gamePk: g.gamePk,
+          gameDate: g.gameDate,
+          status: g.status?.abstractGameState,
+          detailedState: g.status?.detailedState
+        })) || []
+      })
+      
       if (data.dates && data.dates.length > 0 && data.dates[0].games && data.dates[0].games.length > 0) {
-        return data.dates[0].games[0]
+        const game = data.dates[0].games[0]
+        console.log(`[GameDataService] Found game:`, {
+          gamePk: game.gamePk,
+          gameDate: game.gameDate,
+          status: game.status?.abstractGameState,
+          detailedState: game.status?.detailedState,
+          teams: {
+            home: game.teams?.home?.team?.name,
+            away: game.teams?.away?.team?.name
+          }
+        })
+        return game
       }
-      return null
+      
+      console.log(`[GameDataService] No games found for date ${today}`)
+      
+      // Try to find the most recent Mariners game if no game found for today
+      console.log(`[GameDataService] Attempting to find most recent Mariners game...`)
+      return await this.findMostRecentMarinersGame()
     } catch (error) {
       console.error("[GameDataService] Error fetching today's Mariners game with pitcher:", error)
       return null
@@ -56,7 +96,27 @@ export class GameDataService {
 
   // Check if game is live
   isGameLive(game: any): boolean {
-    return game.status?.abstractGameState === 'Live' || game.status?.detailedState === 'In Progress'
+    const abstractState = game.status?.abstractGameState
+    const detailedState = game.status?.detailedState
+    const codedState = game.status?.codedGameState
+    
+    // Log the game status for debugging
+    console.log(`[GameDataService] Checking if game is live:`, {
+      gamePk: game.gamePk,
+      abstractState,
+      detailedState,
+      codedState,
+      gameDate: game.gameDate
+    })
+    
+    // Game is live if it's in progress or in warmup
+    const isLive = abstractState === 'Live' || 
+                   detailedState === 'In Progress' || 
+                   detailedState === 'Warmup' ||
+                   codedState === 'I' // In Progress
+                   
+    console.log(`[GameDataService] Game live status: ${isLive}`)
+    return isLive
   }
 
   // Get current at-bat from game
@@ -75,6 +135,57 @@ export class GameDataService {
       return data || null
     } catch (error) {
       console.error('Error fetching game details:', error)
+      return null
+    }
+  }
+
+  // Find the most recent Mariners game (within the last 7 days)
+  async findMostRecentMarinersGame(): Promise<any | null> {
+    try {
+      const today = new Date()
+      const sevenDaysAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000))
+      
+      const startDate = sevenDaysAgo.toISOString().split('T')[0]
+      const endDate = today.toISOString().split('T')[0]
+      
+      const url = `${this.apiBaseUrl}/schedule?sportId=1&teamId=${this.teamId}&hydrate=probablePitcher&startDate=${startDate}&endDate=${endDate}&sortBy=gameDate&sortOrder=desc`
+      
+      console.log(`[GameDataService] Searching for recent Mariners games from ${startDate} to ${endDate}`)
+      console.log(`[GameDataService] URL: ${url}`)
+      
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      // Find the most recent game
+      for (const date of data.dates || []) {
+        if (date.games && date.games.length > 0) {
+          for (const game of date.games) {
+            if (game.teams?.home?.team?.id === parseInt(this.teamId) || 
+                game.teams?.away?.team?.id === parseInt(this.teamId)) {
+              console.log(`[GameDataService] Found recent Mariners game:`, {
+                gamePk: game.gamePk,
+                gameDate: game.gameDate,
+                status: game.status?.abstractGameState,
+                detailedState: game.status?.detailedState,
+                teams: {
+                  home: game.teams?.home?.team?.name,
+                  away: game.teams?.away?.team?.name
+                }
+              })
+              return game
+            }
+          }
+        }
+      }
+      
+      console.log(`[GameDataService] No recent Mariners games found`)
+      return null
+    } catch (error) {
+      console.error("[GameDataService] Error finding recent Mariners game:", error)
       return null
     }
   }

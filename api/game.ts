@@ -36,8 +36,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'recent-games':
         await handleRecentGames(req, res)
         break
+      case 'debug':
+        await handleDebug(req, res)
+        break
       default:
-        res.status(400).json({ error: 'Invalid action. Supported actions: state, predictions, leaderboard, pitcher-info, pitcher-predictions, recent-games' })
+        res.status(400).json({ error: 'Invalid action. Supported actions: state, predictions, leaderboard, pitcher-info, pitcher-predictions, recent-games, debug' })
     }
   } catch (error) {
     console.error('Error in game API:', error)
@@ -84,10 +87,17 @@ async function handleGameState(req: VercelRequest, res: VercelResponse) {
 
     const isLive = gameDataService.isGameLive(game)
     console.log(`[State API] Game status check:`, {
+      gamePk: game.gamePk,
+      gameDate: game.gameDate,
       status: game.status,
       detailedState: game.status?.detailedState,
       abstractGameState: game.status?.abstractGameState,
-      isLive: isLive
+      codedGameState: game.status?.codedGameState,
+      isLive: isLive,
+      teams: {
+        home: game.teams?.home?.team?.name,
+        away: game.teams?.away?.team?.name
+      }
     })
     
     let currentAtBat = null
@@ -106,13 +116,13 @@ async function handleGameState(req: VercelRequest, res: VercelResponse) {
         console.log(`[State API] AllPlays count:`, detailedGame.liveData?.plays?.allPlays?.length || 0)
         
         currentAtBat = gameDataService.getCurrentAtBat(detailedGame)
-        console.log(`[State API] Current at-bat result:`, currentAtBat ? `At-bat ${currentAtBat.about?.atBatIndex}` : 'No current at-bat')
+        console.log(`[State API] Current at-bat result:`, currentAtBat ? `At-bat ${(currentAtBat as any)?.about?.atBatIndex}` : 'No current at-bat')
         if (currentAtBat) {
           console.log(`[State API] Current at-bat details:`, {
-            atBatIndex: currentAtBat.about?.atBatIndex,
-            batter: currentAtBat.matchup?.batter?.fullName,
-            pitcher: currentAtBat.matchup?.pitcher?.fullName,
-            count: currentAtBat.count
+            atBatIndex: (currentAtBat as any)?.about?.atBatIndex,
+            batter: (currentAtBat as any)?.matchup?.batter?.fullName,
+            pitcher: (currentAtBat as any)?.matchup?.pitcher?.fullName,
+            count: (currentAtBat as any)?.count
           })
         }
       } else {
@@ -1178,6 +1188,53 @@ async function handleRecentGames(req: VercelRequest, res: VercelResponse) {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch recent games'
+    })
+  }
+}
+
+// Debug Handler
+async function handleDebug(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const now = new Date()
+    const pacificTime = now.toLocaleString("en-US", {timeZone: "America/Los_Angeles"})
+    const pacificDate = now.toLocaleDateString("en-US", {timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit"}).replace(/\//g, '-')
+    
+    // Get today's game
+    const game = await gameDataService.getTodaysMarinersGame()
+    
+    res.status(200).json({
+      success: true,
+      debug: {
+        currentTime: {
+          utc: now.toISOString(),
+          pacific: pacificTime,
+          pacificDate: pacificDate
+        },
+        gameData: game ? {
+          gamePk: game.gamePk,
+          gameDate: game.gameDate,
+          officialDate: game.officialDate,
+          status: game.status,
+          teams: {
+            home: game.teams?.home?.team?.name,
+            away: game.teams?.away?.team?.name
+          }
+        } : null,
+        isLive: game ? gameDataService.isGameLive(game) : false,
+        apiBaseUrl: gameDataService.getApiBaseUrl(),
+        teamId: gameDataService.getTeamId()
+      }
+    })
+  } catch (error) {
+    console.error('Error in debug handler:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Debug failed'
     })
   }
 }
