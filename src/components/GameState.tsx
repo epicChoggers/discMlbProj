@@ -102,7 +102,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
               {(marinersTeam as any)?.team?.name || (marinersTeam as any)?.name} vs {(opponentTeam as any)?.team?.name || (opponentTeam as any)?.name}
             </h3>
             <p className="text-gray-400 text-sm">
-              {game.venue?.name || 'Unknown Venue'} •               {(() => {
+              {(game.venue?.name || (game.gameData as any)?.venue?.name || 'Unknown Venue')} •               {(() => {
                 try {
                   // Try different possible date fields and formats
                   const dateValue = game.gameDate || (game.gameData as any)?.game?.gameDate || (game.gameData as any)?.datetime?.originalDate
