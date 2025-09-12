@@ -102,7 +102,7 @@ export const GameState = ({ gameState, isLiveMode }: GameStateWithToggleProps) =
               {(marinersTeam as any)?.team?.name || (marinersTeam as any)?.name} vs {(opponentTeam as any)?.team?.name || (opponentTeam as any)?.name}
             </h3>
             <p className="text-gray-400 text-sm">
-              {game.venue.name} •               {(() => {
+              {game.venue?.name || 'Unknown Venue'} •               {(() => {
                 try {
                   // Try different possible date fields and formats
                   const dateValue = game.gameDate || (game.gameData as any)?.game?.gameDate || (game.gameData as any)?.datetime?.originalDate
@@ -207,9 +207,21 @@ interface CurrentAtBatProps {
 }
 
 const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
-  const { matchup, about } = atBat
+  const { matchup, about } = atBat || {}
   const count = getCountData(atBat)
-  const { batter, pitcher } = matchup
+  const { batter, pitcher } = matchup || {}
+
+  // Don't render if we don't have essential data
+  if (!atBat || !matchup || !batter || !pitcher) {
+    return (
+      <div className="bg-gray-700 rounded-lg p-4">
+        <h4 className="text-white font-semibold mb-3">Current At-Bat</h4>
+        <div className="text-center text-gray-400">
+          At-bat data is not available
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-gray-700 rounded-lg p-4">
@@ -222,8 +234,8 @@ const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
           <div className="flex flex-col items-center space-y-2">
             <div className="relative">
               <img
-                src={getPlayerHeadshot(batter.id, { resolution: 120 })}
-                alt={batter.fullName}
+                src={getPlayerHeadshot(batter?.id || 0, { resolution: 120 })}
+                alt={batter?.fullName || 'Unknown Player'}
                 className="w-12 h-12 rounded-full object-cover border-2 border-gray-600"
                 onError={(e) => {
                   // Fallback to emoji if image fails to load
@@ -242,8 +254,8 @@ const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
               </div>
             </div>
             <div>
-              <div className="text-white font-medium">{batter.fullName}</div>
-              <div className="text-gray-400 text-xs">#{batter.primaryNumber}</div>
+              <div className="text-white font-medium">{batter?.fullName || 'Unknown Player'}</div>
+              <div className="text-gray-400 text-xs">#{batter?.primaryNumber || '?'}</div>
             </div>
           </div>
         </div>
@@ -254,8 +266,8 @@ const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
           <div className="flex flex-col items-center space-y-2">
             <div className="relative">
               <img
-                src={getPlayerHeadshot(pitcher.id, { resolution: 120 })}
-                alt={pitcher.fullName}
+                src={getPlayerHeadshot(pitcher?.id || 0, { resolution: 120 })}
+                alt={pitcher?.fullName || 'Unknown Player'}
                 className="w-12 h-12 rounded-full object-cover border-2 border-gray-600"
                 onError={(e) => {
                   // Fallback to emoji if image fails to load
@@ -274,8 +286,8 @@ const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
               </div>
             </div>
             <div>
-              <div className="text-white font-medium">{pitcher.fullName}</div>
-              <div className="text-gray-400 text-xs">#{pitcher.primaryNumber}</div>
+              <div className="text-white font-medium">{pitcher?.fullName || 'Unknown Player'}</div>
+              <div className="text-gray-400 text-xs">#{pitcher?.primaryNumber || '?'}</div>
             </div>
           </div>
         </div>
@@ -299,7 +311,7 @@ const CurrentAtBat = ({ atBat }: CurrentAtBatProps) => {
 
       {/* Situation */}
       <div className="text-center text-gray-400 text-sm">
-        {about.halfInning === 'top' ? 'Top' : 'Bottom'} of the {about.inning}{getOrdinal(about.inning)}
+        {about?.halfInning === 'top' ? 'Top' : 'Bottom'} of the {about?.inning || '?'}{getOrdinal(about?.inning || 0)}
       </div>
     </div>
   )
@@ -330,17 +342,17 @@ const FinalPlay = ({ game }: FinalPlayProps) => {
       
       <div className="text-gray-300 text-sm">
         <div className="mb-2">
-          <span className="font-medium">{lastPlay.matchup.batter.fullName}</span>
+          <span className="font-medium">{lastPlay.matchup?.batter?.fullName || 'Unknown Player'}</span>
           <span className="text-gray-400 ml-2">
-            {lastPlay.about.halfInning === 'top' ? 'Top' : 'Bottom'} {lastPlay.about.inning}{getOrdinal(lastPlay.about.inning)}
+            {lastPlay.about?.halfInning === 'top' ? 'Top' : 'Bottom'} {lastPlay.about?.inning || '?'}{getOrdinal(lastPlay.about?.inning || 0)}
           </span>
         </div>
         
         <div className="text-white">
-          {lastPlay.result.description}
+          {lastPlay.result?.description || 'No description available'}
         </div>
         
-        {lastPlay.result.rbi > 0 && (
+        {(lastPlay.result?.rbi || 0) > 0 && (
           <div className="text-green-400 mt-1">
             {lastPlay.result.rbi} RBI{lastPlay.result.rbi > 1 ? 's' : ''}
           </div>
