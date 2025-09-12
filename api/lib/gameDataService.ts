@@ -121,20 +121,73 @@ export class GameDataService {
 
   // Get current at-bat from game
   getCurrentAtBat(game: any): any {
-    return game.liveData?.plays?.currentPlay || null
+    console.log(`[GameDataService] Getting current at-bat from game:`, {
+      hasLiveData: !!game.liveData,
+      hasPlays: !!game.liveData?.plays,
+      hasCurrentPlay: !!game.liveData?.plays?.currentPlay,
+      hasAllPlays: !!game.liveData?.plays?.allPlays,
+      allPlaysCount: game.liveData?.plays?.allPlays?.length || 0
+    })
+    
+    // Try to get current play
+    let currentPlay = game.liveData?.plays?.currentPlay
+    
+    // If no current play, try to get the last play from allPlays
+    if (!currentPlay && game.liveData?.plays?.allPlays?.length > 0) {
+      const allPlays = game.liveData.plays.allPlays
+      const lastPlay = allPlays[allPlays.length - 1]
+      
+      // Check if the last play is incomplete (current at-bat)
+      if (lastPlay && lastPlay.about && !lastPlay.about.isComplete) {
+        console.log(`[GameDataService] Using last incomplete play as current at-bat:`, {
+          atBatIndex: lastPlay.about.atBatIndex,
+          isComplete: lastPlay.about.isComplete,
+          batter: lastPlay.matchup?.batter?.fullName
+        })
+        currentPlay = lastPlay
+      }
+    }
+    
+    if (currentPlay) {
+      console.log(`[GameDataService] Found current at-bat:`, {
+        atBatIndex: currentPlay.about?.atBatIndex,
+        isComplete: currentPlay.about?.isComplete,
+        batter: currentPlay.matchup?.batter?.fullName,
+        pitcher: currentPlay.matchup?.pitcher?.fullName,
+        count: currentPlay.count
+      })
+    } else {
+      console.log(`[GameDataService] No current at-bat found`)
+    }
+    
+    return currentPlay || null
   }
 
   // Get full game feed (includes gameData and liveData) by gamePk
   async getGameDetails(gamePk: number): Promise<any | null> {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/game/${gamePk}/feed/live`)
+      // Use v1.1 endpoint for live games as per memory
+      const v11Url = `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`
+      console.log(`[GameDataService] Fetching detailed game data from: ${v11Url}`)
+      
+      const response = await fetch(v11Url)
       if (!response.ok) {
+        console.error(`[GameDataService] HTTP error! status: ${response.status}, statusText: ${response.statusText}`)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
+      
       const data = await response.json()
+      console.log(`[GameDataService] Successfully fetched detailed game data:`, {
+        hasGameData: !!data.gameData,
+        hasLiveData: !!data.liveData,
+        hasPlays: !!data.liveData?.plays,
+        hasCurrentPlay: !!data.liveData?.plays?.currentPlay,
+        allPlaysCount: data.liveData?.plays?.allPlays?.length || 0
+      })
+      
       return data || null
     } catch (error) {
-      console.error('Error fetching game details:', error)
+      console.error('[GameDataService] Error fetching game details:', error)
       return null
     }
   }

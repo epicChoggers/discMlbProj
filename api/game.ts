@@ -128,6 +128,8 @@ async function handleGameState(req: VercelRequest, res: VercelResponse) {
       } else {
         console.log('[State API] Failed to fetch detailed game data, using schedule data')
         detailedGame = game
+        // Even if detailed data fetch fails, we can still show the game is live
+        console.log(`[State API] Game is live but detailed data unavailable - this may be due to API issues or game not having live data yet`)
       }
     } else {
       console.log(`[State API] Game is not live (isLive: ${isLive}, gamePk: ${game.gamePk})`)
